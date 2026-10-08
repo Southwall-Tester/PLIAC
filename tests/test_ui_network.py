@@ -57,7 +57,7 @@ def assert_dark_surfaces(page, selectors):
 
 
 def assert_left_controls(page):
-    controls = page.locator('.topbar button:visible, .topbar a:visible, .topbar .active-course-title:visible').evaluate_all('''elements => elements.map(element => {
+    controls = page.locator('.topbar button:not(#themeButton):visible, .topbar a:visible, .topbar .active-course-title:visible').evaluate_all('''elements => elements.map(element => {
       const r=element.getBoundingClientRect();return {x:r.x,right:r.right,center:r.y+r.height/2};
     })''')
     rows = []
@@ -71,6 +71,11 @@ def assert_left_controls(page):
         assert row[0]['x'] <= 16, row
         assert all(-1 <= right['x'] - left['right'] <= 28 for left, right in zip(row, row[1:])), row
         assert row[-1]['right'] <= page.viewport_size['width'], row
+    theme = page.locator('#themeButton').bounding_box()
+    assert 8 <= page.viewport_size['width'] - theme['x'] - theme['width'] <= 16
+    assert theme['y'] <= 12
+    assert page.locator('#themeButton').inner_text() == ''
+    expect(page.locator('#themeButton svg')).to_be_visible()
     graph_controls = page.locator('.graph-toolbar')
     if graph_controls.is_visible():
         graph_left = page.locator('.graph-pane').bounding_box()['x']
