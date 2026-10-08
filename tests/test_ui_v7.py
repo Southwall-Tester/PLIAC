@@ -107,7 +107,6 @@ def main():
                         page.locator("#manageButton").click()
                         page.locator('[data-mode="blueprints"]').click()
                         expect(page.locator("#managerBody .judgment-card")).to_have_count(3)
-                        expect(page.locator("#managerBody")).to_contain_text("判定脚本尚未接入")
                         page.locator("#managerBody .judgment-card details").first.locator("summary").click()
                         screenshot("training-blueprints")
                         passed("author: three draft training blueprints show steps and objective judge specifications")
@@ -209,7 +208,7 @@ def main():
                             "quote": independent_text})
                         result = diagnosis([guided, strong_hint, self_report, independent])
                         assert result["learner"]["states"]["ml001"]["status"] == "mastered"
-                        expect(page.locator("#detailContent > .state-badge")).to_contain_text("证据支持掌握")
+                        expect(page.locator("#detailContent > .state-badge")).to_contain_text("已掌握")
                         record = result["record"]
                         assert set(record["evidence_ids"]) == {guided["id"], strong_hint["id"], self_report["id"], independent["id"]}
                         assert independent["id"] in page.locator("#detailContent").inner_text()

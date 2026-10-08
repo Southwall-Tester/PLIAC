@@ -154,8 +154,8 @@ def main():
                     recommendation = pending.value.json()
                     action_id = recommendation["actions"][0]["id"]
                     expect(page.locator("#recommendationTrace")).to_be_visible()
-                    expect(page.locator("#recommendationTrace")).to_contain_text("资源为什么这样选")
-                    expect(page.locator("#actionHistory")).to_contain_text("等待新的任务作答和复核")
+                    expect(page.locator("#recommendationTrace")).to_contain_text("推荐依据")
+                    expect(page.locator("#actionHistory")).to_contain_text("待核验")
                     page.locator("#recommendationTrace details summary").click()
                     expect(page.locator("#recommendationTrace details")).to_contain_text("资源前置知识仍待核验")
                     page.locator("#recommendationTrace").scroll_into_view_if_needed()
@@ -208,9 +208,9 @@ def main():
                     observation = next(a for a in result["action_history"] if a["action_id"] == action_id)
                     assert observation["outcome"] == "observed"
                     assert observation["observations"][0]["diagnosis_id"] == diagnosis["id"]
-                    expect(page.locator("#actionHistory")).to_contain_text("已有后续复核记录")
+                    expect(page.locator("#actionHistory")).to_contain_text("已复核")
                     expect(page.locator("#actionHistory")).to_contain_text("本次判断")
-                    observed_card = page.locator("#actionHistory article").filter(has_text="已有后续复核记录")
+                    observed_card = page.locator("#actionHistory article").filter(has_text="已复核")
                     observed_card.locator("details summary").click()
                     expect(observed_card).to_contain_text(action_id)
                     expect(observed_card).to_contain_text(proof["id"])
@@ -221,7 +221,7 @@ def main():
 
                     page.reload()
                     page.locator('[data-tab="path"]').click()
-                    expect(page.locator("#actionHistory")).to_contain_text("已有后续复核记录")
+                    expect(page.locator("#actionHistory")).to_contain_text("已复核")
                     page.set_viewport_size({"width": 390, "height": 844})
                     page.locator("#actionHistory").scroll_into_view_if_needed()
                     assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
