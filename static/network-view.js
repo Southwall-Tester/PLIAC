@@ -42,8 +42,10 @@
         if(firstLayout)this.force.step(320);
         const positions=new Map(this.force.positions().map(p=>[p.id,p.style]));
         const dark=document.body.classList.contains('network-dark');
-        const nodes=data.nodes.map(n=>({...n,style:{fill:'#8c9ba7',stroke:'#ffffff',lineWidth:1,opacity:1,labelOpacity:1,shadowBlur:0,size:12,...n.style,...positions.get(n.id),labelFill:dark?'#e8edf6':'#222',labelText:this.labels?n.data.title:''}}));
-        const edges=data.edges.map(e=>({...e,style:{stroke:dark?'#738199':'#969da4',opacity:.75,...e.style,labelText:this.labels?(e.data?.label||''):'',labelFill:dark?'#c9d0df':'#555',labelBackgroundFill:dark?'#111820':'#fff'}}));
+        const nodes=data.nodes.map(n=>({...n,style:{fill:GraphEncoding.rootFill,stroke:GraphEncoding.outline(n.style?.fill||GraphEncoding.rootFill),lineWidth:1,opacity:1,labelOpacity:1,shadowBlur:0,size:12,...n.style,...positions.get(n.id),labelFill:dark?'#e8edf6':'#303b4c',labelText:this.labels?n.data.title:''}}));
+        const fills=new Map(nodes.map(n=>[n.id,n.style.fill]));
+        // Relations follow the source node's family; line style still encodes relation type.
+        const edges=data.edges.map(e=>({...e,style:{stroke:fills.get(e.source)||GraphEncoding.rootFill,opacity:.35,...e.style,labelText:this.labels?(e.data?.label||''):'',labelFill:dark?'#c9d0df':'#5c6778',labelBackgroundFill:dark?'#111820':'#fcfbf9'}}));
         this.baseNodes=new Map(nodes.map(n=>[n.id,{...n.style}]));this.baseEdges=new Map(edges.map(e=>[e.id,{...e.style}]));
         // Preserve an in-flight highlight when node selection redraws the same topology.
         if(!reset){for(const n of nodes)if(this.visualNodes.has(n.id))Object.assign(n.style,this.visualNodes.get(n.id));for(const e of edges)if(this.visualEdges.has(e.id))Object.assign(e.style,this.visualEdges.get(e.id));}

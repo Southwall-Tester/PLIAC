@@ -1,8 +1,11 @@
 /* Semantic visual encoding. Group order is taken from the full source, never a filtered view. */
 (() => {
-  const hues=['#0072b2','#b87600','#007f73','#8051a5','#b14975','#bc5534','#537e32','#43599b','#795548','#318a9d','#a74738','#6a6c30','#915f9a','#486973'];
+  // Clear chapter colors with moderated saturation; connections stay visually secondary.
+  const hues=['#6bcaa4','#e99bb6','#af97da','#e9ca76','#7bc9d2','#a8cf80','#eaa597','#9fabe0','#d597c6','#72c3b2','#e7b780','#c5d184','#c59cdb','#86c1d9'];
+  const rootFill='#b09adb';
   const mix=(hex,amount)=>'#'+hex.slice(1).match(/../g).map(h=>Math.round(parseInt(h,16)*(1-amount)+255*amount).toString(16).padStart(2,'0')).join('');
-  const family=(index,role='concept')=>index<0?'#8c9ba7':mix(hues[index%hues.length],role==='concept'?.25:role==='section'?.12:0);
+  const family=(index,role='concept')=>index<0?rootFill:mix(hues[index%hues.length],role==='concept'?.04:role==='section'?.02:0);
+  const outline=hex=>'#'+hex.slice(1).match(/../g).map(h=>Math.round(parseInt(h,16)*.78).toString(16).padStart(2,'0')).join('');
   const size=(depth,kind='chapter')=>kind==='concept'?12:[42,32,26,22,19,17,15][Math.min(6,Math.max(0,depth))];
   function documentFamilies(structure,memberships){
     const byId=new Map(structure.map(n=>[n.id,n]));
@@ -23,9 +26,9 @@
     // Memberships already follow source evidence order; resolve the first owner once.
     for(const m of memberships)if(!conceptOwners.has(m.node_id)){const group=owner(m.parent_id);if(group)conceptOwners.set(m.node_id,group);}
     function encoding(id){const container=byId.get(id),group=container?owner(id):conceptOwners.get(id),i=group?index.get(group.id):-1;
-      return {family_id:group?.id||null,family_title:group?.title||'',depth:container?depth(id):null,kind:container?.kind||'concept',fill:container&&!container.parent_id?'#8c9ba7':family(i,container?(depth(id)>1?'section':'chapter'):'concept'),size:size(container?depth(id):0,container?'chapter':'concept')};
+      return {family_id:group?.id||null,family_title:group?.title||'',depth:container?depth(id):null,kind:container?.kind||'concept',fill:container&&!container.parent_id?rootFill:family(i,container?(depth(id)>1?'section':'chapter'):'concept'),size:size(container?depth(id):0,container?'chapter':'concept')};
     }
     return {families:families.map((f,i)=>({...f,color:family(i)})),encoding};
   }
-  window.GraphEncoding={family,size,documentFamilies};
+  window.GraphEncoding={family,size,documentFamilies,rootFill,outline};
 })();

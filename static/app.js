@@ -8,7 +8,7 @@
   const origins = {learner_expression:'学习者实际表达',system_completion:'系统补全',model_inference:'模型推断'};
   const sourceTypes = {manual:'人工采录',dialog:'对话原话',quiz:'题目作答',practice:'实训操作',annotation:'疑问标记',self_assessment:'学习者自评',technical:'技术异常'};
   const formats = {video:'讲解视频',lesson:'解读教案',case:'案例资料',practice:'情境式实训',course:'补充课程'};
-  const colors = {unknown:['#f8fafc','#becbd7','#657b90'],uncertain:['#fff8e8','#d8b05c','#9c7524'],needs_review:['#fdf0ed','#d78d7c','#aa5140'],mastered:['#eef8f2','#6cae93','#277558']};
+  const colors = {unknown:['#f7f0ff','#b09adb','#7650a3'],uncertain:['#fff8db','#e9ca76','#95700d'],needs_review:['#fff0f6','#e99bb6','#b43c69'],mastered:['#eafff3','#6bcaa4','#237851']};
   const view = ['/author','/admin'].includes(location.pathname) ? 'draft' : 'published';
   let graph = null, learner = {}, summary = {}, publication = {}, student = '', selected = '', chapter = 'all', activeTab = 'detail', mode = 'node';
   let renderer, network, topology='', renderBusy=false, renderAgain=false, loadToken=0, detailToken=0, toastTimer, pathResult=null, extracted=null;
@@ -159,14 +159,14 @@
       const edges=isExpression?expressionRecords().flatMap(e=>(e.expressed_relations||[]).map((r,i)=>({id:`expressed_${e.id}_${i}`,source:r.source,target:r.target,type:'expressed',relation:r.relation,reason:r.quote,origin:e.origin,evidence_id:e.id}))).filter(e=>ids.has(e.source)&&ids.has(e.target)):graph.edges.filter(e=>ids.has(e.source)&&ids.has(e.target)&&(filter==='all'||e.type===filter));
       const pathIds=new Set(pathResult?.steps?.map(s=>s.node_id)||[]);
       renderColorLegend();
-      const data={nodes:nodes.map(n=>{const inferred=isExpression&&mapped.get(n.id)!=='learner_expression';return{id:n.id,data:{title:n.title+(inferred?`（${mapped.get(n.id)==='system_completion'?'补全':'推断'}）`:''),family_id:n.chapter_id,kind:'concept'},style:{fill:conceptFill(n),size:GraphEncoding.size(0,'concept'),stroke:n.id===selected?'#293d55':'#fff',lineWidth:n.id===selected?2:1,lineDash:inferred?[4,3]:undefined,opacity:(pathIds.size && !pathIds.has(n.id)) ? 0.3 : 1}};}),edges:edges.map(e=>({id:e.id,source:e.source,target:e.target,data:{label:e.type==='expressed'?e.relation:relations[e.type],reason:e.reason,origin:e.origin,relation:e.relation,evidence_id:e.evidence_id,type:e.type},style:{lineDash:['related','confusable'].includes(e.type)||(e.type==='expressed'&&e.origin!=='learner_expression')?[5,4]:undefined,endArrow:['prerequisite','contains','expressed'].includes(e.type),opacity:.7}}))};
+      const data={nodes:nodes.map(n=>{const inferred=isExpression&&mapped.get(n.id)!=='learner_expression';return{id:n.id,data:{title:n.title+(inferred?`（${mapped.get(n.id)==='system_completion'?'补全':'推断'}）`:''),family_id:n.chapter_id,kind:'concept'},style:{fill:conceptFill(n),size:GraphEncoding.size(0,'concept'),stroke:n.id===selected?'#526580':GraphEncoding.outline(conceptFill(n)),lineWidth:n.id===selected?2:1,lineDash:inferred?[4,3]:undefined,opacity:(pathIds.size && !pathIds.has(n.id)) ? 0.3 : 1}};}),edges:edges.map(e=>({id:e.id,source:e.source,target:e.target,data:{label:e.type==='expressed'?e.relation:relations[e.type],reason:e.reason,origin:e.origin,relation:e.relation,evidence_id:e.evidence_id,type:e.type},style:{lineDash:['related','confusable'].includes(e.type)||(e.type==='expressed'&&e.origin!=='learner_expression')?[5,4]:undefined,endArrow:['prerequisite','contains','expressed'].includes(e.type),opacity:.35}}))};
       if(hierarchy){
         const structures=h.structure.filter(s=>h.visible(s.id)&&($('levelFilter').value!=='root'||!s.parent_id)),present=new Set(structures.map(s=>s.id));
         for(const s of structures){
           data.nodes.push({id:s.id,data:{title:s.title+(collapsed.has(s.id)?' ＋':''),family_id:graph.chapters[s.group]?.id||null,depth:s.depth,kind:'chapter'},style:{fill:GraphEncoding.family(s.group,s.depth>1?'section':'chapter'),size:GraphEncoding.size(s.depth)}});
-          if(s.parent_id&&present.has(s.parent_id))data.edges.push({id:'hierarchy_'+s.id,source:s.parent_id,target:s.id,data:{label:'包含',type:'hierarchy'},style:{stroke:'#abc0c9',endArrow:true}});
+          if(s.parent_id&&present.has(s.parent_id))data.edges.push({id:'hierarchy_'+s.id,source:s.parent_id,target:s.id,data:{label:'包含',type:'hierarchy'},style:{endArrow:true}});
         }
-        for(const m of h.memberships)if(ids.has(m.target)&&present.has(m.source))data.edges.push({id:`member_${m.source}_${m.target}`,source:m.source,target:m.target,data:{label:'包含',type:'hierarchy'},style:{stroke:'#bdc8ce',opacity:.4,endArrow:true}});
+        for(const m of h.memberships)if(ids.has(m.target)&&present.has(m.source))data.edges.push({id:`member_${m.source}_${m.target}`,source:m.source,target:m.target,data:{label:'包含',type:'hierarchy'},style:{opacity:.24,endArrow:true}});
       }
       const nextTopology=JSON.stringify([data.nodes.map(n=>n.id),data.edges.map(e=>[e.id,e.source,e.target])]);
       const el=$('graph');
