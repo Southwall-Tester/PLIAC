@@ -1,0 +1,7 @@
+/* Reserve the upper-right corner while other toolbar actions wrap on the left. */
+header.theme-toolbar{position:relative;padding-right:58px}
+header #themeButton{position:absolute;top:10px;right:12px;display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;min-width:34px;padding:0;margin:0;border:1px solid var(--control-border,#d5d7da);border-radius:5px;background:var(--control-bg,var(--paper,var(--surface,#fff)));color:var(--control-text,var(--ink,var(--text,#41454b)));cursor:pointer;line-height:1}
+header #themeButton:hover{background:var(--control-hover,var(--hover,#f2f3f4));border-color:var(--control-focus,#969ba1)}
+header #themeButton:focus-visible{outline:2px solid var(--control-focus,#82878c);outline-offset:3px}
+#themeButton svg{display:block;flex:none;pointer-events:none}
+@media(max-width:600px){header #themeButton{top:8px;right:10px}}

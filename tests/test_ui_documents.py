@@ -86,7 +86,7 @@ def assert_surface_theme(page, selectors, *, dark):
 
 
 def assert_left_toolbar(page):
-    controls = page.locator(".toolbar button:visible, .toolbar a:visible, .toolbar select:visible, .toolbar .active-course-title:visible").evaluate_all("""elements => elements.map(element => {
+    controls = page.locator(".toolbar button:not(#themeButton):visible, .toolbar a:visible, .toolbar select:visible, .toolbar .active-course-title:visible").evaluate_all("""elements => elements.map(element => {
         const r=element.getBoundingClientRect(); return {x:r.x,right:r.right,center:r.y+r.height/2};
     })""")
     rows = []
@@ -100,6 +100,11 @@ def assert_left_toolbar(page):
         assert row[0]["x"] <= 16, row
         assert all(-1 <= right["x"] - left["right"] <= 28 for left, right in zip(row, row[1:])), row
         assert row[-1]["right"] <= page.viewport_size["width"], row
+    theme = page.locator('#themeButton').bounding_box()
+    assert 8 <= page.viewport_size['width'] - theme['x'] - theme['width'] <= 16
+    assert theme['y'] <= 12
+    assert page.locator('#themeButton').inner_text() == ''
+    expect(page.locator('#themeButton svg')).to_be_visible()
 
 
 @contextmanager
