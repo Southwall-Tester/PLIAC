@@ -1,0 +1,2 @@
+# Preserve exact scanned bytes so SHA-256 checks agree on Windows and Linux.
+*.json -text
