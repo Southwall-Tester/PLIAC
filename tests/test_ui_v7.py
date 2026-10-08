@@ -103,7 +103,7 @@ def main():
                             expect(page.locator("#graphMessage")).to_be_hidden()
                         page.locator("#fitButton").click()
                         screenshot("author-draft")
-                        passed("author: 40 nodes, 68 relations, G6 canvas and all four relation filters")
+                        passed("author: 40 nodes, 68 relations, graph canvas and all four relation filters")
 
                         page.locator("#manageButton").click()
                         page.locator('[data-mode="blueprints"]').click()
@@ -253,8 +253,8 @@ def main():
                         assert student_record()["states"]["ml001"]["status"] == "mastered"
                         passed("student: explained next step persisted; actual resource selection recorded without mastery credit")
 
-                        # Test actual renderer data, preserving G6 behavior with a read-only
-                        # capture wrapper around its existing setData call.
+                        # Inspect the active renderer through a read-only wrapper,
+                        # preserving its existing setData behavior.
                         for origin, source_node, target_node, quote in (
                             ("system_completion", "ml003", "ml002", "UI_TEST_ONLY：模型使用样本输出预测。"),
                             ("model_inference", "ml004", "ml003", "UI_TEST_ONLY：模型拟合需要确定参数。"),
@@ -272,8 +272,9 @@ def main():
                         expect(page.locator("#nodeCount")).to_have_text("40")
                         page.locator("#filtersButton").click()
                         page.evaluate("""() => {
-                            const original = G6.Graph.prototype.setData;
-                            G6.Graph.prototype.setData = function(data) {
+                            const Graph = window.PIXI && window.CoursePixiGraph ? CoursePixiGraph : G6.Graph;
+                            const original = Graph.prototype.setData;
+                            Graph.prototype.setData = function(data) {
                                 window.__uiRenderedData = structuredClone(data);
                                 return original.call(this, data);
                             };
