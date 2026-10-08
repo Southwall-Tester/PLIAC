@@ -1,0 +1,752 @@
+{
+  "schema_version": 1,
+  "course_id": "ml_classification",
+  "title": "监督分类统一实训骨架（待审核资产）",
+  "version": 1,
+  "review_status": "draft",
+  "reviewer": "",
+  "reviewed_at": "",
+  "review_note": "待教师审核",
+  "runtime_status": "not_implemented",
+  "blueprints": [
+    {
+      "course_id": "ml_classification",
+      "version": 1,
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核",
+      "difficulty": "入门（课程侧待审核）",
+      "context_fields": [
+        {
+          "name": "scenario",
+          "allowed_change": "故事背景与任务叙事",
+          "invariant": "不得改变任务目标、步骤、评分规则或难度。"
+        },
+        {
+          "name": "roles",
+          "allowed_change": "角色名称与称呼",
+          "invariant": "角色设定不得参与能力判断。"
+        },
+        {
+          "name": "feature_display_names",
+          "allowed_change": "特征的展示名称",
+          "invariant": "必须保持一一映射，不改变底层值、顺序、单位约束、特征可用时间或语义难度。"
+        },
+        {
+          "name": "artifact_display_names",
+          "allowed_change": "工作文件的展示名称",
+          "invariant": "通过清单映射至固定逻辑文件ID，不修改样本标识、结构或判定目标。"
+        }
+      ],
+      "invariants": [
+        "课程ID、骨架ID与版本、目标节点、步骤顺序及判定规则保持不变。",
+        "底层数据的规模、类别分布、特征数值、噪声与难度保持不变。",
+        "只可更改列明的情境外观字段；生成后必须校验与骨架逐项一致。",
+        "统一使用原生 Python/scikit-learn 接口，不设计替代标准语言的情境专用指令。",
+        "兴趣偏好仅用于情境外观，不作为能力或掌握程度证据。",
+        "使用隔离环境执行；本资产尚未提供环境或判定脚本，不接受虚构通过记录。"
+      ],
+      "runtime_status": "not_implemented",
+      "execution_note": "仅为待审核的统一考核骨架资产；隔离运行环境、自动判定脚本、过程采集及会话恢复尚未实现。参数缺失或技术故障不得记为能力不足。",
+      "id": "bp_split",
+      "title": "分类数据划分与泄漏检查",
+      "specification_refs": [
+        "v7 §2.3",
+        "v7 §3.2",
+        "v7 附录 A.2 步骤1"
+      ],
+      "target_node_ids": [
+        "ml005",
+        "ml006",
+        "ml008",
+        "ml011",
+        "ml014",
+        "ml015",
+        "ml017",
+        "ml038"
+      ],
+      "prerequisite_ids": [
+        "ml001",
+        "ml002",
+        "ml003"
+      ],
+      "steps": [
+        {
+          "id": "split_1",
+          "title": "按样本标识生成训练、验证、测试清单",
+          "judge_spec": {
+            "method": "deterministic_script",
+            "implementation_status": "not_implemented",
+            "status": "parameters_required",
+            "assertions": [
+              "三份样本ID均来自指定数据版本，内部无重复；两两交集为空，合并后覆盖本任务数据清单。",
+              "各份样本数符合课程给定比例及整数取整规则；分类分层策略符合课程配置。",
+              "数据划分记录发生在任何需要学习统计量的预处理拟合之前。"
+            ],
+            "parameters_required": [
+              "dataset_manifest_and_version",
+              "split_ratios",
+              "integer_rounding_rule",
+              "stratification_policy"
+            ],
+            "required_artifacts": [
+              "train_ids",
+              "validation_ids",
+              "test_ids",
+              "split_config",
+              "operation_events"
+            ],
+            "on_missing_parameters": "blocked_configuration",
+            "on_runtime_failure": "technical_error_retry_same_checkpoint",
+            "ability_inference_on_error": false
+          },
+          "error_type_ids": [
+            "err_split_overlap",
+            "err_split_ratio",
+            "err_split_preprocess_first"
+          ],
+          "hints": [
+            "检查三份数据清单及划分顺序。",
+            "同一个样本是否出现在两份清单中，全部样本是否都有去处？",
+            "分别检查集合交集、并集、数量和类别构成。",
+            "先按课程规则划分原始样本，再对训练部分拟合所需处理器。"
+          ]
+        },
+        {
+          "id": "split_2",
+          "title": "记录并复现随机划分",
+          "judge_spec": {
+            "method": "deterministic_script",
+            "implementation_status": "not_implemented",
+            "status": "parameters_required",
+            "assertions": [
+              "随机设置为任务配置允许的固定值，数据版本、输入顺序、库版本和划分配置均有记录。",
+              "在相同输入和配置下重新执行划分，三份样本ID清单分别与首次结果一致。",
+              "不通过反复更换随机种子挑选验证或测试表现较好的划分。"
+            ],
+            "parameters_required": [
+              "approved_random_configuration",
+              "environment_version"
+            ],
+            "required_artifacts": [
+              "split_config",
+              "repeated_split_ids",
+              "operation_events"
+            ],
+            "on_missing_parameters": "blocked_configuration",
+            "on_runtime_failure": "technical_error_retry_same_checkpoint",
+            "ability_inference_on_error": false
+          },
+          "error_type_ids": [
+            "err_split_seed_missing",
+            "err_split_seed_shopping"
+          ],
+          "hints": [
+            "检查复现实验所需的记录。",
+            "第二次执行除了种子，还有哪些条件可能改变？",
+            "随机过程需结合固定数据、顺序与完整配置复现。",
+            "对照两次样本ID清单，并补齐变化来源；不要根据成绩挑种子。"
+          ]
+        },
+        {
+          "id": "split_3",
+          "title": "检查预处理的训练边界",
+          "judge_spec": {
+            "method": "deterministic_script",
+            "implementation_status": "not_implemented",
+            "status": "parameters_required",
+            "assertions": [
+              "若课程指定预处理器，其 fit 使用的样本ID集合必须等于当前训练集合，不含验证或测试样本。",
+              "验证与测试只应用训练部分拟合好的同一处理器；若无需预处理，按课程允许的恒等变换记录。",
+              "不得仅凭处理后结果相似判断无泄漏，需校验拟合调用记录及样本来源。"
+            ],
+            "parameters_required": [
+              "preprocessing_spec",
+              "fit_provenance_contract"
+            ],
+            "required_artifacts": [
+              "fit_sample_ids",
+              "transformer_artifact",
+              "transform_events"
+            ],
+            "on_missing_parameters": "blocked_configuration",
+            "on_runtime_failure": "technical_error_retry_same_checkpoint",
+            "ability_inference_on_error": false
+          },
+          "error_type_ids": [
+            "err_split_preprocess_first",
+            "err_split_refit_holdout"
+          ],
+          "hints": [
+            "检查处理器在哪些样本上调用了 fit。",
+            "验证或测试样本有没有影响均值、填补值或特征选择？",
+            "统一变换不等于在每个子集各自重新拟合。",
+            "只从训练部分学习处理参数，再复用到留出集；不需要处理时按配置保留原值。"
+          ]
+        }
+      ],
+      "error_types": [
+        {
+          "id": "err_split_overlap",
+          "manifestation": "训练、验证、测试出现重复样本或漏掉样本。",
+          "node_ids": [
+            "ml005",
+            "ml014"
+          ],
+          "misconception": "数据集名称不同就代表它们相互独立。",
+          "guidance": "要求学习者查看样本ID的交集与并集，定位重叠或遗漏来源。"
+        },
+        {
+          "id": "err_split_ratio",
+          "manifestation": "划分数量或类别比例不符合课程指定规则。",
+          "node_ids": [
+            "ml005",
+            "ml017"
+          ],
+          "misconception": "只需大致切三段，不必记录取整和分层规则。",
+          "guidance": "引导对照固定总量、比例、取整及分层策略，勿把任意比例当成标准。"
+        },
+        {
+          "id": "err_split_preprocess_first",
+          "manifestation": "划分之前用全量数据拟合标准化或特征选择。",
+          "node_ids": [
+            "ml014",
+            "ml015"
+          ],
+          "misconception": "不直接使用标签的处理不会泄漏。",
+          "guidance": "追问处理统计量来自哪些样本，再恢复正确拟合边界。"
+        },
+        {
+          "id": "err_split_refit_holdout",
+          "manifestation": "在验证或测试数据上重新 fit 处理器。",
+          "node_ids": [
+            "ml015"
+          ],
+          "misconception": "分别标准化各个子集就是一致预处理。",
+          "guidance": "要求说明训练得到的表示与预测表示如何保持一致。"
+        },
+        {
+          "id": "err_split_seed_missing",
+          "manifestation": "未记录随机设置或重跑无法复现样本清单。",
+          "node_ids": [
+            "ml038"
+          ],
+          "misconception": "写了一个种子就不需记录数据和环境。",
+          "guidance": "检查数据版本、样本顺序、所有随机设置和库版本。"
+        },
+        {
+          "id": "err_split_seed_shopping",
+          "manifestation": "更换随机种子后按评估成绩选择划分。",
+          "node_ids": [
+            "ml038",
+            "ml014"
+          ],
+          "misconception": "随机种子是可以用最终成绩随意挑选的参数。",
+          "guidance": "要求把划分规则固定在成绩比较之前，并追踪结果是否泄入选择。"
+        }
+      ]
+    },
+    {
+      "course_id": "ml_classification",
+      "version": 1,
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核",
+      "difficulty": "入门（课程侧待审核）",
+      "context_fields": [
+        {
+          "name": "scenario",
+          "allowed_change": "故事背景与任务叙事",
+          "invariant": "不得改变任务目标、步骤、评分规则或难度。"
+        },
+        {
+          "name": "roles",
+          "allowed_change": "角色名称与称呼",
+          "invariant": "角色设定不得参与能力判断。"
+        },
+        {
+          "name": "feature_display_names",
+          "allowed_change": "特征的展示名称",
+          "invariant": "必须保持一一映射，不改变底层值、顺序、单位约束、特征可用时间或语义难度。"
+        },
+        {
+          "name": "artifact_display_names",
+          "allowed_change": "工作文件的展示名称",
+          "invariant": "通过清单映射至固定逻辑文件ID，不修改样本标识、结构或判定目标。"
+        }
+      ],
+      "invariants": [
+        "课程ID、骨架ID与版本、目标节点、步骤顺序及判定规则保持不变。",
+        "底层数据的规模、类别分布、特征数值、噪声与难度保持不变。",
+        "只可更改列明的情境外观字段；生成后必须校验与骨架逐项一致。",
+        "统一使用原生 Python/scikit-learn 接口，不设计替代标准语言的情境专用指令。",
+        "兴趣偏好仅用于情境外观，不作为能力或掌握程度证据。",
+        "使用隔离环境执行；本资产尚未提供环境或判定脚本，不接受虚构通过记录。"
+      ],
+      "runtime_status": "not_implemented",
+      "execution_note": "仅为待审核的统一考核骨架资产；隔离运行环境、自动判定脚本、过程采集及会话恢复尚未实现。参数缺失或技术故障不得记为能力不足。",
+      "id": "bp_tree_diagnosis",
+      "title": "分类树深度对照与拟合诊断",
+      "specification_refs": [
+        "v7 §2.4",
+        "v7 §4.3",
+        "v7 附录 A.2 步骤2–3"
+      ],
+      "target_node_ids": [
+        "ml007",
+        "ml009",
+        "ml010",
+        "ml019",
+        "ml020",
+        "ml021",
+        "ml022",
+        "ml026",
+        "ml037",
+        "ml039",
+        "ml040"
+      ],
+      "prerequisite_ids": [
+        "ml001",
+        "ml002",
+        "ml003",
+        "ml005",
+        "ml006",
+        "ml008",
+        "ml011",
+        "ml038"
+      ],
+      "steps": [
+        {
+          "id": "tree_1",
+          "title": "在固定条件下训练深度候选并记录两组表现",
+          "judge_spec": {
+            "method": "deterministic_script",
+            "implementation_status": "not_implemented",
+            "status": "parameters_required",
+            "assertions": [
+              "训练清单覆盖课程配置的全部深度候选，且仅改变允许比较的超参数。",
+              "每个候选只在训练样本上拟合，使用相同划分、特征处理和规定随机设置。",
+              "结果表同时包含训练与验证准确率、实际样本数、深度配置和模型记录；判定器根据预测重新计算准确率。"
+            ],
+            "parameters_required": [
+              "dataset_and_split_version",
+              "depth_candidates",
+              "fixed_estimator_configuration",
+              "numeric_comparison_tolerance"
+            ],
+            "required_artifacts": [
+              "candidate_models",
+              "train_predictions",
+              "validation_predictions",
+              "comparison_table",
+              "fit_events"
+            ],
+            "on_missing_parameters": "blocked_configuration",
+            "on_runtime_failure": "technical_error_retry_same_checkpoint",
+            "ability_inference_on_error": false
+          },
+          "error_type_ids": [
+            "err_tree_train_only",
+            "err_tree_multiple_changes",
+            "err_tree_accuracy_definition"
+          ],
+          "hints": [
+            "检查结果表是否同时记录两组表现。",
+            "各行除了树深度，还改变了什么？",
+            "用相同划分与指标比较，训练和验证的预测都应可复算。",
+            "固定其他条件，补齐每个候选的预测、样本数与两组准确率。"
+          ]
+        },
+        {
+          "id": "tree_2",
+          "title": "根据课程判据标注拟合现象",
+          "judge_spec": {
+            "method": "deterministic_script",
+            "implementation_status": "not_implemented",
+            "status": "parameters_required",
+            "assertions": [
+              "学习者提交每个深度对应的现象标签及引用的训练/验证指标。",
+              "现象标签与课程基于固定数据校准的期望标签及容差规则一致；不存在适用现象时允许课程配置的“证据不足/无明显现象”。",
+              "不得用单个训练分数或未经校准的统一阈值直接宣布欠拟合或过拟合。"
+            ],
+            "parameters_required": [
+              "approved_fit_diagnosis_rules",
+              "expected_pattern_by_depth",
+              "diagnosis_tolerance"
+            ],
+            "required_artifacts": [
+              "diagnosis_labels",
+              "referenced_result_rows"
+            ],
+            "on_missing_parameters": "blocked_configuration",
+            "on_runtime_failure": "technical_error_retry_same_checkpoint",
+            "ability_inference_on_error": false
+          },
+          "error_type_ids": [
+            "err_tree_both_bad_overfit",
+            "err_tree_gap_certainty"
+          ],
+          "hints": [
+            "检查你的现象标签对应哪两列证据。",
+            "训练和验证都较差，与训练好而验证较差，说明相同问题吗？",
+            "先确认评估可比，再按课程判据区分拟合不足与对训练细节过度适应。",
+            "逐行引用证据；规则尚未配置或现象不明显时保留待核验。"
+          ]
+        },
+        {
+          "id": "tree_3",
+          "title": "依据验证表现选择深度并保存依据",
+          "judge_spec": {
+            "method": "deterministic_script",
+            "implementation_status": "not_implemented",
+            "status": "parameters_required",
+            "assertions": [
+              "所选深度属于课程候选集合，验证准确率与最高验证准确率的差不超过课程批准容差。",
+              "若多候选满足条件，按课程批准的并列选择规则处理，不任意要求唯一数值。",
+              "选择依据引用验证结果；测试数据与测试指标未参与这一选择。"
+            ],
+            "parameters_required": [
+              "selection_tolerance",
+              "tie_break_rule"
+            ],
+            "required_artifacts": [
+              "selected_candidate_id",
+              "selection_evidence",
+              "selection_events"
+            ],
+            "on_missing_parameters": "blocked_configuration",
+            "on_runtime_failure": "technical_error_retry_same_checkpoint",
+            "ability_inference_on_error": false
+          },
+          "error_type_ids": [
+            "err_tree_select_by_train",
+            "err_tree_peek_test"
+          ],
+          "hints": [
+            "检查选择依据引用了哪份数据。",
+            "你选的是训练最高，还是验证表现符合要求的候选？",
+            "训练准确率用于了解拟合，候选选择依赖验证证据。",
+            "按课程给出的容差与并列规则选择，并保留测试集用于最后评估。"
+          ]
+        }
+      ],
+      "error_types": [
+        {
+          "id": "err_tree_train_only",
+          "manifestation": "只记录训练准确率，缺少验证结果。",
+          "node_ids": [
+            "ml007",
+            "ml008",
+            "ml012"
+          ],
+          "misconception": "训练准确率足以代表泛化。",
+          "guidance": "要求补上相同口径的验证预测，再比较两组证据。"
+        },
+        {
+          "id": "err_tree_multiple_changes",
+          "manifestation": "比较深度时同时更换划分或其他训练设置。",
+          "node_ids": [
+            "ml009",
+            "ml019",
+            "ml040"
+          ],
+          "misconception": "任何成绩变化都能归因于树深度。",
+          "guidance": "列出每行配置差异，恢复只改变指定因素的对照。"
+        },
+        {
+          "id": "err_tree_accuracy_definition",
+          "manifestation": "准确率分子、分母或样本对应关系错误。",
+          "node_ids": [
+            "ml037"
+          ],
+          "misconception": "只统计预测为正的样本也能得到准确率。",
+          "guidance": "从逐样本预测对照出发，核对正确数与全部样本数。"
+        },
+        {
+          "id": "err_tree_both_bad_overfit",
+          "manifestation": "把训练和验证均差的候选直接标为过拟合。",
+          "node_ids": [
+            "ml020",
+            "ml021"
+          ],
+          "misconception": "所有低准确率都叫过拟合。",
+          "guidance": "引导分别说明训练拟合与留出表现，再按课程规则辨析。"
+        },
+        {
+          "id": "err_tree_gap_certainty",
+          "manifestation": "仅凭一点分数差异确定唯一原因。",
+          "node_ids": [
+            "ml022"
+          ],
+          "misconception": "任何差距都能无条件证明过拟合。",
+          "guidance": "要求检查数据和计算条件，保留证据不足的选项。"
+        },
+        {
+          "id": "err_tree_select_by_train",
+          "manifestation": "按训练准确率最高选择模型。",
+          "node_ids": [
+            "ml008",
+            "ml010",
+            "ml021"
+          ],
+          "misconception": "记住训练样本最多的模型最适合新数据。",
+          "guidance": "追问模型选择应该使用哪份数据，并比较对应列。"
+        },
+        {
+          "id": "err_tree_peek_test",
+          "manifestation": "在深度选择阶段读取测试成绩。",
+          "node_ids": [
+            "ml011",
+            "ml014"
+          ],
+          "misconception": "不把测试样本用于 fit 就没有影响评估。",
+          "guidance": "追踪测试结果是否影响决策，恢复独立评估边界。"
+        }
+      ]
+    },
+    {
+      "course_id": "ml_classification",
+      "version": 1,
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核",
+      "difficulty": "入门（课程侧待审核）",
+      "context_fields": [
+        {
+          "name": "scenario",
+          "allowed_change": "故事背景与任务叙事",
+          "invariant": "不得改变任务目标、步骤、评分规则或难度。"
+        },
+        {
+          "name": "roles",
+          "allowed_change": "角色名称与称呼",
+          "invariant": "角色设定不得参与能力判断。"
+        },
+        {
+          "name": "feature_display_names",
+          "allowed_change": "特征的展示名称",
+          "invariant": "必须保持一一映射，不改变底层值、顺序、单位约束、特征可用时间或语义难度。"
+        },
+        {
+          "name": "artifact_display_names",
+          "allowed_change": "工作文件的展示名称",
+          "invariant": "通过清单映射至固定逻辑文件ID，不修改样本标识、结构或判定目标。"
+        }
+      ],
+      "invariants": [
+        "课程ID、骨架ID与版本、目标节点、步骤顺序及判定规则保持不变。",
+        "底层数据的规模、类别分布、特征数值、噪声与难度保持不变。",
+        "只可更改列明的情境外观字段；生成后必须校验与骨架逐项一致。",
+        "统一使用原生 Python/scikit-learn 接口，不设计替代标准语言的情境专用指令。",
+        "兴趣偏好仅用于情境外观，不作为能力或掌握程度证据。",
+        "使用隔离环境执行；本资产尚未提供环境或判定脚本，不接受虚构通过记录。"
+      ],
+      "runtime_status": "not_implemented",
+      "execution_note": "仅为待审核的统一考核骨架资产；隔离运行环境、自动判定脚本、过程采集及会话恢复尚未实现。参数缺失或技术故障不得记为能力不足。",
+      "id": "bp_final_evaluation",
+      "title": "冻结选择后的独立分类评估",
+      "specification_refs": [
+        "v7 §2.4",
+        "v7 §3.3",
+        "v7 §5.5",
+        "v7 附录 A.2 步骤4"
+      ],
+      "target_node_ids": [
+        "ml010",
+        "ml011",
+        "ml012",
+        "ml036",
+        "ml037"
+      ],
+      "prerequisite_ids": [
+        "ml005",
+        "ml006",
+        "ml008",
+        "ml014",
+        "ml019",
+        "ml021",
+        "ml040"
+      ],
+      "steps": [
+        {
+          "id": "final_1",
+          "title": "冻结模型与数据处理方案",
+          "judge_spec": {
+            "method": "deterministic_script",
+            "implementation_status": "not_implemented",
+            "status": "parameters_required",
+            "assertions": [
+              "冻结记录包含模型标识、超参数、预处理器、课程/任务/骨架版本和选择所引用的验证记录。",
+              "模型与处理器的摘要在最终评估前后保持一致，若课程允许重新拟合则须使用单独批准的固定方案。",
+              "在冻结选择之前，没有测试指标揭示事件或使用测试标签的决策记录。"
+            ],
+            "parameters_required": [
+              "approved_freeze_manifest_contract",
+              "refit_policy"
+            ],
+            "required_artifacts": [
+              "freeze_manifest",
+              "model_artifact_hash",
+              "selection_events",
+              "test_access_events"
+            ],
+            "on_missing_parameters": "blocked_configuration",
+            "on_runtime_failure": "technical_error_retry_same_checkpoint",
+            "ability_inference_on_error": false
+          },
+          "error_type_ids": [
+            "err_final_unfrozen",
+            "err_final_test_tuning"
+          ],
+          "hints": [
+            "检查模型选择是否已经完成。",
+            "测试结果出来后，你是否还准备改参数？",
+            "独立评估要求待评价方案在看到结果前确定。",
+            "先保存可追溯的模型、处理器和选择依据，再开启最终测试。"
+          ]
+        },
+        {
+          "id": "final_2",
+          "title": "进行一次最终测试并记录原始结果",
+          "judge_spec": {
+            "method": "deterministic_script",
+            "implementation_status": "not_implemented",
+            "status": "parameters_required",
+            "assertions": [
+              "测试样本来自批准的独立测试清单，使用已冻结模型与处理器生成预测。",
+              "成功揭示测试指标的事件恰好一次且发生在冻结之后；技术失败未产生指标时可在同一冻结状态重试。",
+              "准确率由判定器对原始预测和真实标签复算；样本数、模型摘要及结果一致。"
+            ],
+            "parameters_required": [
+              "approved_test_manifest",
+              "numeric_comparison_tolerance",
+              "test_event_provenance_contract"
+            ],
+            "required_artifacts": [
+              "test_predictions",
+              "test_labels_reference",
+              "test_report",
+              "test_access_events"
+            ],
+            "on_missing_parameters": "blocked_configuration",
+            "on_runtime_failure": "technical_error_retry_same_checkpoint",
+            "ability_inference_on_error": false
+          },
+          "error_type_ids": [
+            "err_final_test_tuning",
+            "err_final_metric_mismatch",
+            "err_final_wrong_dataset"
+          ],
+          "hints": [
+            "检查测试清单、模型版本和执行顺序。",
+            "这个测试结果之前是否已经被用来改过模型？",
+            "区分一次独立结果揭示与技术失败后的同状态重试。",
+            "使用冻结模型完成指定测试，保留预测与事件记录供复算。"
+          ]
+        },
+        {
+          "id": "final_3",
+          "title": "形成带依据的结果报告与后续核验项",
+          "judge_spec": {
+            "method": "deterministic_script",
+            "implementation_status": "not_implemented",
+            "status": "parameters_required",
+            "assertions": [
+              "报告包含课程/任务/骨架版本、划分依据、模型标识、指标定义、样本数、测试结果与证据引用。",
+              "报告明确独立评估的适用场景及尚不能支持的结论；客观字段与运行产物一致。",
+              "若报告发现数据边界破坏，标记本次评估无效并列出待核验项，不挑选历史最高分替代。"
+            ],
+            "parameters_required": [
+              "required_report_fields",
+              "report_consistency_contract"
+            ],
+            "required_artifacts": [
+              "final_report",
+              "evidence_refs",
+              "unresolved_items"
+            ],
+            "on_missing_parameters": "blocked_configuration",
+            "on_runtime_failure": "technical_error_retry_same_checkpoint",
+            "ability_inference_on_error": false
+          },
+          "error_type_ids": [
+            "err_final_best_run",
+            "err_final_no_trace"
+          ],
+          "hints": [
+            "检查报告中的每项结论能定位到哪条证据。",
+            "最终分数对应哪个模型、哪份测试数据和哪次操作？",
+            "一次结果需要同时说明评估边界与适用范围。",
+            "补齐版本、清单、指标和引用，遇到流程污染应明确标记而不是换报更高分。"
+          ]
+        }
+      ],
+      "error_types": [
+        {
+          "id": "err_final_unfrozen",
+          "manifestation": "测试前未冻结模型或处理方案。",
+          "node_ids": [
+            "ml010",
+            "ml036"
+          ],
+          "misconception": "任何时候都能看测试结果后再完善模型。",
+          "guidance": "先核对选择记录和冻结清单，明确评估对象。"
+        },
+        {
+          "id": "err_final_test_tuning",
+          "manifestation": "测试结果参与调参或多轮选优。",
+          "node_ids": [
+            "ml011",
+            "ml014",
+            "ml036"
+          ],
+          "misconception": "反复查看独立测试不会影响独立性。",
+          "guidance": "要求追踪反馈影响，若已用于选择则不能再当未使用测试报告。"
+        },
+        {
+          "id": "err_final_metric_mismatch",
+          "manifestation": "报告指标与原始预测复算结果不一致。",
+          "node_ids": [
+            "ml037"
+          ],
+          "misconception": "只保留最终数字就足以证明计算正确。",
+          "guidance": "回到逐样本结果核对计算与样本对应。"
+        },
+        {
+          "id": "err_final_wrong_dataset",
+          "manifestation": "把验证集或训练集冒充最终测试集。",
+          "node_ids": [
+            "ml006",
+            "ml008",
+            "ml011"
+          ],
+          "misconception": "文件名包含test就能证明它未被使用。",
+          "guidance": "使用样本清单和事件来源核对角色，不能只检查文件名。"
+        },
+        {
+          "id": "err_final_best_run",
+          "manifestation": "报告多次测试中最高一次而未交代选择。",
+          "node_ids": [
+            "ml011",
+            "ml036"
+          ],
+          "misconception": "最高测试成绩最能说明模型能力。",
+          "guidance": "要求说明每次结果的用途，将选择偏差写入待核验项。"
+        },
+        {
+          "id": "err_final_no_trace",
+          "manifestation": "报告缺少模型、数据或原始证据引用。",
+          "node_ids": [
+            "ml012",
+            "ml036"
+          ],
+          "misconception": "单个分数可以脱离任务和数据解释。",
+          "guidance": "引导补齐可回溯字段，并限定结论适用范围。"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,2560 @@
+{
+  "schema_version": 1,
+  "id": "ml_classification",
+  "title": "监督分类：数据划分、决策树训练与泛化诊断",
+  "version": 1,
+  "chapters": [
+    {
+      "id": "ch1",
+      "title": "监督分类的数据划分与评估",
+      "description": "以分类任务为主线，理解样本、三类数据集、准确率、信息泄漏和可复现划分。"
+    },
+    {
+      "id": "ch2",
+      "title": "决策树复杂度与欠拟合、过拟合",
+      "description": "比较分类树的训练与验证表现，识别拟合问题，按验证证据选择设置并完成独立最终评估。"
+    }
+  ],
+  "sources": [
+    {
+      "id": "google_supervised",
+      "title": "Google：Supervised Learning",
+      "url": "https://developers.google.com/machine-learning/intro-to-ml/supervised",
+      "kind": "official_documentation",
+      "locator": "Foundational supervised learning concepts 下的 Data、Dataset characteristics、Model、Training、Evaluating、Inference 小节。用于样本/特征/标签、训练与预测及数据规模和多样性的背景；分类树算法细节另见资源 res_tree。"
+    },
+    {
+      "id": "google_split",
+      "title": "Google：Datasets — Dividing the original dataset",
+      "url": "https://developers.google.com/machine-learning/crash-course/overfitting/dividing-datasets",
+      "kind": "official_documentation",
+      "locator": "Training, validation, and test sets（图 8–10 及测试集反复参与调参的练习）；Additional problems with test sets（重复样本、代表性和独立评估要求）。早停机制另见 google_l2。"
+    },
+    {
+      "id": "sklearn_cv",
+      "title": "scikit-learn：Cross-validation — evaluating estimator performance",
+      "url": "https://scikit-learn.org/stable/modules/cross_validation.html",
+      "kind": "official_documentation",
+      "locator": "§3.1 导论中的留出评估与超参数选择；§3.1.2.1.1 K-fold；§3.1.2.2 类别分层；§3.1.2.4 分组划分；§3.1.2.6 时间序列；§3.1.3 洗牌与 random_state；§3.1.4 交叉验证和模型选择。准确率定义另见资源 res_accuracy。"
+    },
+    {
+      "id": "sklearn_pitfalls",
+      "title": "scikit-learn：Common pitfalls and recommended practices",
+      "url": "https://scikit-learn.org/stable/common_pitfalls.html",
+      "kind": "official_documentation",
+      "locator": "§12.1 Inconsistent preprocessing；§12.2 Data leakage 及 §12.2.1 避免泄漏；§12.3.1.2、§12.3.2.2 的交叉验证划分随机性与对照；§12.3.3.1 跨次执行复现。关注训练部分 fit、留出部分 transform 和 Pipeline 边界。"
+    },
+    {
+      "id": "google_overfit",
+      "title": "Google：Overfitting",
+      "url": "https://developers.google.com/machine-learning/crash-course/overfitting/overfitting",
+      "kind": "official_documentation",
+      "locator": "Fitting, overfitting, and underfitting；Detecting overfitting（图 15）；What causes overfitting?；Generalization conditions。用于拟合现象、训练/验证差距和复杂度背景；分类树及深度参数细节另见资源 res_tree。"
+    },
+    {
+      "id": "google_l2",
+      "title": "Google：Overfitting — L2 regularization",
+      "url": "https://developers.google.com/machine-learning/crash-course/overfitting/regularization",
+      "kind": "official_documentation",
+      "locator": "开头的 L2 权重平方和公式及示例；Regularization rate (lambda)；Picking the regularization rate；Early stopping: an alternative to complexity-based regularization。预处理拟合边界另见 sklearn_pitfalls。"
+    },
+    {
+      "id": "sklearn_curves",
+      "title": "scikit-learn：Validation curves and learning curves",
+      "url": "https://scikit-learn.org/stable/modules/learning_curve.html",
+      "kind": "official_documentation",
+      "locator": "§3.5 导论的偏差、方差、噪声与数据量讨论；§3.5.1 Validation curve；§3.5.2 Learning curve。前者改变超参数，后者改变训练样本量；分类树深度的具体参数另见资源 res_tree。"
+    },
+    {
+      "id": "google_loss_curves",
+      "title": "Google：Overfitting — Interpreting loss curves",
+      "url": "https://developers.google.com/machine-learning/crash-course/overfitting/interpreting-loss-curves",
+      "kind": "official_documentation",
+      "locator": "图 20 理想损失曲线；练习 1 的振荡、练习 2 的突然跳升、练习 3 的训练与留出损失分离、练习 4 的训练卡滞（图 21–24）。其中图 23 标注验证损失；这些是按训练步数绘制的曲线，不是按样本量绘制的学习曲线。"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "ml001",
+      "title": "监督分类任务",
+      "chapter_id": "ch1",
+      "description": "监督分类用带类别标签的样本学习预测规则，再判断新样本属于哪一类。本课程围绕分类任务组织训练、选择与评估。",
+      "objectives": [
+        "把分类问题表述为输入特征、类别标签和预测用途。"
+      ],
+      "misconception": "有了训练数据，模型就能回答任何相关问题。",
+      "aliases": [
+        "监督分类",
+        "分类任务",
+        "supervised classification"
+      ],
+      "source_ids": [
+        "google_supervised"
+      ],
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核",
+      "scope": "core",
+      "resource_ids": [],
+      "task_ids": [],
+      "blueprint_ids": []
+    },
+    {
+      "id": "ml002",
+      "title": "样本、特征与标签",
+      "chapter_id": "ch1",
+      "description": "样本是一次观测；特征是预测时可用的输入，标签是希望预测的目标。",
+      "objectives": [
+        "在预测案例中区分样本、特征和标签。"
+      ],
+      "misconception": "训练时拿得到的信息，预测时也一定能拿到。",
+      "aliases": [
+        "样本",
+        "特征",
+        "标签",
+        "feature",
+        "label"
+      ],
+      "source_ids": [
+        "google_supervised"
+      ],
+      "review_status": "draft",
+      "check_question": "用设备温度和振动读数预测是否故障时，哪些是特征，哪个是标签？若使用维修后才知道的信息作为特征，会有什么问题？",
+      "expected_answer": "温度和振动读数是特征，是否故障是标签。维修后信息在预测时不可得，可能造成信息泄漏或上线不可用。",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核",
+      "scope": "core",
+      "resource_ids": [],
+      "task_ids": [
+        "diag_ml002"
+      ],
+      "blueprint_ids": [],
+      "check_task": {
+        "id": "diag_ml002",
+        "version": 1,
+        "rubric": [
+          "正确指出温度/振动是输入特征、故障类别是标签。",
+          "指出维修后信息在预测时不可得，并联系泄漏或部署不可用。"
+        ],
+        "hint_levels": [
+          "检查特征与标签的区分。",
+          "预测发生时，你能读到哪些信息？",
+          "把输入可获得的时间与标签产生时间分开。",
+          "先列出预测时可用的输入，再检查是否混入事后结果。"
+        ],
+        "review_status": "draft",
+        "reviewer": "",
+        "reviewed_at": "",
+        "review_note": "待教师审核"
+      }
+    },
+    {
+      "id": "ml003",
+      "title": "模型与预测",
+      "chapter_id": "ch1",
+      "description": "模型用学到的规则把特征映射为预测结果；推断时通常没有当前样本的真实标签。",
+      "objectives": [
+        "说明训练模型和使用模型预测的区别。"
+      ],
+      "misconception": "预测时必须先知道真实标签。",
+      "aliases": [
+        "预测模型",
+        "推断",
+        "inference"
+      ],
+      "source_ids": [
+        "google_supervised"
+      ],
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核",
+      "scope": "core",
+      "resource_ids": [
+        "res_tree"
+      ],
+      "task_ids": [],
+      "blueprint_ids": []
+    },
+    {
+      "id": "ml004",
+      "title": "参数与模型拟合",
+      "chapter_id": "ch1",
+      "description": "拟合利用训练样本学习分类规则或模型参数；例如分类树从样本中学习分裂位置。训练完成不等于已验证新数据表现。",
+      "objectives": [
+        "区分从数据学到的分类规则与预先设置的模型超参数。"
+      ],
+      "misconception": "参数拟合完成就代表模型可靠。",
+      "aliases": [
+        "模型参数",
+        "拟合",
+        "fit"
+      ],
+      "source_ids": [
+        "google_supervised"
+      ],
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核",
+      "scope": "core",
+      "resource_ids": [
+        "res_tree"
+      ],
+      "task_ids": [],
+      "blueprint_ids": []
+    },
+    {
+      "id": "ml005",
+      "title": "数据划分方案",
+      "chapter_id": "ch1",
+      "description": "按训练、选择与最终评估的用途安排数据边界，并让划分方式符合实际预测场景。",
+      "objectives": [
+        "解释为何要在模型开发前确定数据用途。"
+      ],
+      "misconception": "随机分成三份就能保证评估有效。",
+      "aliases": [
+        "数据划分",
+        "dataset split"
+      ],
+      "source_ids": [
+        "google_split"
+      ],
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核",
+      "scope": "core",
+      "resource_ids": [
+        "res_split"
+      ],
+      "task_ids": [],
+      "blueprint_ids": [
+        "bp_split"
+      ]
+    },
+    {
+      "id": "ml006",
+      "title": "训练集",
+      "chapter_id": "ch1",
+      "description": "训练集用于学习模型参数；对训练集表现的优化不能替代独立评估。",
+      "objectives": [
+        "判断哪些样本可以参与参数拟合。"
+      ],
+      "misconception": "训练集得分最高的模型一定最好。",
+      "aliases": [
+        "training set"
+      ],
+      "source_ids": [
+        "google_split"
+      ],
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核",
+      "scope": "core",
+      "resource_ids": [
+        "res_split"
+      ],
+      "task_ids": [],
+      "blueprint_ids": [
+        "bp_split"
+      ]
+    },
+    {
+      "id": "ml007",
+      "title": "训练表现与训练误差",
+      "chapter_id": "ch1",
+      "description": "训练表现是在参与拟合的样本上计算的结果。本课程可记录分类准确率及错误率；其他损失需说明定义，不能与错误率混为一谈。",
+      "objectives": [
+        "解释训练错误率降低能支持什么结论，以及不能支持什么结论。"
+      ],
+      "misconception": "训练损失下降必然带来泛化提升。",
+      "aliases": [
+        "训练误差",
+        "训练准确率",
+        "training error",
+        "训练损失"
+      ],
+      "source_ids": [
+        "google_supervised",
+        "google_overfit"
+      ],
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核",
+      "scope": "core",
+      "resource_ids": [
+        "res_accuracy"
+      ],
+      "task_ids": [],
+      "blueprint_ids": [
+        "bp_tree_diagnosis"
+      ]
+    },
+    {
+      "id": "ml008",
+      "title": "验证集",
+      "chapter_id": "ch1",
+      "description": "验证集用于比较候选设置、选择模型或停止时机；反复据此决策也可能适应这批数据。",
+      "objectives": [
+        "区分验证数据的选择作用与训练数据的拟合作用。"
+      ],
+      "misconception": "只要不反向传播，验证集就永远不会被过度利用。",
+      "aliases": [
+        "validation set",
+        "开发集",
+        "dev set"
+      ],
+      "source_ids": [
+        "google_split"
+      ],
+      "review_status": "draft",
+      "check_question": "A、B 两个模型都已用训练集拟合。应该用哪份数据比较并选出一个？选完后用哪份数据报告最终结果？",
+      "expected_answer": "用验证集或训练部分内部的交叉验证选择；保留未参与选择的测试集作最终评估。",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核",
+      "scope": "core",
+      "resource_ids": [
+        "res_split"
+      ],
+      "task_ids": [
+        "diag_ml008"
+      ],
+      "blueprint_ids": [
+        "bp_split"
+      ],
+      "check_task": {
+        "id": "diag_ml008",
+        "version": 1,
+        "rubric": [
+          "使用验证集或内部交叉验证选择候选。",
+          "把未参与选择的测试集保留到最终评估。"
+        ],
+        "hint_levels": [
+          "检查两份留出数据承担的职责。",
+          "哪份数据影响了候选模型的选择？",
+          "区分开发过程中的比较与最后的独立评估。",
+          "将拟合、选择、最终评估分别安排到不同数据角色。"
+        ],
+        "review_status": "draft",
+        "reviewer": "",
+        "reviewed_at": "",
+        "review_note": "待教师审核"
+      }
+    },
+    {
+      "id": "ml009",
+      "title": "超参数",
+      "chapter_id": "ch1",
+      "description": "超参数控制模型结构或训练规则，例如树深度、正则化强度；其选择与训练出的权重不同。",
+      "objectives": [
+        "区分模型参数与需要选择的超参数。"
+      ],
+      "misconception": "超参数就是训练后得到的权重。",
+      "aliases": [
+        "hyperparameter"
+      ],
+      "source_ids": [
+        "sklearn_cv"
+      ],
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核",
+      "scope": "core",
+      "resource_ids": [
+        "res_tree"
+      ],
+      "task_ids": [],
+      "blueprint_ids": [
+        "bp_tree_diagnosis"
+      ]
+    },
+    {
+      "id": "ml010",
+      "title": "模型选择",
+      "chapter_id": "ch1",
+      "description": "利用验证结果比较候选模型或超参数，选择时同时考虑任务目标和评估流程。",
+      "objectives": [
+        "给出不使用最终测试集调参的比较流程。"
+      ],
+      "misconception": "只比较各模型的训练损失就够了。",
+      "aliases": [
+        "model selection",
+        "调参"
+      ],
+      "source_ids": [
+        "sklearn_cv"
+      ],
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核",
+      "scope": "core",
+      "resource_ids": [],
+      "task_ids": [],
+      "blueprint_ids": [
+        "bp_tree_diagnosis",
+        "bp_final_evaluation"
+      ]
+    },
+    {
+      "id": "ml011",
+      "title": "测试集",
+      "chapter_id": "ch1",
+      "description": "测试集在开发选择完成后用于最终评估；若依据其结果继续调参，它便参与了模型选择。",
+      "objectives": [
+        "说明测试结果何时失去独立评估意义。"
+      ],
+      "misconception": "测试集可以反复调参，只要不用于拟合。",
+      "aliases": [
+        "test set",
+        "最终评估集"
+      ],
+      "source_ids": [
+        "google_split"
+      ],
+      "review_status": "draft",
+      "check_question": "每次看测试集结果后都改一次模型，最后报告最高测试分数。这个结果还能看成独立评估吗？为什么？",
+      "expected_answer": "不能。测试反馈参与了选择，模型可能适应测试数据，最高分可能偏乐观；需要未参与选择的数据重新评估。",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核",
+      "scope": "core",
+      "resource_ids": [
+        "res_split"
+      ],
+      "task_ids": [
+        "diag_ml011"
+      ],
+      "blueprint_ids": [
+        "bp_split",
+        "bp_final_evaluation"
+      ],
+      "check_task": {
+        "id": "diag_ml011",
+        "version": 1,
+        "rubric": [
+          "指出测试反馈已经参与模型选择。",
+          "解释结果可能偏乐观，要求未参与选择的数据重新评估。"
+        ],
+        "hint_levels": [
+          "检查测试结果是否进入了修改决策。",
+          "最高分是从多少次尝试中挑出来的？",
+          "不参与梯度计算也可能参与模型选择。",
+          "追踪反馈流向，并考虑用未参与决策的数据重新评价。"
+        ],
+        "review_status": "draft",
+        "reviewer": "",
+        "reviewed_at": "",
+        "review_note": "待教师审核"
+      }
+    },
+    {
+      "id": "ml012",
+      "title": "泛化与泛化误差",
+      "chapter_id": "ch1",
+      "description": "泛化关注新样本上的表现；独立留出集上的误差只是对目标场景误差的估计。",
+      "objectives": [
+        "解释训练误差与泛化误差为何可能不同。"
+      ],
+      "misconception": "一次测试得分等于所有未来场景的真实性能。",
+      "aliases": [
+        "泛化能力",
+        "generalization",
+        "generalization error"
+      ],
+      "source_ids": [
+        "google_overfit",
+        "sklearn_cv"
+      ],
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核",
+      "scope": "core",
+      "resource_ids": [
+        "res_accuracy"
+      ],
+      "task_ids": [],
+      "blueprint_ids": [
+        "bp_final_evaluation"
+      ]
+    },
+    {
+      "id": "ml013",
+      "title": "数据代表性",
+      "chapter_id": "ch1",
+      "description": "评估数据应覆盖目标使用场景；样本多不等于覆盖充分，分布变化会影响结论适用范围。",
+      "objectives": [
+        "识别训练、评估与实际场景的分布差异。"
+      ],
+      "misconception": "样本数量足够大就不必考虑来源。",
+      "aliases": [
+        "代表性",
+        "数据分布",
+        "distribution"
+      ],
+      "source_ids": [
+        "google_supervised",
+        "google_split"
+      ],
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核",
+      "scope": "core",
+      "resource_ids": [
+        "res_split"
+      ],
+      "task_ids": [],
+      "blueprint_ids": []
+    },
+    {
+      "id": "ml014",
+      "title": "数据泄漏",
+      "chapter_id": "ch1",
+      "description": "本应隔离的信息进入训练或选择过程，会使评估偏乐观；重复样本和全量预处理均需检查。",
+      "objectives": [
+        "在给定开发流程中定位信息越界的位置。"
+      ],
+      "misconception": "只有直接把测试标签喂给模型才算泄漏。",
+      "aliases": [
+        "data leakage",
+        "信息泄漏"
+      ],
+      "source_ids": [
+        "sklearn_pitfalls"
+      ],
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核",
+      "scope": "core",
+      "resource_ids": [
+        "res_pitfalls"
+      ],
+      "task_ids": [],
+      "blueprint_ids": [
+        "bp_split"
+      ]
+    },
+    {
+      "id": "ml015",
+      "title": "预处理的拟合边界",
+      "chapter_id": "ch1",
+      "description": "均值填补、标准化和特征选择等需要学习的步骤只在训练部分拟合，再用于留出数据。",
+      "objectives": [
+        "写出先划分、再拟合预处理、最后转换留出集的顺序。"
+      ],
+      "misconception": "没有使用标签的全量标准化一定安全。",
+      "aliases": [
+        "预处理",
+        "标准化",
+        "Pipeline"
+      ],
+      "source_ids": [
+        "sklearn_pitfalls"
+      ],
+      "review_status": "draft",
+      "check_question": "先用全部数据计算均值与标准差，再划分训练集和测试集，是否合适？请改写流程。",
+      "expected_answer": "不合适，测试分布信息进入了预处理拟合。先划分，只在训练部分拟合均值和标准差，再用这些统计量转换留出集。",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核",
+      "scope": "core",
+      "resource_ids": [
+        "res_pitfalls"
+      ],
+      "task_ids": [
+        "diag_ml015"
+      ],
+      "blueprint_ids": [
+        "bp_split"
+      ],
+      "check_task": {
+        "id": "diag_ml015",
+        "version": 1,
+        "rubric": [
+          "识别全量预处理拟合带来的信息越界。",
+          "给出先划分、训练部分拟合、统一转换留出集的流程。"
+        ],
+        "hint_levels": [
+          "检查统计量从哪部分样本中计算。",
+          "划分之前的均值是否已经看到了留出数据？",
+          "需要学习参数的预处理也受训练边界约束。",
+          "先确定数据边界，再拟合处理器，并对其他子集使用同一处理器。"
+        ],
+        "review_status": "draft",
+        "reviewer": "",
+        "reviewed_at": "",
+        "review_note": "待教师审核"
+      }
+    },
+    {
+      "id": "ml016",
+      "title": "交叉验证",
+      "chapter_id": "ch1",
+      "description": "交叉验证轮换训练与验证子集，汇总多次结果；用它选择模型时仍需独立最终评估。",
+      "objectives": [
+        "描述 K 折过程及每折预处理的边界。"
+      ],
+      "misconception": "做了交叉验证就不需要考虑测试集用途。",
+      "aliases": [
+        "K折交叉验证",
+        "cross-validation",
+        "K-fold"
+      ],
+      "source_ids": [
+        "sklearn_cv"
+      ],
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核",
+      "scope": "core",
+      "resource_ids": [
+        "res_pitfalls"
+      ],
+      "task_ids": [],
+      "blueprint_ids": []
+    },
+    {
+      "id": "ml017",
+      "title": "分层划分",
+      "chapter_id": "ch1",
+      "description": "分类任务可让各折类别比例近似原数据，减少稀有类别缺失；这不解决所有抽样偏差。",
+      "objectives": [
+        "说明何时需要检查各折类别组成。"
+      ],
+      "misconception": "分层划分能保证评估数据代表未来人群。",
+      "aliases": [
+        "stratified split",
+        "StratifiedKFold"
+      ],
+      "source_ids": [
+        "sklearn_cv"
+      ],
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核",
+      "scope": "core",
+      "resource_ids": [],
+      "task_ids": [],
+      "blueprint_ids": [
+        "bp_split"
+      ]
+    },
+    {
+      "id": "ml018",
+      "title": "分组与时间划分",
+      "chapter_id": "ch1",
+      "description": "同一对象的多次记录应按预测目标考虑分组隔离；预测未来时需按时间边界避免借用未来信息。",
+      "objectives": [
+        "为重复用户记录和时间序列选择合适划分。"
+      ],
+      "misconception": "任何数据都应该打乱后随机划分。",
+      "aliases": [
+        "GroupKFold",
+        "TimeSeriesSplit",
+        "时间序列划分"
+      ],
+      "source_ids": [
+        "sklearn_cv"
+      ],
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核",
+      "scope": "core",
+      "resource_ids": [],
+      "task_ids": [],
+      "blueprint_ids": []
+    },
+    {
+      "id": "ml019",
+      "title": "模型复杂度",
+      "chapter_id": "ch2",
+      "description": "复杂度体现分类规则的灵活程度，可受树深度、叶节点约束及特征表示影响；它不直接等于泛化表现。",
+      "objectives": [
+        "用分类边界与树深度说明表达能力的变化。"
+      ],
+      "misconception": "模型越复杂，新数据表现必然越好。",
+      "aliases": [
+        "模型容量",
+        "model complexity"
+      ],
+      "source_ids": [
+        "google_overfit",
+        "sklearn_curves"
+      ],
+      "review_status": "draft",
+      "resource_ids": [
+        "res_tree"
+      ],
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核",
+      "scope": "core",
+      "task_ids": [],
+      "blueprint_ids": [
+        "bp_tree_diagnosis"
+      ]
+    },
+    {
+      "id": "ml020",
+      "title": "欠拟合",
+      "chapter_id": "ch2",
+      "description": "模型尚未充分描述任务规律，训练表现也较差；应结合拟合过程、表示能力与数据质量排查。",
+      "objectives": [
+        "依据训练和验证表现提出欠拟合假设。"
+      ],
+      "misconception": "训练误差高时只需增加数据。",
+      "aliases": [
+        "underfitting"
+      ],
+      "source_ids": [
+        "google_overfit",
+        "google_loss_curves"
+      ],
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核",
+      "scope": "core",
+      "resource_ids": [
+        "res_accuracy",
+        "res_tree"
+      ],
+      "task_ids": [],
+      "blueprint_ids": [
+        "bp_tree_diagnosis"
+      ]
+    },
+    {
+      "id": "ml021",
+      "title": "过拟合",
+      "chapter_id": "ch2",
+      "description": "模型过度适应训练样本的细节，在可比较的新数据上表现明显变差。",
+      "objectives": [
+        "用训练与验证证据说明过拟合判断。"
+      ],
+      "misconception": "训练表现很好本身就是过拟合。",
+      "aliases": [
+        "overfitting"
+      ],
+      "source_ids": [
+        "google_overfit"
+      ],
+      "review_status": "draft",
+      "check_question": "同一批数据、相同评估口径下，分类树 A 的训练/验证准确率为 99%/67%，分类树 B 为 91%/89%。只因 A 的训练准确率更高就选 A，合理吗？",
+      "expected_answer": "不合理。A 的训练与验证差距提示过拟合或数据流程问题，不能只按训练准确率选择；在划分与计算可靠时，B 的验证表现更好。",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核",
+      "scope": "core",
+      "resource_ids": [
+        "res_accuracy",
+        "res_tree"
+      ],
+      "task_ids": [
+        "diag_ml021"
+      ],
+      "blueprint_ids": [
+        "bp_tree_diagnosis"
+      ],
+      "check_task": {
+        "id": "diag_ml021",
+        "version": 1,
+        "rubric": [
+          "不以训练准确率单独选择模型。",
+          "引用两组准确率，提出过拟合或数据流程问题，并说明可比前提。"
+        ],
+        "hint_levels": [
+          "同时看训练与验证两列。",
+          "哪棵树的验证表现更好，差距又分别多大？",
+          "先确认计算可比，再区分训练适应与新数据表现。",
+          "依据验证证据选择，差距较大时还需检查数据流程。"
+        ],
+        "review_status": "draft",
+        "reviewer": "",
+        "reviewed_at": "",
+        "review_note": "待教师审核"
+      }
+    },
+    {
+      "id": "ml022",
+      "title": "训练与验证差距",
+      "chapter_id": "ch2",
+      "description": "在相同指标和可比条件下比较两组表现；差距是诊断线索，还需排查数据分布和处理差异。",
+      "objectives": [
+        "判断差距是否支持过拟合，并列出其他解释。"
+      ],
+      "misconception": "只要两组分数不同，就能确定过拟合。",
+      "aliases": [
+        "泛化差距",
+        "generalization gap"
+      ],
+      "source_ids": [
+        "google_overfit",
+        "google_loss_curves"
+      ],
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核",
+      "scope": "core",
+      "resource_ids": [
+        "res_accuracy"
+      ],
+      "task_ids": [],
+      "blueprint_ids": [
+        "bp_tree_diagnosis"
+      ]
+    },
+    {
+      "id": "ml023",
+      "title": "偏差",
+      "chapter_id": "ch2",
+      "description": "偏差描述学习方法平均预测与目标规律的系统偏离；过于受限的表达可能带来较大偏差。",
+      "objectives": [
+        "用过浅的分类树难以表达必要分区来解释高偏差。"
+      ],
+      "misconception": "偏差就是某一次预测的残差。",
+      "aliases": [
+        "bias"
+      ],
+      "source_ids": [
+        "sklearn_curves"
+      ],
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核",
+      "scope": "extension",
+      "resource_ids": [],
+      "task_ids": [],
+      "blueprint_ids": []
+    },
+    {
+      "id": "ml024",
+      "title": "方差",
+      "chapter_id": "ch2",
+      "description": "方差关注换一批训练样本后预测会变化多少；对训练细节敏感的模型可能有较高方差。",
+      "objectives": [
+        "区分模型方差与原始数据的方差。"
+      ],
+      "misconception": "方差大就是标签数值的范围大。",
+      "aliases": [
+        "variance"
+      ],
+      "source_ids": [
+        "sklearn_curves"
+      ],
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核",
+      "scope": "extension",
+      "resource_ids": [],
+      "task_ids": [],
+      "blueprint_ids": []
+    },
+    {
+      "id": "ml025",
+      "title": "偏差与方差的权衡",
+      "chapter_id": "ch2",
+      "description": "调整模型灵活程度与约束会改变偏差和方差；选择目标是良好的泛化表现，噪声也影响误差。",
+      "objectives": [
+        "说明降低训练误差为何可能没有降低新数据误差。"
+      ],
+      "misconception": "只要消除偏差，泛化误差就会为零。",
+      "aliases": [
+        "bias-variance tradeoff"
+      ],
+      "source_ids": [
+        "sklearn_curves"
+      ],
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核",
+      "scope": "extension",
+      "resource_ids": [],
+      "task_ids": [],
+      "blueprint_ids": []
+    },
+    {
+      "id": "ml026",
+      "title": "验证曲线",
+      "chapter_id": "ch2",
+      "description": "固定评估流程，改变一个超参数并比较训练与验证指标，用于观察该设置的影响。",
+      "objectives": [
+        "识别以超参数为横轴的曲线及其用途。"
+      ],
+      "misconception": "验证曲线的横轴总是训练轮数。",
+      "aliases": [
+        "validation curve"
+      ],
+      "source_ids": [
+        "sklearn_curves"
+      ],
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核",
+      "scope": "core",
+      "resource_ids": [
+        "res_accuracy",
+        "res_tree"
+      ],
+      "task_ids": [],
+      "blueprint_ids": [
+        "bp_tree_diagnosis"
+      ]
+    },
+    {
+      "id": "ml027",
+      "title": "样本量学习曲线",
+      "chapter_id": "ch2",
+      "description": "改变训练样本量，观察训练与验证表现，用于估计增加数据是否可能有帮助。",
+      "objectives": [
+        "读出样本量曲线中的平台与差距。"
+      ],
+      "misconception": "所有名为学习曲线的图都以训练轮数为横轴。",
+      "aliases": [
+        "learning curve",
+        "样本量曲线"
+      ],
+      "source_ids": [
+        "sklearn_curves"
+      ],
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核",
+      "scope": "core",
+      "resource_ids": [],
+      "task_ids": [],
+      "blueprint_ids": []
+    },
+    {
+      "id": "ml028",
+      "title": "训练过程损失曲线",
+      "chapter_id": "ch2",
+      "description": "随训练步数记录损失；训练与验证曲线分离、震荡或突增，应结合训练条件解释。",
+      "objectives": [
+        "先读横轴、指标和两组趋势，再提出诊断。"
+      ],
+      "misconception": "损失震荡一定说明模型过拟合。",
+      "aliases": [
+        "loss curve",
+        "epoch曲线",
+        "迭代曲线"
+      ],
+      "source_ids": [
+        "google_loss_curves"
+      ],
+      "review_status": "draft",
+      "check_question": "训练损失持续下降，验证损失先下降后连续上升。它提示什么？在下结论前还检查什么？",
+      "expected_answer": "提示过拟合。还应检查两组数据是否可比、预处理和指标是否一致，并排查数据问题；曲线不是唯一原因的证明。",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核",
+      "scope": "extension",
+      "resource_ids": [],
+      "task_ids": [
+        "diag_ml028"
+      ],
+      "blueprint_ids": [],
+      "check_task": {
+        "id": "diag_ml028",
+        "version": 1,
+        "rubric": [
+          "以训练下降而验证上升支持过拟合假设。",
+          "至少检查数据/预处理/指标是否可比，不把曲线当唯一证明。"
+        ],
+        "hint_levels": [
+          "先确认横轴与两条曲线分别是什么。",
+          "验证损失从哪个阶段开始改变趋势？",
+          "区分对训练数据的持续适应与验证表现变化。",
+          "提出过拟合假设，同时检查数据分布、预处理和指标口径。"
+        ],
+        "review_status": "draft",
+        "reviewer": "",
+        "reviewed_at": "",
+        "review_note": "待教师审核"
+      }
+    },
+    {
+      "id": "ml029",
+      "title": "增加数据的适用条件",
+      "chapter_id": "ch2",
+      "description": "更多合适的训练样本可能缓解对少量数据的敏感，但不自动修复表达不足、泄漏或数据错误。",
+      "objectives": [
+        "结合样本量曲线决定是否优先收集数据。"
+      ],
+      "misconception": "任何欠拟合或过拟合都可以靠堆数据解决。",
+      "aliases": [
+        "数据量",
+        "more training data"
+      ],
+      "source_ids": [
+        "sklearn_curves",
+        "google_supervised"
+      ],
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核",
+      "scope": "core",
+      "resource_ids": [],
+      "task_ids": [],
+      "blueprint_ids": []
+    },
+    {
+      "id": "ml030",
+      "title": "正则化",
+      "chapter_id": "ch2",
+      "description": "正则化通过约束训练或模型来限制对训练细节的适应；效果需要用验证数据检查。",
+      "objectives": [
+        "说明正则化为何可能提高训练损失却改善验证表现。"
+      ],
+      "misconception": "正则化就是直接降低所有数据上的损失。",
+      "aliases": [
+        "regularization"
+      ],
+      "source_ids": [
+        "google_l2"
+      ],
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核",
+      "scope": "extension",
+      "resource_ids": [],
+      "task_ids": [],
+      "blueprint_ids": []
+    },
+    {
+      "id": "ml031",
+      "title": "L2惩罚项",
+      "chapter_id": "ch2",
+      "description": "L2 常用权重平方和构成惩罚，鼓励较小权重；具体目标是否包含偏置需看模型实现。",
+      "objectives": [
+        "计算简单权重向量的平方和。"
+      ],
+      "misconception": "L2 会自动把所有无用特征权重精确变为零。",
+      "aliases": [
+        "L2 regularization",
+        "权重平方和"
+      ],
+      "source_ids": [
+        "google_l2"
+      ],
+      "review_status": "draft",
+      "check_question": "两个权重为 2 和 -1，L2 平方和为多少？增大其在目标中的系数，通常希望产生什么作用？",
+      "expected_answer": "平方和为 5。增大系数会加强对大权重的惩罚，但是否改善泛化仍需验证。",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核",
+      "scope": "extension",
+      "resource_ids": [],
+      "task_ids": [
+        "diag_ml031"
+      ],
+      "blueprint_ids": [],
+      "check_task": {
+        "id": "diag_ml031",
+        "version": 1,
+        "rubric": [
+          "正确计算平方和为 5。",
+          "说明更强惩罚不是泛化改善保证，仍需验证。"
+        ],
+        "hint_levels": [
+          "检查负权重平方后的符号。",
+          "两个平方项应如何合并？",
+          "L2 对权重大小施加惩罚，系数决定惩罚影响。",
+          "把惩罚计算与泛化效果判断分成两步。"
+        ],
+        "review_status": "draft",
+        "reviewer": "",
+        "reviewed_at": "",
+        "review_note": "待教师审核"
+      }
+    },
+    {
+      "id": "ml032",
+      "title": "正则化强度",
+      "chapter_id": "ch2",
+      "description": "在数据损失加 λ 倍惩罚的写法中，λ 越大约束越强；强弱合适与否须比较验证表现。",
+      "objectives": [
+        "区分训练参数与用于选择的正则化系数。"
+      ],
+      "misconception": "正则化系数越大越好。",
+      "aliases": [
+        "lambda",
+        "λ",
+        "正则化系数"
+      ],
+      "source_ids": [
+        "google_l2"
+      ],
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核",
+      "scope": "extension",
+      "resource_ids": [],
+      "task_ids": [],
+      "blueprint_ids": []
+    },
+    {
+      "id": "ml033",
+      "title": "一致预处理与正则化实验",
+      "chapter_id": "ch2",
+      "description": "比较正则化设置时应固定特征表示和预处理边界，避免把处理差异误认成约束强度的效果。",
+      "objectives": [
+        "为正则化对照实验保持可比的数据处理流程。"
+      ],
+      "misconception": "只要 λ 一样，不同特征尺度的实验就完全可比。",
+      "aliases": [
+        "正则化对照",
+        "一致预处理"
+      ],
+      "source_ids": [
+        "sklearn_pitfalls",
+        "google_l2"
+      ],
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核",
+      "scope": "extension",
+      "resource_ids": [
+        "res_pitfalls"
+      ],
+      "task_ids": [],
+      "blueprint_ids": []
+    },
+    {
+      "id": "ml034",
+      "title": "早停",
+      "chapter_id": "ch2",
+      "description": "依据验证表现选择训练停止时机，并保留对应模型；停止时机也是模型选择的一部分。",
+      "objectives": [
+        "解释为何不能用测试曲线决定停止轮数。"
+      ],
+      "misconception": "早停就是训练损失第一次下降时立刻停止。",
+      "aliases": [
+        "early stopping"
+      ],
+      "source_ids": [
+        "google_l2",
+        "google_split"
+      ],
+      "review_status": "draft",
+      "check_question": "你在测试集曲线最低处保存模型，称之为早停。问题在哪里？",
+      "expected_answer": "测试数据参与了停止时机选择。应基于验证数据确定停止时机，测试集留作最终独立评估。",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核",
+      "scope": "extension",
+      "resource_ids": [],
+      "task_ids": [
+        "diag_ml034"
+      ],
+      "blueprint_ids": [],
+      "check_task": {
+        "id": "diag_ml034",
+        "version": 1,
+        "rubric": [
+          "指出测试数据参与了停止时机选择。",
+          "改用验证数据决定停止，保留独立最终测试。"
+        ],
+        "hint_levels": [
+          "检查决定停止轮数的是哪份数据。",
+          "这份数据是否因此参与模型选择？",
+          "停止时机也是一种待选择设置。",
+          "把停止规则放在开发验证阶段，最终测试保持隔离。"
+        ],
+        "review_status": "draft",
+        "reviewer": "",
+        "reviewed_at": "",
+        "review_note": "待教师审核"
+      }
+    },
+    {
+      "id": "ml035",
+      "title": "诊断证据与对照实验",
+      "chapter_id": "ch2",
+      "description": "诊断应同时查看训练过程、验证表现及数据流程，再控制条件比较一种改动，记录假设与结果。",
+      "objectives": [
+        "面对损失异常提出可检验的原因与下一步。"
+      ],
+      "misconception": "一张曲线足以确定唯一原因和最佳处理。",
+      "aliases": [
+        "模型诊断",
+        "实验依据"
+      ],
+      "source_ids": [
+        "google_loss_curves",
+        "sklearn_pitfalls"
+      ],
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核",
+      "scope": "core",
+      "resource_ids": [
+        "res_pitfalls"
+      ],
+      "task_ids": [],
+      "blueprint_ids": []
+    },
+    {
+      "id": "ml036",
+      "title": "选择完成后的独立评估",
+      "chapter_id": "ch2",
+      "description": "确定模型和处理方案后，再用未参与选择的测试数据报告结果，同时说明划分、指标和适用场景。",
+      "objectives": [
+        "把最终性能报告与开发调参记录区分开。"
+      ],
+      "misconception": "在测试集上挑最好的一次结果即可作为最终性能。",
+      "aliases": [
+        "最终评估",
+        "独立验证",
+        "final evaluation"
+      ],
+      "source_ids": [
+        "google_split",
+        "sklearn_cv"
+      ],
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核",
+      "scope": "core",
+      "resource_ids": [
+        "res_split"
+      ],
+      "task_ids": [],
+      "blueprint_ids": [
+        "bp_final_evaluation"
+      ]
+    },
+    {
+      "id": "ml037",
+      "title": "分类准确率与错误率",
+      "chapter_id": "ch1",
+      "description": "在单标签、等权分类中，准确率是预测正确的样本比例，错误率等于 1 减准确率；类别不均衡时，高准确率仍可能掩盖重要错误。",
+      "objectives": [
+        "根据真实标签和预测标签计算两项指标，并说明类别比例的影响。"
+      ],
+      "misconception": "准确率高就代表所有类别都识别得好。",
+      "aliases": [
+        "accuracy",
+        "分类错误率",
+        "classification error"
+      ],
+      "source_ids": [
+        "sklearn_cv"
+      ],
+      "resource_ids": [
+        "res_accuracy"
+      ],
+      "check_question": "10 个等权样本中预测正确 8 个，准确率与错误率各是多少？如果多数类占 95%，总预测多数类是否足以证明模型有用？",
+      "expected_answer": "准确率为 80%，错误率为 20%。总预测多数类虽可能得到 95% 准确率，仍可能漏掉所有少数类；需要检查类别构成和任务要求。",
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核",
+      "scope": "core",
+      "task_ids": [
+        "diag_ml037"
+      ],
+      "blueprint_ids": [
+        "bp_tree_diagnosis",
+        "bp_final_evaluation"
+      ],
+      "check_task": {
+        "id": "diag_ml037",
+        "version": 1,
+        "rubric": [
+          "算出 80% 准确率和 20% 错误率。",
+          "指出多数类策略可能掩盖少数类失败。"
+        ],
+        "hint_levels": [
+          "核对分母及正确样本数。",
+          "所有样本都预测成多数类时，少数类会怎样？",
+          "总正确比例并不描述每一类的错误。",
+          "先计算整体比例，再检查各类别表现和任务代价。"
+        ],
+        "review_status": "draft",
+        "reviewer": "",
+        "reviewed_at": "",
+        "review_note": "待教师审核"
+      }
+    },
+    {
+      "id": "ml038",
+      "title": "固定随机种子与划分复现",
+      "chapter_id": "ch1",
+      "description": "在输入数据、顺序、库版本和划分设置固定时，固定整数随机种子有助于复现相同划分；它不保证评估无偏或模型一定表现良好。",
+      "objectives": [
+        "说明复现实验应记录哪些设置，并避免通过挑种子选择最好结果。"
+      ],
+      "misconception": "随机种子能保证训练、验证、测试天然互不重叠。",
+      "aliases": [
+        "随机种子",
+        "random_state",
+        "可复现划分"
+      ],
+      "source_ids": [
+        "sklearn_cv",
+        "sklearn_pitfalls"
+      ],
+      "resource_ids": [
+        "res_split"
+      ],
+      "check_question": "两次划分都写了 random_state=42，却使用了不同顺序或不同版本的数据，一定能得到相同样本集合吗？还应记录什么？",
+      "expected_answer": "不一定。还需记录数据版本与样本标识、输入顺序、划分比例、分层/分组规则、相关库版本和全部随机设置。",
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核",
+      "scope": "core",
+      "task_ids": [
+        "diag_ml038"
+      ],
+      "blueprint_ids": [
+        "bp_split"
+      ],
+      "check_task": {
+        "id": "diag_ml038",
+        "version": 1,
+        "rubric": [
+          "指出种子相同不能抵消输入或版本变化。",
+          "至少记录数据版本/样本标识、顺序、划分设置和随机设置。"
+        ],
+        "hint_levels": [
+          "检查除随机种子以外的输入条件。",
+          "如果样本顺序变了，同一随机序列会选中相同对象吗？",
+          "可复现性依赖数据、环境和完整配置。",
+          "逐项记录数据版本、样本标识、顺序、比例、规则和随机设置。"
+        ],
+        "review_status": "draft",
+        "reviewer": "",
+        "reviewed_at": "",
+        "review_note": "待教师审核"
+      }
+    },
+    {
+      "id": "ml039",
+      "title": "决策树分类",
+      "chapter_id": "ch2",
+      "description": "分类树逐步按特征条件划分样本；预测时沿规则到达叶节点，再输出类别。模型规则由训练数据学习，预测结果仍需留出数据评估。",
+      "objectives": [
+        "沿给定树路径判断样本类别，并区分学到的分裂与人为设定的约束。"
+      ],
+      "misconception": "决策树是人工预先写好所有分类规则。",
+      "aliases": [
+        "DecisionTreeClassifier",
+        "分类树"
+      ],
+      "source_ids": [
+        "google_supervised",
+        "google_overfit"
+      ],
+      "resource_ids": [
+        "res_tree"
+      ],
+      "check_question": "一棵树先检查温度是否超过阈值，再检查振动读数，最后输出故障类别。预测一个新设备时是否需要先知道它的真实类别？",
+      "expected_answer": "不需要，预测使用当时可用特征沿树路径得到类别；真实类别只在事后评估时用于对照。",
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核",
+      "scope": "core",
+      "task_ids": [
+        "diag_ml039"
+      ],
+      "blueprint_ids": [
+        "bp_tree_diagnosis"
+      ],
+      "check_task": {
+        "id": "diag_ml039",
+        "version": 1,
+        "rubric": [
+          "指出预测无需先知道真实类别。",
+          "说明沿特征规则预测，真实标签用于评估。"
+        ],
+        "hint_levels": [
+          "检查预测时需要读取的信息。",
+          "沿每个分裂条件前进时用到什么？",
+          "树用输入特征路由到叶节点。",
+          "区分生成类别预测与事后用真实标签核验。"
+        ],
+        "review_status": "draft",
+        "reviewer": "",
+        "reviewed_at": "",
+        "review_note": "待教师审核"
+      }
+    },
+    {
+      "id": "ml040",
+      "title": "树深度与复杂度控制",
+      "chapter_id": "ch2",
+      "description": "最大深度限制分类树可连续分裂的层数。增大上限通常允许更复杂的规则，但实际树可能更浅，验证表现也不保证改善。",
+      "objectives": [
+        "在固定数据与其他设置下比较深度候选，依据验证准确率选择。"
+      ],
+      "misconception": "max_depth 越大，泛化效果必然越好。",
+      "aliases": [
+        "max_depth",
+        "树深度",
+        "深度对照"
+      ],
+      "source_ids": [
+        "google_overfit",
+        "sklearn_curves"
+      ],
+      "resource_ids": [
+        "res_tree"
+      ],
+      "check_question": "只改变 max_depth 后，训练准确率提高、验证准确率下降。下一步应优先依据哪份数据比较候选，能否立即用测试集继续调深度？",
+      "expected_answer": "依据验证集比较并检查过拟合等原因；测试集应留到选择完成后的独立评估，不能继续用来调深度。",
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核",
+      "scope": "core",
+      "task_ids": [
+        "diag_ml040"
+      ],
+      "blueprint_ids": [
+        "bp_tree_diagnosis"
+      ],
+      "check_task": {
+        "id": "diag_ml040",
+        "version": 1,
+        "rubric": [
+          "使用验证证据比较深度候选。",
+          "保持测试集独立，说明训练表现提高不代表泛化改善。"
+        ],
+        "hint_levels": [
+          "检查训练和验证指标变化的方向。",
+          "哪份数据可以用于比较多个深度候选？",
+          "更强表达能力可能适应训练细节。",
+          "先用验证证据选设置，冻结后再独立测试。"
+        ],
+        "review_status": "draft",
+        "reviewer": "",
+        "reviewed_at": "",
+        "review_note": "待教师审核"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge001",
+      "source": "ml001",
+      "target": "ml002",
+      "type": "prerequisite",
+      "reason": "编排建议：先从任务识别输入与目标。",
+      "source_ids": [
+        "google_supervised"
+      ],
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核"
+    },
+    {
+      "id": "edge002",
+      "source": "ml002",
+      "target": "ml003",
+      "type": "prerequisite",
+      "reason": "编排建议：先明确特征和标签，再解释预测映射。",
+      "source_ids": [
+        "google_supervised"
+      ],
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核"
+    },
+    {
+      "id": "edge003",
+      "source": "ml003",
+      "target": "ml004",
+      "type": "prerequisite",
+      "reason": "编排建议：先理解预测，再解释参数如何拟合。",
+      "source_ids": [
+        "google_supervised"
+      ],
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核"
+    },
+    {
+      "id": "edge004",
+      "source": "ml002",
+      "target": "ml005",
+      "type": "prerequisite",
+      "reason": "编排建议：先明确样本单位，才能安排数据划分。",
+      "source_ids": [
+        "google_split"
+      ],
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核"
+    },
+    {
+      "id": "edge005",
+      "source": "ml005",
+      "target": "ml006",
+      "type": "prerequisite",
+      "reason": "编排建议：先明确各子集用途，再讨论训练集。",
+      "source_ids": [
+        "google_split"
+      ],
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核"
+    },
+    {
+      "id": "edge006",
+      "source": "ml006",
+      "target": "ml007",
+      "type": "prerequisite",
+      "reason": "编排建议：先确定参与拟合的数据，再解释训练损失。",
+      "source_ids": [
+        "google_supervised"
+      ],
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核"
+    },
+    {
+      "id": "edge007",
+      "source": "ml005",
+      "target": "ml008",
+      "type": "prerequisite",
+      "reason": "编排建议：先理解划分目的，再区分验证用途。",
+      "source_ids": [
+        "google_split"
+      ],
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核"
+    },
+    {
+      "id": "edge008",
+      "source": "ml004",
+      "target": "ml009",
+      "type": "prerequisite",
+      "reason": "编排建议：先理解训练参数，再区分超参数。",
+      "source_ids": [
+        "sklearn_cv"
+      ],
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核"
+    },
+    {
+      "id": "edge009",
+      "source": "ml008",
+      "target": "ml010",
+      "type": "prerequisite",
+      "reason": "编排建议：先理解验证集作用，再比较候选模型。",
+      "source_ids": [
+        "sklearn_cv"
+      ],
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核"
+    },
+    {
+      "id": "edge010",
+      "source": "ml009",
+      "target": "ml010",
+      "type": "prerequisite",
+      "reason": "编排建议：先区分待选择设置，再讨论模型选择。",
+      "source_ids": [
+        "sklearn_cv"
+      ],
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核"
+    },
+    {
+      "id": "edge011",
+      "source": "ml005",
+      "target": "ml011",
+      "type": "prerequisite",
+      "reason": "编排建议：先明确用途分离，再讨论最终测试。",
+      "source_ids": [
+        "google_split"
+      ],
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核"
+    },
+    {
+      "id": "edge012",
+      "source": "ml007",
+      "target": "ml012",
+      "type": "prerequisite",
+      "reason": "编排建议：先理解训练误差，再解释新样本误差。",
+      "source_ids": [
+        "google_overfit"
+      ],
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核"
+    },
+    {
+      "id": "edge013",
+      "source": "ml011",
+      "target": "ml012",
+      "type": "prerequisite",
+      "reason": "编排建议：先了解独立测试，再讨论泛化估计。",
+      "source_ids": [
+        "sklearn_cv"
+      ],
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核"
+    },
+    {
+      "id": "edge014",
+      "source": "ml005",
+      "target": "ml013",
+      "type": "prerequisite",
+      "reason": "编排建议：先有划分方案，再检查各部分代表性。",
+      "source_ids": [
+        "google_split"
+      ],
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核"
+    },
+    {
+      "id": "edge015",
+      "source": "ml005",
+      "target": "ml014",
+      "type": "prerequisite",
+      "reason": "编排建议：先有数据边界，再识别信息越界。",
+      "source_ids": [
+        "sklearn_pitfalls"
+      ],
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核"
+    },
+    {
+      "id": "edge016",
+      "source": "ml014",
+      "target": "ml015",
+      "type": "prerequisite",
+      "reason": "编排建议：先认识泄漏，再检查预处理拟合边界。",
+      "source_ids": [
+        "sklearn_pitfalls"
+      ],
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核"
+    },
+    {
+      "id": "edge017",
+      "source": "ml008",
+      "target": "ml016",
+      "type": "prerequisite",
+      "reason": "编排建议：先理解验证用途，再引入轮换验证。",
+      "source_ids": [
+        "sklearn_cv"
+      ],
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核"
+    },
+    {
+      "id": "edge018",
+      "source": "ml013",
+      "target": "ml017",
+      "type": "prerequisite",
+      "reason": "编排建议：先理解代表性，再讨论类别比例。",
+      "source_ids": [
+        "sklearn_cv"
+      ],
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核"
+    },
+    {
+      "id": "edge019",
+      "source": "ml013",
+      "target": "ml018",
+      "type": "prerequisite",
+      "reason": "编排建议：先明确目标人群和时间，再选择隔离方式。",
+      "source_ids": [
+        "sklearn_cv"
+      ],
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核"
+    },
+    {
+      "id": "edge020",
+      "source": "ml003",
+      "target": "ml019",
+      "type": "prerequisite",
+      "reason": "编排建议：先理解预测规则，再讨论表达灵活程度。",
+      "source_ids": [
+        "google_overfit"
+      ],
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核"
+    },
+    {
+      "id": "edge021",
+      "source": "ml007",
+      "target": "ml020",
+      "type": "prerequisite",
+      "reason": "编排建议：先看训练表现，再讨论拟合不足。",
+      "source_ids": [
+        "google_overfit"
+      ],
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核"
+    },
+    {
+      "id": "edge022",
+      "source": "ml012",
+      "target": "ml021",
+      "type": "prerequisite",
+      "reason": "编排建议：先理解新样本表现，才能解释过拟合。",
+      "source_ids": [
+        "google_overfit"
+      ],
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核"
+    },
+    {
+      "id": "edge023",
+      "source": "ml007",
+      "target": "ml022",
+      "type": "prerequisite",
+      "reason": "编排建议：先掌握训练误差含义，才能比较差距。",
+      "source_ids": [
+        "google_overfit"
+      ],
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核"
+    },
+    {
+      "id": "edge024",
+      "source": "ml008",
+      "target": "ml022",
+      "type": "prerequisite",
+      "reason": "编排建议：先掌握验证用途，才能解释验证表现。",
+      "source_ids": [
+        "google_overfit"
+      ],
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核"
+    },
+    {
+      "id": "edge025",
+      "source": "ml019",
+      "target": "ml023",
+      "type": "prerequisite",
+      "reason": "编排建议：先理解表达限制，再引入偏差直觉。",
+      "source_ids": [
+        "sklearn_curves"
+      ],
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核"
+    },
+    {
+      "id": "edge026",
+      "source": "ml019",
+      "target": "ml024",
+      "type": "prerequisite",
+      "reason": "编排建议：先理解模型灵活性，再讨论样本敏感性。",
+      "source_ids": [
+        "sklearn_curves"
+      ],
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核"
+    },
+    {
+      "id": "edge027",
+      "source": "ml023",
+      "target": "ml025",
+      "type": "prerequisite",
+      "reason": "编排建议：先认识偏差，再讨论综合误差来源。",
+      "source_ids": [
+        "sklearn_curves"
+      ],
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核"
+    },
+    {
+      "id": "edge028",
+      "source": "ml024",
+      "target": "ml025",
+      "type": "prerequisite",
+      "reason": "编排建议：先认识方差，再讨论权衡。",
+      "source_ids": [
+        "sklearn_curves"
+      ],
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核"
+    },
+    {
+      "id": "edge029",
+      "source": "ml010",
+      "target": "ml026",
+      "type": "prerequisite",
+      "reason": "编排建议：先明确模型选择，再用曲线观察超参数影响。",
+      "source_ids": [
+        "sklearn_curves"
+      ],
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核"
+    },
+    {
+      "id": "edge030",
+      "source": "ml022",
+      "target": "ml026",
+      "type": "prerequisite",
+      "reason": "编排建议：先会比较两组表现，再阅读验证曲线。",
+      "source_ids": [
+        "sklearn_curves"
+      ],
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核"
+    },
+    {
+      "id": "edge031",
+      "source": "ml016",
+      "target": "ml027",
+      "type": "prerequisite",
+      "reason": "编排建议：先理解验证过程，再阅读样本量曲线。",
+      "source_ids": [
+        "sklearn_curves"
+      ],
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核"
+    },
+    {
+      "id": "edge032",
+      "source": "ml022",
+      "target": "ml028",
+      "type": "prerequisite",
+      "reason": "编排建议：先能比较训练与验证，再解释迭代趋势。",
+      "source_ids": [
+        "google_loss_curves"
+      ],
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核"
+    },
+    {
+      "id": "edge033",
+      "source": "ml027",
+      "target": "ml029",
+      "type": "prerequisite",
+      "reason": "编排建议：先观察样本量趋势，再决定是否增加数据。",
+      "source_ids": [
+        "sklearn_curves"
+      ],
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核"
+    },
+    {
+      "id": "edge034",
+      "source": "ml021",
+      "target": "ml030",
+      "type": "prerequisite",
+      "reason": "编排建议：先理解过度适应问题，再引入约束手段。",
+      "source_ids": [
+        "google_l2"
+      ],
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核"
+    },
+    {
+      "id": "edge035",
+      "source": "ml030",
+      "target": "ml031",
+      "type": "prerequisite",
+      "reason": "编排建议：先理解正则化目的，再认识具体惩罚。",
+      "source_ids": [
+        "google_l2"
+      ],
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核"
+    },
+    {
+      "id": "edge036",
+      "source": "ml031",
+      "target": "ml032",
+      "type": "prerequisite",
+      "reason": "编排建议：先理解惩罚项，再选择其系数。",
+      "source_ids": [
+        "google_l2"
+      ],
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核"
+    },
+    {
+      "id": "edge037",
+      "source": "ml015",
+      "target": "ml033",
+      "type": "prerequisite",
+      "reason": "编排建议：先明确预处理边界，再做可比实验。",
+      "source_ids": [
+        "sklearn_pitfalls"
+      ],
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核"
+    },
+    {
+      "id": "edge038",
+      "source": "ml032",
+      "target": "ml033",
+      "type": "prerequisite",
+      "reason": "编排建议：先认识待比较强度，再设计控制条件。",
+      "source_ids": [
+        "google_l2"
+      ],
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核"
+    },
+    {
+      "id": "edge039",
+      "source": "ml028",
+      "target": "ml034",
+      "type": "prerequisite",
+      "reason": "编排建议：先会读验证曲线，再确定停止时机。",
+      "source_ids": [
+        "google_l2"
+      ],
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核"
+    },
+    {
+      "id": "edge040",
+      "source": "ml020",
+      "target": "ml035",
+      "type": "prerequisite",
+      "reason": "编排建议：先认识拟合不足假设，再开展诊断。",
+      "source_ids": [
+        "google_loss_curves"
+      ],
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核"
+    },
+    {
+      "id": "edge041",
+      "source": "ml021",
+      "target": "ml035",
+      "type": "prerequisite",
+      "reason": "编排建议：先认识过拟合假设，再开展对照。",
+      "source_ids": [
+        "google_loss_curves"
+      ],
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核"
+    },
+    {
+      "id": "edge042",
+      "source": "ml014",
+      "target": "ml035",
+      "type": "prerequisite",
+      "reason": "编排建议：先排查数据泄漏，避免误读实验结果。",
+      "source_ids": [
+        "sklearn_pitfalls"
+      ],
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核"
+    },
+    {
+      "id": "edge043",
+      "source": "ml010",
+      "target": "ml036",
+      "type": "prerequisite",
+      "reason": "编排建议：先完成候选选择，再做独立最终评估。",
+      "source_ids": [
+        "google_split"
+      ],
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核"
+    },
+    {
+      "id": "edge044",
+      "source": "ml011",
+      "target": "ml036",
+      "type": "prerequisite",
+      "reason": "编排建议：先理解测试边界，再组织最终报告。",
+      "source_ids": [
+        "google_split"
+      ],
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核"
+    },
+    {
+      "id": "edge045",
+      "source": "ml035",
+      "target": "ml036",
+      "type": "prerequisite",
+      "reason": "编排建议：先记录诊断与改动，再说明最终结论依据。",
+      "source_ids": [
+        "sklearn_pitfalls"
+      ],
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核"
+    },
+    {
+      "id": "edge046",
+      "source": "ml006",
+      "target": "ml008",
+      "type": "confusable",
+      "reason": "训练集负责拟合，验证集负责选择，需对照辨析。",
+      "source_ids": [
+        "google_split"
+      ],
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核"
+    },
+    {
+      "id": "edge047",
+      "source": "ml008",
+      "target": "ml011",
+      "type": "confusable",
+      "reason": "验证与测试都评估留出样本，但参与开发决策的边界不同。",
+      "source_ids": [
+        "google_split"
+      ],
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核"
+    },
+    {
+      "id": "edge048",
+      "source": "ml020",
+      "target": "ml021",
+      "type": "confusable",
+      "reason": "并列比较拟合不足与过度适应的证据。",
+      "source_ids": [
+        "google_overfit"
+      ],
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核"
+    },
+    {
+      "id": "edge049",
+      "source": "ml023",
+      "target": "ml024",
+      "type": "confusable",
+      "reason": "对照系统偏离与训练样本敏感性。",
+      "source_ids": [
+        "sklearn_curves"
+      ],
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核"
+    },
+    {
+      "id": "edge050",
+      "source": "ml026",
+      "target": "ml027",
+      "type": "confusable",
+      "reason": "横轴分别是超参数与训练样本量，不能混用解释。",
+      "source_ids": [
+        "sklearn_curves"
+      ],
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核"
+    },
+    {
+      "id": "edge051",
+      "source": "ml027",
+      "target": "ml028",
+      "type": "confusable",
+      "reason": "样本量曲线与迭代曲线具有不同横轴。",
+      "source_ids": [
+        "sklearn_curves"
+      ],
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核"
+    },
+    {
+      "id": "edge052",
+      "source": "ml030",
+      "target": "ml034",
+      "type": "related",
+      "reason": "早停是限制训练的一种正则化思路。",
+      "source_ids": [
+        "google_l2"
+      ],
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核"
+    },
+    {
+      "id": "edge053",
+      "source": "ml005",
+      "target": "ml006",
+      "type": "contains",
+      "reason": "数据用途划分包含训练集这一组成。",
+      "source_ids": [
+        "google_split"
+      ],
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核"
+    },
+    {
+      "id": "edge054",
+      "source": "ml005",
+      "target": "ml008",
+      "type": "contains",
+      "reason": "数据用途划分包含验证集这一组成。",
+      "source_ids": [
+        "google_split"
+      ],
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核"
+    },
+    {
+      "id": "edge055",
+      "source": "ml005",
+      "target": "ml011",
+      "type": "contains",
+      "reason": "数据用途划分包含测试集这一组成。",
+      "source_ids": [
+        "google_split"
+      ],
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核"
+    },
+    {
+      "id": "edge056",
+      "source": "ml030",
+      "target": "ml031",
+      "type": "contains",
+      "reason": "L2 是正则化方法中的一个具体形式。",
+      "source_ids": [
+        "google_l2"
+      ],
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核"
+    },
+    {
+      "id": "edge057",
+      "source": "ml008",
+      "target": "ml021",
+      "type": "prerequisite",
+      "reason": "编排建议：先理解验证集的用途，再通过可比的训练与验证表现判断过拟合，使诊断题所需知识与补学路径一致。",
+      "source_ids": [
+        "google_split",
+        "google_overfit"
+      ],
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核"
+    },
+    {
+      "id": "edge058",
+      "source": "ml006",
+      "target": "ml011",
+      "type": "confusable",
+      "reason": "训练用于拟合，测试保留为最终独立评估，不能混用。",
+      "source_ids": [
+        "google_split"
+      ],
+      "resource_ids": [],
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核"
+    },
+    {
+      "id": "edge059",
+      "source": "ml004",
+      "target": "ml009",
+      "type": "confusable",
+      "reason": "从训练样本学到的参数或规则，与人为选择的训练/模型设置不同。",
+      "source_ids": [
+        "sklearn_cv"
+      ],
+      "resource_ids": [],
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核"
+    },
+    {
+      "id": "edge060",
+      "source": "ml003",
+      "target": "ml037",
+      "type": "prerequisite",
+      "reason": "编排建议：先有类别预测，再计算预测是否正确。",
+      "source_ids": [
+        "google_supervised",
+        "sklearn_cv"
+      ],
+      "resource_ids": [
+        "res_accuracy"
+      ],
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核"
+    },
+    {
+      "id": "edge061",
+      "source": "ml005",
+      "target": "ml038",
+      "type": "prerequisite",
+      "reason": "编排建议：先明确划分用途，再固定并记录随机设置。",
+      "source_ids": [
+        "sklearn_cv"
+      ],
+      "resource_ids": [],
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核"
+    },
+    {
+      "id": "edge062",
+      "source": "ml003",
+      "target": "ml039",
+      "type": "prerequisite",
+      "reason": "编排建议：先理解分类预测，再阅读树的决策路径。",
+      "source_ids": [
+        "google_supervised"
+      ],
+      "resource_ids": [
+        "res_tree"
+      ],
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核"
+    },
+    {
+      "id": "edge063",
+      "source": "ml039",
+      "target": "ml040",
+      "type": "prerequisite",
+      "reason": "编排建议：先理解树的分裂与叶节点，再讨论深度约束。",
+      "source_ids": [
+        "google_overfit"
+      ],
+      "resource_ids": [
+        "res_tree"
+      ],
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核"
+    },
+    {
+      "id": "edge064",
+      "source": "ml009",
+      "target": "ml040",
+      "type": "prerequisite",
+      "reason": "编排建议：先区分超参数，再将 max_depth 作为候选设置比较。",
+      "source_ids": [
+        "sklearn_cv"
+      ],
+      "resource_ids": [
+        "res_tree"
+      ],
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核"
+    },
+    {
+      "id": "edge065",
+      "source": "ml037",
+      "target": "ml022",
+      "type": "prerequisite",
+      "reason": "编排建议：先会计算准确率和错误率，再比较两组分类表现。",
+      "source_ids": [
+        "sklearn_cv"
+      ],
+      "resource_ids": [
+        "res_accuracy"
+      ],
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核"
+    },
+    {
+      "id": "edge066",
+      "source": "ml040",
+      "target": "ml026",
+      "type": "prerequisite",
+      "reason": "编排建议：本课程以树深度为横轴，先理解深度约束再阅读验证曲线。",
+      "source_ids": [
+        "sklearn_curves"
+      ],
+      "resource_ids": [
+        "res_tree"
+      ],
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核"
+    },
+    {
+      "id": "edge067",
+      "source": "ml019",
+      "target": "ml040",
+      "type": "contains",
+      "reason": "树深度约束是分类模型复杂度控制的具体例子。",
+      "source_ids": [
+        "google_overfit"
+      ],
+      "resource_ids": [
+        "res_tree"
+      ],
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核"
+    },
+    {
+      "id": "edge068",
+      "source": "ml037",
+      "target": "ml007",
+      "type": "prerequisite",
+      "reason": "编排建议：本课程先明确分类准确率和错误率的口径，再解释训练表现及其局限。",
+      "source_ids": [
+        "sklearn_cv"
+      ],
+      "resource_ids": [
+        "res_accuracy"
+      ],
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核"
+    }
+  ],
+  "review_policy": {
+    "intervals_days": [
+      1,
+      7,
+      30
+    ]
+  },
+  "resources": [
+    {
+      "id": "res_split",
+      "title": "数据集如何分为训练、验证和测试集",
+      "organization": "Google",
+      "url": "https://developers.google.com/machine-learning/crash-course/overfitting/dividing-datasets",
+      "node_ids": [
+        "ml005",
+        "ml006",
+        "ml008",
+        "ml011",
+        "ml013",
+        "ml036",
+        "ml038"
+      ],
+      "applicable_segment": "Training, validation, and test sets；Additional problems with test sets。重点讨论三类用途、重复样本和评估边界；固定种子的技术依据另见 sources 中 sklearn_cv。",
+      "prerequisite_ids": [
+        "ml002",
+        "ml003"
+      ],
+      "format": "lesson",
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核"
+    },
+    {
+      "id": "res_accuracy",
+      "title": "分类准确率及其适用边界",
+      "organization": "Google",
+      "url": "https://developers.google.com/machine-learning/crash-course/classification/accuracy-precision-recall",
+      "node_ids": [
+        "ml007",
+        "ml012",
+        "ml020",
+        "ml021",
+        "ml022",
+        "ml026",
+        "ml037"
+      ],
+      "applicable_segment": "Accuracy 段落及类别不均衡示例；Choice of metric and tradeoffs 作为延伸阅读。本次不要求精确率、召回率公式。",
+      "prerequisite_ids": [
+        "ml001",
+        "ml002",
+        "ml003"
+      ],
+      "format": "lesson",
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核"
+    },
+    {
+      "id": "res_tree",
+      "title": "决策树分类与复杂度控制",
+      "organization": "scikit-learn 开发团队",
+      "url": "https://scikit-learn.org/stable/modules/tree.html",
+      "node_ids": [
+        "ml003",
+        "ml004",
+        "ml009",
+        "ml019",
+        "ml020",
+        "ml021",
+        "ml026",
+        "ml039",
+        "ml040"
+      ],
+      "applicable_segment": "1.10 开头的过拟合与复杂度说明；1.10.1 Classification；1.10.5 Tips on practical use。以分类、max_depth 和叶节点限制为主，不采用回归示例作主线。",
+      "prerequisite_ids": [
+        "ml002",
+        "ml003",
+        "ml006"
+      ],
+      "format": "lesson",
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核"
+    },
+    {
+      "id": "res_pitfalls",
+      "title": "预处理一致性与数据泄漏",
+      "organization": "scikit-learn 开发团队",
+      "url": "https://scikit-learn.org/stable/common_pitfalls.html",
+      "node_ids": [
+        "ml014",
+        "ml015",
+        "ml016",
+        "ml033",
+        "ml035"
+      ],
+      "applicable_segment": "12.1 Inconsistent preprocessing；12.2 Data leakage。阅读训练部分 fit、留出部分 transform 和 Pipeline 的边界。",
+      "prerequisite_ids": [
+        "ml005",
+        "ml006",
+        "ml008",
+        "ml011"
+      ],
+      "format": "lesson",
+      "review_status": "draft",
+      "reviewer": "",
+      "reviewed_at": "",
+      "review_note": "待教师审核"
+    }
+  ]
+}

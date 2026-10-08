@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>课程知识与诊断 · 个性化学习智能体</title>
+  <link rel="stylesheet" href="/static/app.css?v=7"/>
+  <script defer src="/static/vendor/g6-5.1.1.min.js"></script>
+  <script defer src="/static/app.js?v=7"></script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/author"><svg viewBox="0 0 36 36" aria-hidden="true"><path d="M9 10 27 9 19 27Z"/><circle cx="9" cy="10" r="4"/><circle cx="27" cy="9" r="4"/><circle cx="19" cy="27" r="4"/></svg><strong>课程学习智能体</strong></a>
+    <nav><a id="studentView" href="/">正式课程</a><a id="authorView" href="/author">编写与审核</a></nav>
+    <button id="profileButton" class="button subtle">学习画像与续学</button>
+    <button id="manageButton" class="button primary">管理课程</button>
+  </header>
+  <main>
+    <section class="course-heading">
+      <div><div id="viewLabel" class="eyebrow">课程知识与诊断底座</div><h1 id="courseTitle">监督学习（分类）</h1><p id="courseSubtitle">正在读取课程版本…</p></div>
+      <div class="stats"><div><strong id="nodeCount">—</strong><span>知识点</span></div><div><strong id="edgeCount">—</strong><span>知识关系</span></div><div><strong id="masteredCount">—</strong><span>证据支持掌握</span></div><div><strong id="dueCount">—</strong><span>到期复测</span></div></div>
+    </section>
+    <div id="publicationNotice" class="publication-notice" role="status"></div>
+    <section id="unpublished" class="unpublished" hidden><h2>课程尚未发布</h2><p>课程知识、关系与教学资源需要完成人工审核，发布后才能进入正式学习。</p><a class="button primary" href="/author">查看教师草稿工作台</a></section>
+    <section id="workbench" class="workbench">
+      <aside class="sidebar">
+        <section class="learner-box"><label for="studentId">学习记录</label><form id="studentForm"><input id="studentId" autocomplete="off" maxlength="64" placeholder="稳定匿名编号" aria-label="匿名编号"/><button class="button primary compact" type="submit">加载</button></form><p id="learnerNote"></p><button id="resumeButton" class="text-button" hidden>恢复上次学习位置</button><button id="profileInlineButton" class="text-button profile-inline" type="button">学习画像与目标</button></section>
+        <div class="sidebar-label">学习单元</div><div id="chapters" class="chapters"></div>
+        <label class="search"><span>⌕</span><input id="search" type="search" placeholder="搜索名称或别名" aria-label="搜索知识点"/></label>
+        <label class="filter-label" for="statusFilter">节点状态<select id="statusFilter"><option value="all">全部状态</option><option value="unknown">尚未涉及</option><option value="uncertain">待核验</option><option value="needs_review">需要补学</option><option value="mastered">支持掌握</option><option value="due">到期复测</option></select></label>
+        <div class="sidebar-label node-list-title">知识点 <span id="listCount"></span></div><div id="nodeList" class="node-list"></div>
+        <button id="reportButton" class="button report-button">导出画像与证据引用</button>
+      </aside>
+      <section class="graph-pane" aria-label="课程知识图谱">
+        <div class="graph-toolbar"><div><strong id="viewTitle"></strong><span id="viewCount"></span></div><div class="graph-actions"><select id="structureView" aria-label="知识结构视图"><option value="course">课程参考结构</option><option value="expressions">对话表达结构</option></select><select id="relationFilter" aria-label="关系类型"><option value="prerequisite">前置关系</option><option value="all">全部关系</option><option value="contains">包含关系</option><option value="related">关联关系</option><option value="confusable">易混淆关系</option></select><button id="fitButton" class="icon-button" aria-label="适应画布">⛶</button></div></div>
+        <div class="graph-stage"><div id="graph" role="img" aria-label="交互图谱，也可从左侧选择知识点"></div><div id="graphMessage" class="graph-message">正在加载…</div><div class="graph-hint">前置箭头：先学 → 后学 · 易混淆线不代表学习顺序</div><div class="zoom-buttons"><button id="zoomIn" aria-label="放大">＋</button><button id="zoomOut" aria-label="缩小">−</button></div></div>
+        <div class="graph-footer"><div class="legend"><span><i class="dot mastered"></i>支持掌握</span><span><i class="dot needs_review"></i>需要补学</span><span><i class="dot unknown"></i>尚未涉及</span><span><i class="dot uncertain"></i>待核验</span></div><span id="reviewBadge" class="draft-badge"></span></div>
+      </section>
+      <aside class="detail-pane"><div class="detail-tabs" role="tablist"><button data-tab="detail" class="active" role="tab">内容与资料</button><button data-tab="evidence" role="tab">证据与判断</button><button data-tab="path" role="tab">下一步</button></div><div id="detailContent" class="detail-content"></div></aside>
+    </section>
+  </main>
+  <dialog id="manager" class="manager-dialog"><div class="modal-head"><div><div class="eyebrow">课程侧统一维护</div><h2>编写、审核与发布</h2></div><button class="icon-button close-dialog" aria-label="关闭">×</button></div><div class="manager-nav"><button data-mode="node">知识点</button><button data-mode="edge">关系</button><button data-mode="resource">资源</button><button data-mode="audit">图谱核查</button><button data-mode="blueprints">实训骨架</button><button data-mode="publish">发布与版本</button><button data-mode="import">导入导出</button><button data-mode="extract">候选抽取</button></div><div id="managerBody"></div></dialog>
+  <dialog id="profileDialog" class="manager-dialog"><div class="modal-head"><div><div class="eyebrow">按匿名编号保存</div><h2>学习画像与续学</h2></div><button class="icon-button" id="closeProfile" aria-label="关闭画像">×</button></div><div id="profileBody" class="profile-body"></div></dialog>
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+</body>
+</html>
