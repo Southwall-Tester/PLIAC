@@ -23,6 +23,7 @@ jobs:
       - run: python -X utf8 scripts/check_assets.py
       - run: node --check static/app.js
       - run: node --check static/network-view.js
+      - run: node --check static/theme.js
       - run: node --check static/network-layout.js
       - run: node --check static/graph-encoding.js
       - run: node --check static/documents.js

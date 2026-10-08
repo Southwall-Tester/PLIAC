@@ -42,6 +42,41 @@ def assert_neutral_toolbar(page):
         '(links,color)=>links.every(link=>getComputedStyle(link).color===color)', styles[0][0])
 
 
+def assert_dark_surfaces(page, selectors):
+    for selector in selectors:
+        surface = page.locator(selector).first
+        expect(surface).to_be_visible()
+        color = surface.evaluate('''element => {
+          for(let current=element;current;current=current.parentElement){
+            const channels=getComputedStyle(current).backgroundColor.match(/[\\d.]+/g)?.map(Number);
+            if(channels && (channels.length===3 || channels[3]>=.9)) return channels.slice(0,3);
+          }
+          return [255,255,255];
+        }''')
+        assert max(color) <= 95, (selector, color)
+
+
+def assert_left_controls(page):
+    controls = page.locator('.topbar button:visible, .topbar a:visible').evaluate_all('''elements => elements.map(element => {
+      const r=element.getBoundingClientRect();return {x:r.x,right:r.right,center:r.y+r.height/2};
+    })''')
+    rows = []
+    for control in sorted(controls, key=lambda item: item['center']):
+        if not rows or abs(rows[-1][0]['center'] - control['center']) > 12:
+            rows.append([])
+        rows[-1].append(control)
+    assert rows
+    for row in rows:
+        row.sort(key=lambda item: item['x'])
+        assert row[0]['x'] <= 16, row
+        assert all(-1 <= right['x'] - left['right'] <= 28 for left, right in zip(row, row[1:])), row
+        assert row[-1]['right'] <= page.viewport_size['width'], row
+    graph_controls = page.locator('.graph-toolbar')
+    if graph_controls.is_visible():
+        graph_left = page.locator('.graph-pane').bounding_box()['x']
+        assert 0 <= graph_controls.bounding_box()['x'] - graph_left <= 20, graph_controls.bounding_box()
+
+
 def main():
     output = ROOT / 'outputs/verification'
     output.mkdir(parents=True, exist_ok=True)
@@ -78,7 +113,10 @@ def main():
                         '#statsButton', '#profileButton', '#manageButton', '#importDocuments', '.zoom-buttons'))
                     page.locator('#themeButton').click()
                     expect(page.locator('body')).to_have_class(re.compile(r'network-dark'))
+                    expect(page.locator('html')).to_have_class(re.compile(r'network-dark'))
+                    assert_dark_surfaces(page, ('html', 'body', 'main', '#unpublished'))
                     assert_neutral_toolbar(page)
+                    assert_left_controls(page)
                     page.locator('#themeButton').click()
                     report['checks'].append('unpublished page hides graph actions while navigation and theme remain functional')
                     page.goto(url+'/author')
@@ -86,6 +124,7 @@ def main():
                     expect_controls(page, visible=('#manageButton', '#importDocuments', '#stabilizeButton'),
                                     hidden=('#profileButton',))
                     assert_neutral_toolbar(page)
+                    assert_left_controls(page)
                     expect(page.locator('.sidebar')).to_be_hidden()
                     expect(page.locator('.detail-pane')).to_be_hidden()
                     assert page.evaluate('__network.graph.getOptions().node.type') == 'circle'
@@ -116,6 +155,21 @@ def main():
                     expect(page.locator('body')).to_have_class('author-mode network-dark')
                     page.wait_for_function('!__network.busy')
                     assert_neutral_toolbar(page)
+                    assert_dark_surfaces(page, ('html', 'body', 'main', '.graph-pane', '.graph-stage'))
+                    page.locator('#manageButton').click()
+                    expect(page.locator('#nodeEditor')).to_be_visible()
+                    assert_dark_surfaces(page, ('#manager', '#managerBody', '#editPick', '#editTitle', '#editDescription'))
+                    page.locator('[data-mode="import"]').click()
+                    expect(page.locator('#importJson')).to_be_visible()
+                    assert_dark_surfaces(page, ('#manager', '#managerBody', '#importFile', '#importJson'))
+                    page.screenshot(path=str(output/'network-import-dark.png'))
+                    page.locator('#manager .close-dialog').click()
+                    page.set_viewport_size({'width':390, 'height':844})
+                    assert_left_controls(page)
+                    assert_dark_surfaces(page, ('html', 'body', 'main', '.graph-pane', '.graph-stage'))
+                    page.screenshot(path=str(output/'network-dark-mobile.png'))
+                    page.set_viewport_size({'width':1440, 'height':900})
+                    report['checks'].append('dark course and import forms cover page surfaces; toolbar and structure controls stay left on desktop and mobile')
                     page.locator('#themeButton').click()
                     report['checks'].append('author actions suit editing; toolbar controls share neutral colors in both themes; labels and theme update graph')
                     page.locator('#filtersButton').click()

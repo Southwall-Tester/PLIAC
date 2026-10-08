@@ -70,6 +70,38 @@ def assert_neutral_toolbar(page):
         "(links,color)=>links.every(link=>getComputedStyle(link).color===color)", styles[0][0])
 
 
+def assert_surface_theme(page, selectors, *, dark):
+    for selector in selectors:
+        surface = page.locator(selector).first
+        expect(surface).to_be_visible()
+        color = surface.evaluate("""element => {
+            for (let current=element; current; current=current.parentElement) {
+                const color=getComputedStyle(current).backgroundColor;
+                const channels=color.match(/[\\d.]+/g)?.map(Number);
+                if (channels && (channels.length===3 || channels[3]>=.9)) return channels.slice(0,3);
+            }
+            return [255,255,255];
+        }""")
+        assert (max(color) <= 95 if dark else min(color) >= 220), (selector, color, dark)
+
+
+def assert_left_toolbar(page):
+    controls = page.locator(".toolbar button:visible, .toolbar a:visible, .toolbar select:visible").evaluate_all("""elements => elements.map(element => {
+        const r=element.getBoundingClientRect(); return {x:r.x,right:r.right,center:r.y+r.height/2};
+    })""")
+    rows = []
+    for control in sorted(controls, key=lambda item: item["center"]):
+        if not rows or abs(rows[-1][0]["center"] - control["center"]) > 12:
+            rows.append([])
+        rows[-1].append(control)
+    assert rows
+    for row in rows:
+        row.sort(key=lambda item: item["x"])
+        assert row[0]["x"] <= 16, row
+        assert all(-1 <= right["x"] - left["right"] <= 28 for left, right in zip(row, row[1:])), row
+        assert row[-1]["right"] <= page.viewport_size["width"], row
+
+
 @contextmanager
 def isolated_application(directory):
     course = CourseGraphStore(output_dir=directory / "course")
@@ -133,9 +165,40 @@ def main():
                         expect_controls(page, visible=("#themeButton", '.toolbar a[href="/author"]'), hidden=(
                             "#physicsSettings", "#stabilizeButton", "#filtersButton", "#labelsButton",
                             "#statsButton", "#hierarchyLevel", "#importButton", "#exportButton", "#canvasControls"))
+                        assert_left_toolbar(page)
                         page.locator("#themeButton").click()
                         expect(page.locator("body")).to_have_class(re.compile(r"network-dark"))
+                        expect(page.locator("html")).to_have_class(re.compile(r"network-dark"))
+                        assert page.evaluate("localStorage.getItem('pliac-theme')") == "dark"
+                        page.locator(".upload-options summary").click()
+                        dark_library = ("html", "body", "main", "#libraryPanel", "#dropZone",
+                                        ".choose-file", "#startPage", "#endPage", "#engine")
+                        assert_surface_theme(page, dark_library, dark=True)
+                        page.screenshot(path=str(OUTPUT / "documents-library-dark.png"))
+                        report["screenshots"].append("documents-library-dark.png")
+                        page.set_viewport_size({"width": 390, "height": 844})
+                        assert_left_toolbar(page)
+                        assert_surface_theme(page, dark_library, dark=True)
+                        page.screenshot(path=str(OUTPUT / "documents-library-dark-mobile.png"))
+                        report["screenshots"].append("documents-library-dark-mobile.png")
+                        page.set_viewport_size({"width": 1440, "height": 900})
+                        page.reload()
+                        expect(page.locator("html")).to_have_class(re.compile(r"network-dark"))
+                        expect(page.locator("body")).to_have_class(re.compile(r"network-dark"))
+                        assert_surface_theme(page, ("html", "body", "main", "#libraryPanel", "#dropZone"), dark=True)
+                        page.locator('.toolbar a[href="/author"]').click()
+                        expect(page.locator("#importDocuments")).to_be_visible()
+                        expect(page.locator("html")).to_have_class(re.compile(r"network-dark"))
+                        expect(page.locator("body")).to_have_class(re.compile(r"network-dark"))
+                        page.locator("#importDocuments").click()
+                        expect(page.locator("#libraryPanel")).to_be_visible()
+                        expect(page.locator("body")).to_have_class(re.compile(r"network-dark"))
                         page.locator("#themeButton").click()
+                        expect(page.locator("html")).not_to_have_class(re.compile(r"network-dark"))
+                        expect(page.locator("body")).not_to_have_class(re.compile(r"network-dark"))
+                        assert page.evaluate("localStorage.getItem('pliac-theme')") == "light"
+                        assert_surface_theme(page, ("html", "body", "main", "#libraryPanel", "#dropZone"), dark=False)
+                        passed("Dark library covers the page, upload panel and settings; theme survives reload and course navigation, then restores light")
                         passed("Empty library offers theme and course navigation without graph-specific actions")
 
                         generating = browser.new_page(viewport={"width": 1440, "height": 900})
@@ -169,6 +232,11 @@ def main():
                         assert len(data["nodes"]) > 5 and len(data["edges"]) > 2
                         assert any(n["style"].get("lineWidth") == 2 for n in data["nodes"])
                         assert_neutral_toolbar(page)
+                        assert_left_toolbar(page)
+                        page.set_viewport_size({"width": 390, "height": 844})
+                        assert_left_toolbar(page)
+                        page.set_viewport_size({"width": 1440, "height": 900})
+                        passed("Document toolbar actions flow from the left on desktop and mobile, with and without graph tools")
                         page.locator("#themeButton").click()
                         expect(page.locator("body")).to_have_class(re.compile(r"network-dark"))
                         assert_neutral_toolbar(page)
@@ -383,8 +451,15 @@ def main():
                         page.locator("#closeFilters").click()
                         passed("Empty search hides graph-only actions while its filters remain available to restore the graph")
 
+                        page.locator("#themeButton").click()
                         page.locator("#importButton").click()
                         expect(page.locator("#confirmImport")).to_be_enabled()
+                        assert_surface_theme(page, ("#importDialog", ".import-summary", ".import-summary label",
+                                                    "#importNodes", "#importNodes label", ".dialog-actions"), dark=True)
+                        assert page.locator("#selectAll").evaluate("el=>getComputedStyle(el).colorScheme") == "dark"
+                        page.screenshot(path=str(OUTPUT / "documents-import-dark.png"))
+                        report["screenshots"].append("documents-import-dark.png")
+                        passed("Dark import dialog covers the selection list, select-all row and native checkbox")
                         draft = course.load_graph("draft")
                         draft["title"] = "Temporary version conflict"
                         course.save_graph(draft, draft["version"])
@@ -392,6 +467,7 @@ def main():
                         expect(page.locator("#importError")).to_contain_text("已更新")
                         page.locator("#confirmImport").click()
                         expect(page.locator("#importDialog")).not_to_be_visible()
+                        page.locator("#themeButton").click()
                         draft = course.load_graph("draft")
                         added = [n for n in draft["nodes"] if n.get("document_id") == ident]
                         assert added and all(n["review_status"] == "draft" for n in added)

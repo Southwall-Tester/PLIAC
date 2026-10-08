@@ -3,7 +3,8 @@
   class NetworkView {
     static bindTheme(redraw) {
       const button=document.getElementById('themeButton');
-      button.onclick=async()=>{document.body.classList.toggle('network-dark');button.textContent=document.body.classList.contains('network-dark')?'浅色':'深色';await redraw?.();};
+      GraphTheme.sync();
+      button.onclick=async()=>{GraphTheme.toggle();await redraw?.();};
     }
     constructor(element, select, edgeSelect, contextMenu) {
       this.element=element;this.select=select;this.edgeSelect=edgeSelect;

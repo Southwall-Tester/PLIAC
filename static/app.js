@@ -15,6 +15,7 @@
   const collapsed=new Set();
   let structureSelection=null;
   let writeQueue = Promise.resolve();
+  new ResizeObserver(()=>document.documentElement.style.setProperty('--toolbar-height',`${document.querySelector('.topbar').offsetHeight}px`)).observe(document.querySelector('.topbar'));
   function updateToolbar(){
     const ready=!!graph,count=ready?(network?.data?.nodes.length||0):0;
     $('physicsSettings').hidden=count<2;$('stabilizeButton').hidden=count<2;
