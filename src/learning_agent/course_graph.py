@@ -169,6 +169,16 @@ def validate_graph(graph: dict, *, allow_empty=False) -> dict:
     for chapter in chapters:
         _text(chapter.get("title"), "章节标题", 200)
         _text(chapter.get("description"), "章节说明", 2000, False)
+        if "completion_policy" in chapter:
+            rule = _dict(chapter["completion_policy"], "章节达标规则")
+            if rule.get("mode") != "all_required_mastered":
+                _fail("章节规则须为全部指定节点有当前掌握证据。")
+            local_ids = {n["id"] for n in nodes if n.get("chapter_id") == chapter["id"]}
+            _refs(rule.get("required_node_ids"), local_ids, "章节必达节点")
+            if not rule["required_node_ids"]:
+                _fail("章节达标规则至少指定一个本章节点。")
+            _text(rule.get("configured_by"), "规则制定人", 200)
+            _text(rule.get("basis"), "规则依据", 2000)
     for source in sources:
         _text(source.get("title"), "资料标题", 300)
         _text(source.get("kind"), "资料类型", 64)
@@ -485,6 +495,9 @@ class CourseGraphStore:
             result[name] = _read_json(root / f"{name}.json")
             if not isinstance(result[name], list):
                 _fail("学习历史格式异常，请维护者检查。", 500)
+        # Optional for old revisions. Workspace and evidence share the same HEAD.
+        if (root / "workspace.json").exists():
+            result["workspace"] = _read_json(root / "workspace.json")
         return result
 
     def _commit(self, learner):
@@ -498,6 +511,8 @@ class CourseGraphStore:
             if len(learner[name]) > 10000:
                 _fail("单类记录已达 10000 条，请先导出并由维护者归档。")
             _atomic_json(target / f"{name}.json", learner[name])
+        if "workspace" in learner:
+            _atomic_json(target / "workspace.json", learner["workspace"])
         _atomic_json(folder / "HEAD.json", {"version": version, "revision": revision})
         learner["version"] = version
 

@@ -1,0 +1,295 @@
+"""Evidence-preserving learning sessions. No model-generated mastery decisions."""
+from __future__ import annotations
+
+import copy
+import hashlib
+import json
+import uuid
+
+import networkx as nx
+
+from learning_agent.course_graph import (
+    CourseGraphError, _dict, _fingerprint, _integer, _list, _text, safe_id, student_graph,
+)
+from learning_agent.recommendation import recommend_resources
+
+SELF_LABELS = {"new": "尚未学过", "unsure": "学过但不确定", "confident": "能够独立解释和应用"}
+
+
+def empty_workspace():
+    return {"schema_version": 1, "onboarded": False, "self_assessments": {}, "lessons": [],
+            "current_lesson_id": None, "drafts": {}, "events": [], "reports": [], "exposures": {}, "receipts": {}}
+
+
+class LearningWorkspace:
+    def __init__(self, course_store):
+        self.store = course_store
+
+    def view(self, student_id):
+        safe_id(student_id, "匿名编号")
+        graph = self.store.load_graph()
+        learner = self.store.load_learner(student_id, graph)
+        workspace = copy.deepcopy(learner.get("workspace", empty_workspace()))
+        workspace.pop("receipts", None)
+        workspace.pop("exposures", None)
+        current = next((x for x in workspace["lessons"] if x["id"] == workspace["current_lesson_id"]), None)
+        return {"course": student_graph(graph), "publication": self.store.publication(),
+                "learner": {k: v for k, v in learner.items() if k != "workspace"}, "workspace": workspace,
+                "current_lesson": current, "course_changed": bool(current and graph and current["course_version"] != graph["version"]),
+                "chapters": self.chapter_reports(graph, learner) if graph else [],
+                "handbook": self.handbook(graph, learner) if graph else []}
+
+    def _mutate(self, payload, operation, apply):
+        _dict(payload, "学习请求")
+        student = safe_id(payload.get("student_id"), "匿名编号")
+        request_id = safe_id(payload.get("request_id"), "请求编号")
+        expected = _integer(payload.get("expected_version"), "预期学习记录版本")
+        version = _integer(payload.get("course_version"), "课程版本", 1)
+        # Retries may refresh expected_version, but must not change the operation.
+        signature = hashlib.sha256(json.dumps({k: v for k, v in payload.items() if k != "expected_version"},
+                                              sort_keys=True, ensure_ascii=False).encode()).hexdigest()
+        with self.store._writer():
+            learner = self.store._read_learner(student)
+            workspace = learner.setdefault("workspace", empty_workspace())
+            receipt = workspace["receipts"].get(request_id)
+            if receipt:
+                if receipt["signature"] != signature or receipt["operation"] != operation:
+                    raise CourseGraphError("同一请求编号不能用于不同操作。", 409)
+            else:
+                self.store._expected(learner, expected)
+                graph = self.store._require_graph()
+                if graph["version"] != version:
+                    raise CourseGraphError("课程已更新，请重新载入并生成新小节；旧记录仍保留。", 409)
+                self.store._derive(learner, graph)
+                if len(workspace["events"]) >= 10000 or len(workspace["receipts"]) >= 20000:
+                    raise CourseGraphError("学习会话记录已达到容量，请先导出并归档。", 409)
+                apply(graph, learner, workspace)
+                workspace["receipts"][request_id] = {"operation": operation, "signature": signature}
+                self.store._commit(learner)
+        return self.view(student)
+
+    def _event(self, workspace, kind, **fields):
+        event = {"id": uuid.uuid4().hex, "kind": kind, "created_at": self.store._stamp(), **fields}
+        workspace["events"].append(event)
+        return event
+
+    def _evidence(self, graph, learner, node, text, source, level=0, context=None):
+        record = {"id": uuid.uuid4().hex, "student_id": learner["student_id"], "course_id": graph["id"],
+                  "course_version": graph["version"], "node_id": node["id"], "node_fingerprint": _fingerprint(node),
+                  "source_type": source, "origin": "learner_expression", "prompt_level": level,
+                  "text": _text(text, "原始证据", 4000), "context": context or {}, "expressed_relations": [],
+                  "created_at": self.store._stamp()}
+        learner["evidence"].append(record)
+        return record
+
+    def onboard(self, payload):
+        def apply(graph, learner, workspace):
+            for name, label in (("goals", "学习目标"), ("background", "学习背景")):
+                learner["profile"][name] = _text(payload.get(name, ""), label, 2000, False)
+            learner["profile"]["interests"] = [_text(x, "兴趣", 100) for x in _list(payload.get("interests", []), "兴趣", 30)]
+            assessments = _dict(payload.get("self_assessments", {}), "三档自评")
+            if len(assessments) > 500:
+                raise CourseGraphError("自评节点过多。")
+            for node_id, value in assessments.items():
+                node = self.store._node(graph, node_id)
+                if not isinstance(value, str) or value not in SELF_LABELS:
+                    raise CourseGraphError("自评须选择尚未学过、学过但不确定或能够独立解释和应用。")
+                previous = workspace["self_assessments"].get(node_id)
+                if previous and previous["value"] == value and previous["course_version"] == graph["version"]:
+                    continue
+                evidence = self._evidence(graph, learner, node, SELF_LABELS[value], "self_assessment")
+                workspace["self_assessments"][node_id] = {"value": value, "evidence_id": evidence["id"], "course_version": graph["version"]}
+            workspace["onboarded"] = True
+            self._event(workspace, "onboarding", course_version=graph["version"])
+        return self._mutate(payload, "onboard", apply)
+
+    def _choose_node(self, graph, learner, workspace):
+        dag = nx.DiGraph()
+        dag.add_nodes_from(n["id"] for n in graph["nodes"])
+        dag.add_edges_from((e["source"], e["target"]) for e in graph["edges"] if e["type"] == "prerequisite")
+        ordered = list(nx.topological_sort(dag))
+        unfinished = [i for i in ordered if learner["states"][i]["status"] != "mastered"]
+        frontier = [i for i in unfinished if all(learner["states"][p]["status"] == "mastered" for p in dag.predecessors(i))]
+        if not frontier:
+            return None
+        # Unobserved tasks before waiting tasks; reviewed weaknesses and due reviews first.
+        counts = {i: sum(x["node_id"] == i for x in workspace["lessons"]) for i in frontier}
+        return min(frontier, key=lambda i: (0 if learner["states"][i]["due"] or learner["states"][i]["status"] == "needs_review" else 1,
+                                            counts[i], ordered.index(i)))
+
+    def next_lesson(self, payload):
+        def apply(graph, learner, workspace):
+            if not workspace["onboarded"]:
+                raise CourseGraphError("请先保存学习目标与起点自评。", 409)
+            requested = payload.get("node_id") or self._choose_node(graph, learner, workspace)
+            if not requested:
+                raise CourseGraphError("所有节点当前均有掌握证据，可查看章节报告或选择节点复习。", 409)
+            node = self.store._node(graph, requested)
+            selection = recommend_resources(graph, learner["states"], node["id"])
+            state = learner["states"][node["id"]]
+            task = node.get("check_task") if node.get("check_question") else None
+            # Re-labeling a seen question with a new version cannot erase assistance.
+            task_key = hashlib.sha256(json.dumps([node["id"], node.get("check_question")], ensure_ascii=False).encode()).hexdigest()
+            level = workspace["exposures"].get(task_key, 0)
+            seen_hints = {h["level"]: copy.deepcopy(h) for old in workspace["lessons"]
+                          if old["task_key"] == task_key for h in old["hints"]}
+            lesson = {"id": uuid.uuid4().hex, "course_id": graph["id"], "course_version": graph["version"],
+                      "chapter_id": node["chapter_id"], "node_id": node["id"], "title": node["title"],
+                      "created_at": self.store._stamp(), "reason": state["reason"],
+                      "mode": "retest" if state["due"] else "remediate" if state["status"] == "needs_review" else "diagnose",
+                      "paragraphs": [{"id": "concept", "text": node.get("description", "")},
+                                     *[{"id": f"objective_{i}", "text": text} for i, text in enumerate(node["objectives"])]],
+                      "question": node.get("check_question") or "请用自己的话说明这一概念，并指出一个仍不确定的地方。",
+                      "task": {"id": task["id"], "version": task["version"]} if task else None,
+                      "task_key": task_key, "prompt_level": level, "hints": [seen_hints[k] for k in sorted(seen_hints)],
+                      "resource_ids": [r["id"] for r in selection["resources"]], "resources": selection["resources"],
+                      "prerequisite_gaps": selection["frontier_node_ids"] if selection["frontier_node_ids"] != [node["id"]] else [],
+                      "evidence_ids": list(state["evidence_ids"]), "diagnosis_ids": list(state["diagnosis_ids"]),
+                      "state_snapshot": copy.deepcopy(learner["states"]), "learner_revision": learner["version"],
+                      "policy_version": selection["rule_version"], "selection_trace": selection,
+                      "responses": [], "annotations": [], "status": "active"}
+            workspace["lessons"].append(lesson)
+            workspace["current_lesson_id"] = lesson["id"]
+            learner["profile"]["current_position"] = {k: lesson[k] for k in ("course_id", "course_version", "chapter_id", "node_id")}
+            learner["profile"]["current_position"]["context_ref"] = lesson["id"]
+            learner["profile"]["current_memory"] = {"lesson_id": lesson["id"], "node_id": node["id"], "mode": lesson["mode"]}
+            self._event(workspace, "lesson_started", lesson_id=lesson["id"], node_id=node["id"], course_version=graph["version"])
+        return self._mutate(payload, "next", apply)
+
+    def _lesson(self, payload, graph, workspace):
+        lesson = next((x for x in workspace["lessons"] if x["id"] == payload.get("lesson_id")), None)
+        if not lesson or lesson["id"] != workspace["current_lesson_id"]:
+            raise CourseGraphError("学习小节已切换，请重新载入。", 409)
+        if lesson["course_version"] != graph["version"]:
+            raise CourseGraphError("这个小节属于旧课程版本，请生成新小节后继续。", 409)
+        return lesson
+
+    def draft(self, payload):
+        def apply(graph, learner, workspace):
+            lesson = self._lesson(payload, graph, workspace)
+            text = _text(payload.get("text", ""), "作答草稿", 4000, False)
+            workspace["drafts"][lesson["id"]] = {"text": text, "saved_at": self.store._stamp()}
+        return self._mutate(payload, "draft", apply)
+
+    def hint(self, payload):
+        def apply(graph, learner, workspace):
+            lesson = self._lesson(payload, graph, workspace)
+            if not lesson["task"]:
+                raise CourseGraphError("这个节点尚未配置诊断题及分级提示，请先记录自己的理解。", 409)
+            level = workspace["exposures"].get(lesson["task_key"], 0)
+            if level >= 4:
+                raise CourseGraphError("该题已给出全部四级提示，请整理思路后作答。", 409)
+            node = self.store._node(graph, lesson["node_id"])
+            level += 1
+            text = node["check_task"]["hint_levels"][level - 1]
+            workspace["exposures"][lesson["task_key"]] = level
+            lesson["prompt_level"] = level
+            lesson["hints"].append({"level": level, "text": text, "created_at": self.store._stamp()})
+            self._event(workspace, "hint", lesson_id=lesson["id"], prompt_level=level, text=text, origin="system_completion")
+        return self._mutate(payload, "hint", apply)
+
+    def answer(self, payload):
+        def apply(graph, learner, workspace):
+            lesson = self._lesson(payload, graph, workspace)
+            node = self.store._node(graph, lesson["node_id"])
+            level = workspace["exposures"].get(lesson["task_key"], 0)
+            task = lesson["task"]
+            context = {"turn_id": len(lesson["responses"]) + 1}
+            if task:
+                context.update(task_id=task["id"], task_version=task["version"])
+            record = self._evidence(graph, learner, node, payload.get("text"), "quiz" if task else "dialog", level, context)
+            lesson["responses"].append({"evidence_id": record["id"], "text": record["text"], "prompt_level": level, "created_at": record["created_at"]})
+            lesson["status"] = "awaiting_review"
+            workspace["drafts"].pop(lesson["id"], None)
+            self._event(workspace, "answer", lesson_id=lesson["id"], evidence_id=record["id"], prompt_level=level)
+        return self._mutate(payload, "answer", apply)
+
+    def annotate(self, payload):
+        def apply(graph, learner, workspace):
+            lesson = self._lesson(payload, graph, workspace)
+            paragraph = next((p for p in lesson["paragraphs"] if p["id"] == payload.get("paragraph_id")), None)
+            quote = _text(payload.get("quote"), "标记原文", 3000)
+            if not paragraph or quote not in paragraph["text"]:
+                raise CourseGraphError("标记必须逐字对应当前小节的段落。")
+            question = _text(payload.get("question"), "困惑说明", 800)
+            record = self._evidence(graph, learner, self.store._node(graph, lesson["node_id"]),
+                                    f"原文：{quote}\n我的问题：{question}", "annotation")
+            lesson["annotations"].append({"paragraph_id": paragraph["id"], "quote": quote, "question": question, "evidence_id": record["id"]})
+            self._event(workspace, "annotation", lesson_id=lesson["id"], evidence_id=record["id"])
+        return self._mutate(payload, "annotate", apply)
+
+    def resource(self, payload):
+        def apply(graph, learner, workspace):
+            lesson = self._lesson(payload, graph, workspace)
+            resource_id = payload.get("resource_id")
+            # Recompute from current states: a historical recommendation is not an authorization.
+            allowed = recommend_resources(graph, learner["states"], lesson["node_id"])["resources"]
+            resource = next((r for r in allowed if r["id"] == resource_id), None)
+            if not resource:
+                raise CourseGraphError("资源不在当前可用推荐中，请刷新后选择。", 409)
+            record = {"id": uuid.uuid4().hex, "student_id": learner["student_id"], "course_id": graph["id"],
+                      "course_version": graph["version"], "node_id": resource["recommendation_node_id"], "resource_id": resource_id,
+                      "lesson_id": lesson["id"], "requested_node_id": lesson["node_id"],
+                      "created_at": self.store._stamp()}
+            learner["resource_uses"].append(record)
+            self._event(workspace, "resource", lesson_id=lesson["id"], resource_use_id=record["id"])
+        return self._mutate(payload, "resource", apply)
+
+    def chapter_reports(self, graph, learner):
+        result = []
+        for index, chapter in enumerate(graph["chapters"]):
+            nodes = [n for n in graph["nodes"] if n["chapter_id"] == chapter["id"]]
+            rule = chapter.get("completion_policy")
+            required = rule["required_node_ids"] if rule else [n["id"] for n in nodes if n.get("scope", "core") == "core"]
+            unresolved = [i for i in required if learner["states"][i]["status"] != "mastered"]
+            passed = bool(rule and required and not unresolved)
+            rows = [{"node_id": n["id"], "title": n["title"], **copy.deepcopy(learner["states"][n["id"]])} for n in nodes]
+            result.append({"chapter_id": chapter["id"], "title": chapter["title"], "course_id": graph["id"],
+                           "course_version": graph["version"], "learner_version": learner["version"],
+                           "evaluated_at": self.store._stamp(), "rule": copy.deepcopy(rule), "passed": passed,
+                           "outcome": "passed" if passed else "not_configured" if not rule else "pending",
+                           "required_node_ids": required, "unresolved_node_ids": unresolved, "nodes": rows,
+                           "next_chapter_id": graph["chapters"][index + 1]["id"] if passed and index + 1 < len(graph["chapters"]) else None,
+                           "advice": "当前证据满足章节规则，可以继续下一单元并保留复习计划。" if passed else
+                                     "教师尚未配置章节达标规则；以下仅汇总学习状态。" if not rule else
+                                     "先处理需要补学的节点，再用新任务核验未涉及、冲突、到期或证据不足的节点。"})
+        return result
+
+    def handbook(self, graph, learner):
+        result = []
+        for node in graph["nodes"]:
+            state = learner["states"][node["id"]]
+            current_raw = [e for e in learner["evidence"] if e["node_id"] == node["id"] and e["course_version"] == graph["version"]]
+            prompted = [e["id"] for e in current_raw if (e.get("prompt_level") or 0) > 0]
+            annotations = [e["id"] for e in current_raw if e["source_type"] == "annotation"]
+            answers = [e for e in current_raw if e["source_type"] in {"quiz", "dialog", "practice"}]
+            if state["status"] not in {"needs_review", "uncertain"} and not prompted and not annotations and len(answers) < 2:
+                continue
+            result.append({"node_id": node["id"], "title": node["title"], "status": state["status"],
+                           "reason": state["reason"], "concept": node.get("description", ""),
+                           "evidence_ids": list(state["evidence_ids"]), "diagnosis_ids": list(state["diagnosis_ids"]),
+                           "prompted_evidence_ids": prompted, "annotation_evidence_ids": annotations,
+                           "repeated_submissions": len(answers), "due_at": state["due_at"],
+                           "next_step": "换一道未见的新题，减少提示并独立解释，再核验是否掌握。" if prompted else
+                                        "结合原始作答和教师反馈补学，随后用新的任务证据复测。"})
+        return result
+
+    def report(self, payload):
+        def apply(graph, learner, workspace):
+            reports = self.chapter_reports(graph, learner)
+            report = next((r for r in reports if r["chapter_id"] == payload.get("chapter_id")), None)
+            if not report:
+                raise CourseGraphError("章节不存在。", 404)
+            report["id"] = uuid.uuid4().hex
+            report["handbook"] = [h for h in self.handbook(graph, learner) if h["node_id"] in {n["node_id"] for n in report["nodes"]}]
+            workspace["reports"].append(report)
+            self._event(workspace, "report", report_id=report["id"], chapter_id=report["chapter_id"])
+        return self._mutate(payload, "report", apply)
+
+    def teacher_view(self, student_id):
+        view = self.view(student_id)
+        graph = self.store.load_graph(version=view["course"]["version"]) if view["course"] else None
+        tasks = {n["id"]: {"question": n.get("check_question", ""), "expected_answer": n.get("expected_answer", ""),
+                             "rubric": n.get("check_task", {}).get("rubric", [])} for n in graph["nodes"]} if graph else {}
+        view["teacher_tasks"] = tasks
+        return view

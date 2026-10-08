@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>PLIAC · 学习工作台</title>
+  <script src="/static/theme.js?v=16"></script>
+  <link rel="stylesheet" href="/static/courses.css?v=18">
+  <link rel="stylesheet" href="/static/learning.css?v=1">
+  <script defer src="/static/learning.js?v=1"></script>
+</head>
+<body>
+  <header class="toolbar"><a href="/courses">PLIAC · 课程</a><a id="graphLink" href="/knowledge">知识图谱</a><a id="roleLink" href="/review">教师复核</a><button id="themeButton">深色</button></header>
+  <main class="workspace-main">
+    <div class="page-heading"><div><p class="eyebrow">持续学习 · 有据可查</p><h1 id="pageTitle">学习工作台</h1></div><span id="saveStatus" role="status"></span></div>
+    <form id="identityForm" class="identity"><label>匿名学习编号<input id="studentId" required maxlength="64" pattern="[A-Za-z0-9_-]+" placeholder="例如 learner-01" autocomplete="off"></label><button type="submit">进入 / 恢复</button><button type="button" id="refreshButton" hidden>刷新状态</button><button type="button" id="exportButton" hidden>导出学习记录</button></form>
+    <p id="workspaceError" class="error" role="alert" hidden></p><p id="notice" class="notice" hidden></p>
+    <section id="onboarding" class="panel" hidden>
+      <h2>从你现在的位置开始</h2><p class="muted">自评帮助安排起点，掌握情况还需要作答与复核。</p>
+      <form id="onboardForm"><div class="profile-grid"><label>学习目标<textarea id="goals" maxlength="2000" placeholder="这次希望学会什么？"></textarea></label><label>已有基础<textarea id="background" maxlength="2000" placeholder="学过哪些相关内容？"></textarea></label></div><label>兴趣偏好<input id="interests" maxlength="500" placeholder="用逗号分隔，例如科幻、运动"></label><details><summary>知识点三档自评（可选）</summary><div id="selfAssessments" class="assessment-grid"></div></details><button type="submit" class="primary">保存起点资料</button></form>
+    </section>
+    <section id="studentWorkspace" class="workspace-grid" hidden>
+      <aside class="panel navigation"><div class="section-heading"><h2>学习路线</h2><button id="profileButton">资料</button></div><p class="muted">绿：掌握 · 红：补学 · 黄：待核验 · 灰：未涉及</p><div id="nodeList"></div></aside>
+      <div class="learning-column">
+        <section class="panel"><div class="section-heading"><h2>当前小节</h2><button id="nextLesson" class="primary">安排下一小节</button></div><div id="lessonContent"><p class="muted">保存起点资料后，安排第一小节。</p></div></section>
+        <section id="taskPanel" class="panel" hidden><div class="section-heading"><h2>先说说你的理解</h2><span id="promptBadge" class="badge"></span></div><p id="questionText" class="question"></p><p id="taskNotice" class="muted"></p><div id="hintList"></div><form id="answerForm"><label class="sr-only" for="answerText">我的作答</label><textarea id="answerText" rows="6" maxlength="4000" placeholder="写下结论，也写下你这样判断的原因。"></textarea><div class="form-actions"><button type="submit" class="primary">提交作答</button><button id="hintButton" type="button">给我一级提示</button><button id="saveDraftButton" type="button">保存草稿</button></div></form><div id="responses" class="history"></div></section>
+        <section class="panel"><div class="section-heading"><h2>章节报告</h2><span class="muted">依据当前课程规则</span></div><div id="chapterReports"></div></section>
+        <section class="panel"><div class="section-heading"><h2>个人知识手册</h2><button id="exportHandbook" type="button">导出手册</button></div><div id="handbook"></div></section>
+      </div>
+    </section>
+    <section id="teacherWorkspace" hidden><p class="notice">本地复核工作台。请选择真实作答、填写判断依据与复核人；缺少证据时保留待核验。</p><div class="review-grid"><section class="panel"><h2>证据与任务</h2><div id="reviewEvidence"></div></section><section class="panel"><h2>人工复核</h2><form id="reviewForm"><label>知识节点<select id="reviewNode"></select></label><label>复核结论<select id="reviewStatus"><option value="uncertain">待核验</option><option value="needs_review">需要补学</option><option value="mastered">当前已掌握</option></select></label><label>判断依据<textarea id="reviewBasis" required maxlength="4000" rows="5"></textarea></label><label>复核人<input id="reviewer" required maxlength="200"></label><label class="inline-label"><input type="checkbox" id="isRetest">本次为新的复测证据</label><label class="inline-label"><input type="checkbox" id="resolvePrior">依据本次证据调和本节点已有判断（须在依据中说明）</label><button class="primary" type="submit">保存复核</button></form><h3>历史判断</h3><div id="diagnosisHistory"></div></section></div><section class="panel"><h2>章节达标规则</h2><p class="muted">规则保存到课程草稿，需在图谱工作台审核发布后生效。</p><form id="policyForm"><label>章节<select id="policyChapter"></select></label><div id="policyNodes" class="assessment-grid"></div><label>制定人<input id="policyAuthor" required maxlength="200"></label><label>课程依据<textarea id="policyBasis" required maxlength="2000"></textarea></label><button type="submit">保存规则草稿</button><a id="authorLink" href="/author">前往审核发布</a></form></section></section>
+  </main>
+  <dialog id="annotationDialog"><h2>标记困惑</h2><form id="annotationForm"><label>当前段落<textarea id="annotationQuote" readonly></textarea></label><label>哪里不明白？<textarea id="annotationQuestion" required maxlength="800" rows="4"></textarea></label><div class="form-actions"><button class="primary" type="submit">记录困惑</button><button id="cancelAnnotation" type="button">取消</button></div></form></dialog>
+</body>
+</html>

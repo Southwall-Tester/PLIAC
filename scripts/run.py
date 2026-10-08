@@ -17,7 +17,8 @@ sys.path.insert(0, str(ROOT / "src"))
 def existing(port):
     try:
         with urllib.request.urlopen(f"http://127.0.0.1:{port}/health", timeout=1) as response:
-            if json.load(response).get("app") != "learning-agent":
+            health = json.load(response)
+            if health.get("app") != "learning-agent" or "learning_workspace" not in health.get("capabilities", []):
                 return False
         # An older server may share the assets while lacking the course catalog API.
         with urllib.request.urlopen(f"http://127.0.0.1:{port}/api/courses", timeout=2) as response:
@@ -27,7 +28,7 @@ def existing(port):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="启动独立课程知识图谱工作台")
+    parser = argparse.ArgumentParser(description="启动 PLIAC 课程个性化学习平台")
     parser.add_argument("--port", type=int, default=8010)
     parser.add_argument("--no-browser", action="store_true")
     args = parser.parse_args()
@@ -35,7 +36,7 @@ def main():
         parser.error("端口须在 1024—65525 范围内。")
     try:
         import uvicorn
-        from learning_agent.main import app
+        from pliac.main import app
     except ImportError as exc:
         print(f"缺少依赖 {exc.name}，请在项目目录运行：pip install -r requirements.txt")
         return 1

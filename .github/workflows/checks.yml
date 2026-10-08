@@ -29,6 +29,7 @@ jobs:
       - run: node --check static/graph-encoding.js
       - run: node --check static/documents.js
       - run: node --check static/courses.js
+      - run: node --check static/learning.js
 
   browser:
     runs-on: ubuntu-latest
@@ -47,6 +48,7 @@ jobs:
       - run: python -X utf8 tests/test_ui_gpu_graph.py
       - run: python -X utf8 tests/test_ui_courses.py
       - run: python -X utf8 tests/test_ui_text_hierarchy.py
+      - run: python -X utf8 tests/test_ui_learning.py
       - uses: actions/upload-artifact@v4
         if: always()
         with:
