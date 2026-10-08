@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "samples": [
+    {
+      "name": "computer-organization",
+      "file": "computer-organization.json",
+      "sha256": "738d89eee57746674b3ccbabe280a5474a1c7fea4df3a8dbd6c5f7e389b91d03",
+      "bytes": 7437802,
+      "nodes": 500,
+      "edges": 2000,
+      "hierarchy_nodes": 227,
+      "memberships": 2848,
+      "job": {
+        "id": "1430eae9d93742068badc82af0bddff9",
+        "title": "计算机组成与设计  硬件／软件接口（第二版）",
+        "filename": "计算机组成与设计  硬件／软件接口（第二版）.pdf",
+        "suffix": ".pdf",
+        "engine": "local",
+        "start_page": 1,
+        "end_page": null,
+        "status": "completed",
+        "error": "",
+        "warnings": [
+          "图谱展示 500 个概念、2000 条关系；其余候选保存在分段记录中。"
+        ],
+        "page_kind": "pdf",
+        "progress": {
+          "stage": "完成",
+          "current": 513,
+          "total": 513
+        },
+        "stats": {
+          "pages": 513,
+          "parsed_pages": 513,
+          "chunks": 513,
+          "nodes": 500,
+          "edges": 2000,
+          "ocr_pages": 513,
+          "dropped_nodes": 2577,
+          "dropped_edges": 14580,
+          "rejected": 0
+        }
+      }
+    }
+  ]
+}
