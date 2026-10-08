@@ -1,3 +1,8 @@
 fastapi>=0.110,<1
 uvicorn>=0.29,<1
 networkx>=3,<4
+pymupdf>=1.24,<2
+python-multipart>=0.0.20,<1
+jieba>=0.42,<1
+# jieba 0.42 imports pkg_resources at runtime.
+setuptools>=70,<81

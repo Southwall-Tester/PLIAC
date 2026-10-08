@@ -5,11 +5,18 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from .api import router
+from .document_api import router as document_router
 
 ROOT = Path(__file__).resolve().parents[2]
-app = FastAPI(title="课程个性化学习智能体 · 知识与诊断底座", version="0.3.0")
+app = FastAPI(title="课程个性化学习智能体 · 知识与诊断底座", version="0.4.0")
 app.mount("/static", StaticFiles(directory=ROOT / "static"), name="static")
 app.include_router(router)
+app.include_router(document_router)
+
+
+@app.get("/documents")
+def documents():
+    return FileResponse(ROOT / "static/documents.html")
 
 
 @app.get("/")
@@ -22,7 +29,7 @@ def workbench():
 
 @app.get("/health")
 def health():
-    return {"app": "learning-agent", "version": "0.3.0", "specification": "v7_20261008"}
+    return {"app": "learning-agent", "version": "0.4.0", "specification": "v7_20261008"}
 
 
 @app.get("/api/course-assets/training-blueprints")

@@ -94,6 +94,7 @@ def main():
                         expect(page.locator("#edgeCount")).to_have_text("68")
                         expect(page.locator("#graph canvas").first).to_be_visible()
                         expect(page.locator("#graphMessage")).to_be_hidden()
+                        page.locator("#filtersButton").click()
                         page.locator('[data-chapter="all"]').click()
                         expect(page.locator("#listCount")).to_have_text("40")
                         for relation in ("prerequisite", "contains", "related", "confusable", "all"):
@@ -145,6 +146,7 @@ def main():
                         page.reload()
                         expect(page.locator("#workbench")).to_be_visible()
                         expect(page.locator("#manageButton")).to_be_hidden()
+                        page.locator("#filtersButton").click()
                         page.locator("#studentId").fill("UI_TEST_ONLY")
                         page.locator('#studentForm button[type="submit"]').click()
                         expect(page.locator("#learnerNote")).to_contain_text("UI_TEST_ONLY")
@@ -156,6 +158,7 @@ def main():
                         expect(page.locator("#detailContent h2")).to_have_text("样本、特征与标签")
                         passed("student: anonymous profile and selected node resume after reload")
 
+                        page.locator("#filtersButton").click()
                         page.locator('[data-node="ml001"]').click()
                         page.locator('[data-tab="evidence"]').click()
 
@@ -267,6 +270,7 @@ def main():
                             response.raise_for_status()
                         page.reload()
                         expect(page.locator("#nodeCount")).to_have_text("40")
+                        page.locator("#filtersButton").click()
                         page.evaluate("""() => {
                             const original = G6.Graph.prototype.setData;
                             G6.Graph.prototype.setData = function(data) {
@@ -295,7 +299,7 @@ def main():
                         page.locator("#structureView").select_option("course")
                         expect(page.locator("#relationFilter")).to_be_enabled()
                         expect(page.locator("#listCount")).to_have_text("40")
-                        page.wait_for_function("window.__uiRenderedData?.nodes.length === 40 && window.__uiRenderedData?.edges.length === 68")
+                        page.wait_for_function("window.__uiRenderedData?.nodes.length === 43 && window.__uiRenderedData?.edges.filter(e=>e.data.type!=='hierarchy').length === 68")
                         passed("two structures: actual 4-node/3-edge expression graph keeps provenance and inferred dashes; course restores 40/68")
 
                         page.goto(url + "/author")
@@ -317,6 +321,7 @@ def main():
                         page.set_viewport_size({"width": 390, "height": 844})
                         expect(page.locator("#workbench")).to_be_visible()
                         expect(page.locator("#manageButton")).to_be_hidden()
+                        page.locator("#filtersButton").click()
                         expect(page.locator("#profileInlineButton")).to_be_visible()
                         page.locator("#profileInlineButton").click()
                         expect(page.locator("#profileInterests")).to_have_value("科幻，动漫")

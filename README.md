@@ -2,7 +2,19 @@
 
 依据《课程个性化学习智能体_项目搭建方案_v7_20261008.docx》建设的独立项目。当前交付范围是课程知识图谱、课程资产、原始证据与人工诊断、可解释的学习建议，以及节点位置恢复和间隔复测规则。项目仓库：[Southwall-Tester/PLIAC](https://github.com/Southwall-Tester/PLIAC)。
 
-## 参考书籍后的更新
+## 书籍自动建图与层级浏览
+
+从顶部「导入资料」进入 `/documents`，拖入 PDF、DOCX、TXT 或 Markdown，后台自动解析、分块、提取并生成资料图谱。可选择页码范围，扫描 PDF 自动调用中文 OCR；处理中可取消，重试沿用已完成的页和文本块。
+
+图谱采用静止的全屏圆点网络，支持拖动、缩放、手动整理布局、深色、标签和邻域高亮。鼠标进入圆点后，高光、放大和邻域明暗平滑过渡；文字标签不触发悬停。课程按「课程—单元—概念」组织，资料按书内目录/标题分层；单击节点打开详情，右键菜单展开或收起下级，保持其他节点位置。点击概念或关系查看原文和页码。
+
+- **本地提取**：无需模型配置，生成术语、显式包含关系和独立标记的共现关系。适合先浏览书籍结构、筛选候选。
+- **模型提取**：配置模型后，在上传前选择「模型提取」，逐块抽取四类课程关系，校验端点和逐字引用。该选项会将所选正文发送到配置的模型服务。
+- **加入课程**：选择概念加入草稿，同一本资料可以分批补入；保留出处和目录层级，沿用现有人工审核和版本机制。
+
+方法参考、真实教材抽查和 Molio 交互/源码对照见 [书籍建图方法](docs/document-graph-method.md)。当前本地规则的共现边表示同句出现，语义关系质量需要分开评价；真实模型尚未配置验收。
+
+## 参考书籍后的课程修订
 
 - 教师工作台新增「图谱核查」：名称/别名冲突、关系语义、出处定位、孤立节点和先修间接路径。核查提示不自动合并概念、删边或通过审核。
 - 资源推荐先定位当前可处理的先修节点，再按审核与前置要求过滤，并兼顾覆盖和材料形态；每轮最多 4 项，展示选入及排除理由。全部已掌握的目标不重复推荐补学资源。
@@ -22,9 +34,12 @@ python scripts/run.py
 
 - 教师编写与审核：`http://127.0.0.1:8010/author`
 - 正式课程：`http://127.0.0.1:8010/`
+- 资料图谱：`http://127.0.0.1:8010/documents`
 - 接口说明：`http://127.0.0.1:8010/docs`
 
 启动器会复用已运行的同项目服务；端口被其他程序占用时尝试后续 9 个端口。服务监听本机回环地址。基础功能不依赖大模型。
+
+扫描书籍安装 OCR 依赖后重启服务：`pip install -r requirements-ocr.txt`。本机已完成安装与中文扫描页验证。上传文件上限 512 MB；图谱保留最多 500 个概念、2000 条语义/共现关系，超出数量在任务结果中列出，分段候选仍保存在本地。
 
 **初始课程为未发布草稿。** 可以在教师工作台浏览与编辑；正式课程在人工审核发布后才开放。当前没有伪造的教师审核、发布记录或真实学生记录。
 
@@ -55,13 +70,14 @@ python scripts/run.py
 
 复制 `config/models.example.json` 为 `config/models.json`，填写兼容 Chat Completions 的服务地址、模型名与密钥。真实配置已被 `.gitignore` 排除。
 
-当前只接入**课程材料候选抽取**：校验概念/关系及逐字原文位置，结果不自动入库或发布。缺少配置时给出中文提示；真实模型质量尚未验收。候选导出与完整课程 JSON 是不同格式，需核对整理后再加入草稿。
+模型用于**课程材料候选抽取与书籍分块抽取**。资料页面生成后可直接选择候选加入草稿；已有“管理课程—候选抽取”仍支持短文本导出。模型接口失败会显示任务错误并保留已完成片段，可修复配置后重试。
 
 ## 数据保存
 
 ```text
 data/courses/ml_classification.json   只读课程种子
 data/training_blueprints.json         统一实训骨架与错误库草稿
+outputs/documents/<资料编号>/         原文件、页文本、分段结果、目录、任务和图谱
 outputs/course_graph/                运行时草稿、发布快照与学习记录
   draft.json                         当前工作草稿
   draft_history/                     保存前的草稿
@@ -88,8 +104,11 @@ python tests/test_course_graph.py
 python tests/test_graph_audit.py
 python tests/test_recommendation.py
 python tests/test_action_feedback.py
+python tests/test_documents.py
 python tests/test_ui_v7.py
 python tests/test_ui_books.py
+python tests/test_ui_network.py
+python tests/test_ui_documents.py
 python scripts/check_assets.py
 ```
 

@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>资料图谱</title>
+  <link rel="stylesheet" href="/static/documents.css?v=1"/>
+  <link rel="stylesheet" href="/static/graph-menu.css?v=10"/>
+  <script defer src="/static/vendor/g6-5.1.1.min.js"></script>
+  <script defer src="/static/network-layout.js?v=1"></script>
+  <script defer src="/static/graph-encoding.js?v=10"></script>
+  <script defer src="/static/network-view.js?v=1"></script>
+  <script defer src="/static/documents.js?v=1"></script>
+</head>
+<body>
+  <header class="toolbar">
+      <div class="network-actions">
+      <button id="physicsSettings">布局设置</button><button id="stabilizeButton">整理</button><button id="themeButton">深色</button><button id="filtersButton" aria-expanded="false">筛选</button><button id="labelsButton">隐藏标签</button><button id="statsButton">统计</button><select id="hierarchyLevel" aria-label="显示层级"><option value="all">全部展开</option><option value="chapters">章节</option><option value="book">全书</option></select>
+    </div>
+    <nav><button id="libraryButton">资料</button><button id="importButton" disabled>加入课程草稿</button><button id="exportButton" disabled>导出</button><a href="/author">课程</a></nav>
+  </header>
+  <main>
+    <div id="graph" role="img" aria-label="资料知识图谱"></div>
+    <div class="edge-legend" id="edgeLegend" hidden><span><i></i>提取</span><span><i class="dashed"></i>共现</span></div>
+    <section id="libraryPanel" class="library-panel" aria-label="资料库">
+      <div class="panel-head"><h1>资料</h1><button id="closeLibrary" aria-label="关闭资料" hidden>×</button></div>
+      <form id="uploadForm">
+        <label id="dropZone" class="drop-zone" tabindex="0"><span class="upload-symbol" aria-hidden="true">＋</span><strong>拖入书籍</strong><span>PDF · DOCX · TXT · Markdown</span><span class="choose-file">选择文件</span><input id="fileInput" type="file" accept=".pdf,.docx,.txt,.md" aria-label="选择书籍"/></label>
+        <details class="upload-options"><summary>解析设置</summary><div class="field-row"><label>起始页<input id="startPage" type="number" min="1" value="1"/></label><label>结束页<input id="endPage" type="number" min="1" placeholder="末页"/></label><label>提取方式<select id="engine"><option value="local">本地提取</option><option value="llm">模型提取</option></select></label></div></details>
+      </form>
+      <div id="uploadProgress" class="upload-progress" hidden><progress id="uploadMeter" max="100" value="0"></progress><span id="uploadStatus"></span></div>
+      <div id="libraryError" class="error-message" role="alert" hidden></div>
+      <div id="documentList" class="document-list" aria-live="polite"></div>
+    </section>
+    <aside id="filtersPanel" class="drawer left" hidden><div class="panel-head"><h2>筛选</h2><button id="closeFilters" aria-label="关闭筛选">×</button></div><input id="search" type="search" placeholder="搜索知识点" aria-label="搜索知识点"/><label>关系<select id="relationFilter"><option value="all">全部</option><option value="prerequisite">前置</option><option value="contains">包含</option><option value="related">关联</option><option value="confusable">易混淆</option><option value="cooccurs">共现</option></select></label><div id="filterCount" class="muted"></div><div id="nodeList" class="node-list"></div></aside>
+    <aside id="sourcePanel" class="drawer right" hidden><div class="panel-head"><h2 id="sourceTitle">原文</h2><button id="closeSource" aria-label="关闭原文">×</button></div><div id="sourceContent"></div></aside>
+    <section id="jobPanel" class="job-panel" hidden aria-live="polite"><div><strong id="jobTitle"></strong><span id="jobStatus"></span></div><progress id="jobProgress" max="100" value="0"></progress><p id="jobError" class="error-message" hidden></p><div id="jobWarnings" class="job-warnings"></div><div class="job-actions"><button id="cancelButton" hidden>取消</button><button id="retryButton" hidden>重试</button><button id="viewResultButton" hidden>查看图谱</button><button id="hideJobButton" hidden>收起</button></div></section>
+    <div class="canvas-controls"><button id="fitButton" aria-label="适应画布">⛶</button><button id="zoomOut" aria-label="缩小">−</button><button id="zoomIn" aria-label="放大">＋</button></div>
+    <div id="graphCaption" class="graph-caption"></div>
+    <details id="encodingLegend" class="encoding-key" hidden><summary>颜色与层级</summary><div id="colorLegend"></div><div class="size-legend" aria-label="节点大小按层级"><span><i style="width:18px;height:18px"></i>书籍</span><span><i style="width:13px;height:13px"></i>章节</span><span><i style="width:10px;height:10px"></i>小节</span><span><i style="width:7px;height:7px"></i>概念</span></div></details>
+  </main>
+  <dialog id="physicsDialog"><div class="panel-head"><h2>布局设置</h2><button data-close="physicsDialog" aria-label="关闭布局设置">×</button></div><label>斥力<input id="repulsion" type="range" min="500" max="10000" step="100" value="3200"/></label><label>间距<input id="distance" type="range" min="50" max="240" step="5" value="115"/></label><button id="applyLayout" class="button">应用布局</button></dialog>
+  <dialog id="statsDialog"><div class="panel-head"><h2>统计</h2><button data-close="statsDialog" aria-label="关闭统计">×</button></div><div id="statsContent"></div></dialog>
+  <dialog id="importDialog" class="import-dialog"><div class="panel-head"><h2>加入课程草稿</h2><button data-close="importDialog" aria-label="关闭导入">×</button></div><div class="import-summary"><label><input id="selectAll" type="checkbox" checked/>全选</label><span id="importCount"></span></div><div id="importNodes" class="import-nodes"></div><p id="importError" class="error-message" role="alert" hidden></p><div class="dialog-actions"><span id="draftVersion" class="muted"></span><button id="confirmImport" class="primary">加入草稿</button></div></dialog>
+  <div id="toast" role="status" aria-live="polite" hidden></div>
+</body>
+</html>

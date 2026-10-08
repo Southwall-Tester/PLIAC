@@ -145,6 +145,7 @@ def main():
                     page.set_viewport_size({"width": 1600, "height": 1100})
                     page.goto(url + "/")
                     expect(page.locator("#workbench")).to_be_visible()
+                    page.locator("#filtersButton").click()
                     page.locator("#studentId").fill(STUDENT)
                     page.locator('#studentForm button[type="submit"]').click()
                     expect(page.locator("#learnerNote")).to_contain_text(STUDENT)
@@ -220,6 +221,8 @@ def main():
                     passed("action history shows observed outcome with persisted action, diagnosis and evidence links")
 
                     page.reload()
+                    page.locator("#filtersButton").click()
+                    page.locator('[data-node="ml001"]').click()
                     page.locator('[data-tab="path"]').click()
                     expect(page.locator("#actionHistory")).to_contain_text("已复核")
                     page.set_viewport_size({"width": 390, "height": 844})
