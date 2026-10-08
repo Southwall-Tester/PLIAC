@@ -7,6 +7,19 @@
   const demo = courseId === 'ml_acceptance_demo';
   const query = new URLSearchParams({course_id: courseId});
   const labels = {unknown:'尚未涉及', uncertain:'待核验', needs_review:'需要补学', mastered:'当前已掌握'};
+  // Old session snapshots keep their original wording on disk.
+  function displayReason(text) {
+    return ({
+      '尚无学习证据，不能据此判断不会。':'待完成首次作答。',
+      '示范客观题独立通过；仅表示本课程该节点的规则核验结果。':'本题独立作答通过。',
+      '已到间隔复习时间，请先做简短复测；到期不代表不会。':'已到复习时间，请完成复测。',
+      '教师尚未配置章节达标规则；以下仅汇总学习状态。':'请教师配置本章必达节点。'
+    })[text] || text;
+  }
+  function paragraphText(text) {
+    return text.replace('这只是教学算例，不是实际训练产出的性能承诺。', '')
+      .replace('这里只报告实际观察，不宣称它对所有数据都成立。', '');
+  }
   let state, draftGraph, studentId = '', busy = false, annotationId, saveTimer, failedRequest;
   const storageKey = `pliac.student.${courseId}`;
   function error(message = '') { $('workspaceError').textContent = message; $('workspaceError').hidden = !message; }
@@ -62,7 +75,7 @@
   function render() {
     $('refreshButton').hidden = false; $('exportButton').hidden = false;
     $('pageTitle').textContent = `${state.course?.title || '课程'} · ${teacher ? '教师复核' : '学习工作台'}`;
-    $('notice').hidden = !!state.course && !state.course_changed && !demo;
+    $('notice').hidden = !!state.course && !state.course_changed;
     $('notice').textContent = state.course_changed ? '课程已有新发布版本。这里保留了原小节与作答，请安排新小节后继续。' : state.publication.notice;
     $('studentWorkspace').hidden = teacher || !state.course;
     $('teacherWorkspace').hidden = !teacher;
@@ -90,10 +103,11 @@
     if (!lesson) { $('lessonContent').innerHTML = '<p class="muted">保存起点资料后，安排第一小节。</p>'; return; }
     const names = Object.fromEntries(state.course.nodes.map(n => [n.id,n.title]));
     const gaps = lesson.prerequisite_gaps.filter(i => i !== lesson.node_id);
-    $('lessonContent').innerHTML = `<h3>${esc(lesson.title)}</h3><p class="reason">安排依据：${esc(lesson.reason)}${gaps.length ? `<br>相关先修仍待核验：${gaps.map(i => esc(names[i] || i)).join('、')}` : ''}</p>${lesson.paragraphs.filter(p => p.text).map(p => `<div class="paragraph"><div class="paragraph-body">${p.heading ? `<h4>${esc(p.heading)}</h4>` : ''}<p>${esc(p.text)}</p></div><button data-paragraph="${esc(p.id)}">不明白</button></div>`).join('')}<div>${lesson.resources.length ? '<h3>可选学习材料</h3>' + lesson.resources.map(r => `<a class="resource-card" data-resource="${esc(r.id)}" href="${esc(r.url)}" target="_blank" rel="noopener noreferrer">${esc(r.title)}<small>${esc(r.organization)} · ${esc(r.applicable_segment || '')}</small></a>`).join('') : demo ? '' : '<p class="muted">当前没有满足前置要求的已审核补充资源。</p>'}</div>${(lesson.sources || []).map(s => `<a class="resource-card" href="${esc(s.url)}" target="_blank" rel="noopener noreferrer">延伸阅读：${esc(s.title)}<small>${esc(s.locator)}</small></a>`).join('')}${lesson.annotations.length ? `<details><summary>已记录 ${lesson.annotations.length} 处困惑</summary>${lesson.annotations.map(a => `<p>${esc(a.question)}</p>`).join('')}</details>` : ''}`;
+    $('lessonContent').innerHTML = `<h3>${esc(lesson.title)}</h3><p class="reason">安排依据：${esc(displayReason(lesson.reason))}${gaps.length ? `<br>相关先修仍待核验：${gaps.map(i => esc(names[i] || i)).join('、')}` : ''}</p>${lesson.paragraphs.filter(p => p.text).map(p => `<div class="paragraph"><div class="paragraph-body">${p.heading ? `<h4>${esc(p.heading)}</h4>` : ''}<p>${esc(paragraphText(p.text))}</p></div><button data-paragraph="${esc(p.id)}">不明白</button></div>`).join('')}<div>${lesson.resources.length ? '<h3>可选学习材料</h3>' + lesson.resources.map(r => `<a class="resource-card" data-resource="${esc(r.id)}" href="${esc(r.url)}" target="_blank" rel="noopener noreferrer">${esc(r.title)}<small>${esc(r.organization)} · ${esc(r.applicable_segment || '')}</small></a>`).join('') : demo ? '' : '<p class="muted">暂无学习材料。</p>'}</div>${(lesson.sources || []).map(s => `<a class="resource-card" href="${esc(s.url)}" target="_blank" rel="noopener noreferrer">延伸阅读：${esc(s.title)}<small>${esc(s.locator)}</small></a>`).join('')}${lesson.annotations.length ? `<details><summary>已记录 ${lesson.annotations.length} 处困惑</summary>${lesson.annotations.map(a => `<p>${esc(a.question)}</p>`).join('')}</details>` : ''}`;
     $('questionText').textContent = lesson.question;
     $('promptBadge').textContent = demo && lesson.responses.length ? '已显示本题解析' : lesson.prompt_level ? `已使用 ${lesson.prompt_level} 级提示` : '本题尚未使用提示';
-    $('taskNotice').textContent = demo ? '请选择一项，可补充思路。固定规则即时核验；提示后答对需换题独立复测。看过本题解析也会保留记录，重复答对不能视为新的独立证据。' : lesson.task ? '作答提交后进入人工复核。同一道题已看过的提示会持续记录，重新打开不会重置。' : '此节点尚未配置正式诊断题。可记录理解与困惑，之后由教师补充任务验证。';
+    $('taskNotice').textContent = demo ? '' : lesson.task ? '提交后由教师复核。' : '请先记录理解与困惑，教师将补充诊断题。';
+    $('taskNotice').hidden = !$('taskNotice').textContent;
     $('hintList').innerHTML = lesson.hints.map(h => `<div class="hint">提示 ${h.level}：${esc(h.text)}</div>`).join('');
     $('answerText').value = state.workspace.drafts[lesson.id]?.text || '';
     $('answerText').maxLength = demo ? 3500 : 4000;
@@ -102,14 +116,14 @@
     $('answerChoices').innerHTML = (lesson.options || []).map(o => `<label class="answer-choice"><input type="radio" name="answerChoice" value="${esc(o.id)}" ${state.workspace.drafts[lesson.id]?.choice_id === o.id ? 'checked' : ''}><span>${esc(o.id)}. ${esc(o.text)}</span></label>`).join('');
     $('responses').innerHTML = lesson.responses.map(r => {
       const diagnoses = state.learner.diagnoses.filter(d => d.evidence_ids.includes(r.evidence_id));
-      return `<article><span class="badge">${r.prompt_level ? `${r.prompt_level} 级提示或解析后作答` : '未使用本题提示'}</span><p>${esc(r.text)}</p>${r.judgement ? `<p class="quiz-feedback"><strong>${r.judgement.passed ? '回答正确' : '需要再想一想'}</strong> · 演示客观题判定<br>${esc(r.judgement.explanation)}</p>` : ''}${diagnoses.length ? diagnoses.map(d => `<p class="muted">${esc(labels[d.status])} · ${esc(d.basis)}</p>`).join('') : '<p class="muted">已保存原始作答，等待复核。</p>'}</article>`;
+      return `<article><span class="badge">${r.prompt_level ? `${r.prompt_level} 级提示或解析后作答` : '未使用本题提示'}</span><p>${esc(r.text)}</p>${r.judgement ? `<p class="quiz-feedback"><strong>${r.judgement.passed ? '回答正确' : '需要再想一想'}</strong><br>${esc(r.judgement.explanation)}</p>` : ''}${diagnoses.length ? diagnoses.map(d => `<p class="muted">${esc(labels[d.status])} · ${esc(displayReason(d.basis))}</p>`).join('') : '<p class="muted">已保存原始作答，等待复核。</p>'}</article>`;
     }).join('');
   }
   function renderReports() {
-    $('chapterReports').innerHTML = state.chapters.map(c => `<article class="report-row"><h3>${esc(c.title)} <span class="badge">${c.passed ? '当前达标' : c.outcome === 'not_configured' ? '待配置规则' : '待补学 / 核验'}</span></h3><p>${esc(c.advice)}</p><details><summary>查看 ${c.nodes.length} 个节点及判断依据</summary><ul>${c.nodes.map(n => `<li>${esc(n.title)} · ${esc(labels[n.status])}<br><small>${esc(n.reason)} · ${n.evidence_ids.length} 条证据</small></li>`).join('')}</ul></details><button data-report="${esc(c.chapter_id)}">保存本次报告</button></article>`).join('') + `<p class="muted">已保存 ${state.workspace.reports.length} 份报告快照；历史快照随完整记录导出。</p>`;
+    $('chapterReports').innerHTML = state.chapters.map(c => `<article class="report-row"><h3>${esc(c.title)} <span class="badge">${c.passed ? '当前达标' : c.outcome === 'not_configured' ? '待配置规则' : '待补学 / 核验'}</span></h3><p>${esc(c.advice)}</p><details><summary>查看 ${c.nodes.length} 个节点及判断依据</summary><ul>${c.nodes.map(n => `<li>${esc(n.title)} · ${esc(labels[n.status])}<br><small>${esc(displayReason(n.reason))} · ${n.evidence_ids.length} 条证据</small></li>`).join('')}</ul></details><button data-report="${esc(c.chapter_id)}">保存本次报告</button></article>`).join('') + `<p class="muted">已保存 ${state.workspace.reports.length} 份报告快照；历史快照随完整记录导出。</p>`;
   }
   function renderHandbook() {
-    $('handbook').innerHTML = state.handbook.length ? state.handbook.map(h => `<article class="handbook-entry"><h3>${esc(h.title)}</h3><span class="badge">${esc(labels[h.status])}</span><p>${esc(h.reason)}</p><p>${esc(h.concept)}</p><p class="muted">${esc(h.next_step)}</p>${h.prompted_evidence_ids.length ? '<p class="muted">本节点存在提示后作答。</p>' : ''}${h.repeated_submissions > 1 ? '<p class="muted">存在多次提交，供复核过程参考，不据此判定不会。</p>' : ''}<details><summary>原始证据（${h.evidence_ids.length}）</summary>${h.evidence_ids.map(id => { const e = state.learner.evidence.find(x => x.id === id); return e ? `<p>${esc(e.text)}</p><small>${esc(id)} · 课程 v${e.course_version}</small>` : ''; }).join('')}</details></article>`).join('') : '<p class="muted">还没有需要收录的困惑、补学项或提示依赖记录。</p>';
+    $('handbook').innerHTML = state.handbook.length ? state.handbook.map(h => `<article class="handbook-entry"><h3>${esc(h.title)}</h3><span class="badge">${esc(labels[h.status])}</span><p>${esc(displayReason(h.reason))}</p><p>${esc(h.concept)}</p><p class="muted">${esc(h.next_step)}</p>${h.prompted_evidence_ids.length ? '<p class="muted">本节点存在提示后作答。</p>' : ''}${h.repeated_submissions > 1 ? '<p class="muted">已收录多次作答。</p>' : ''}<details><summary>原始证据（${h.evidence_ids.length}）</summary>${h.evidence_ids.map(id => { const e = state.learner.evidence.find(x => x.id === id); return e ? `<p>${esc(e.text)}</p><small>${esc(id)} · 课程 v${e.course_version}</small>` : ''; }).join('')}</details></article>`).join('') : '<p class="muted">暂无手册条目。</p>';
   }
   function renderTeacher() {
     const selected = $('reviewNode').value;
@@ -138,7 +152,7 @@
     const task = state.teacher_tasks?.[nodeId];
     const raw = state.learner.evidence.filter(e => e.node_id === nodeId && e.course_version === state.course?.version);
     $('reviewEvidence').innerHTML = (task ? `<p>${esc(task.question)}</p><details><summary>教师参考判据</summary><p>${esc(task.expected_answer)}</p><ul>${task.rubric.map(r => `<li>${esc(r)}</li>`).join('')}</ul></details>` : '') + (raw.length ? raw.map(e => `<article class="evidence-entry"><label><input type="checkbox" data-evidence="${esc(e.id)}">${esc(e.source_type)} · 提示 ${e.prompt_level ?? '未知'} 级 · v${e.course_version}</label><pre>${esc(e.text)}</pre><small>${esc(e.id)} · ${esc(e.created_at)}</small></article>`).join('') : '<p class="muted">本节点当前版本尚无学习证据。</p>');
-    $('diagnosisHistory').innerHTML = state.learner.diagnoses.filter(d => d.node_id === nodeId).map(d => `<p>${esc(labels[d.status])} · ${esc(d.reviewer)}<br>${esc(d.basis)}</p>`).join('') || '<p class="muted">尚无历史判断。</p>';
+    $('diagnosisHistory').innerHTML = state.learner.diagnoses.filter(d => d.node_id === nodeId).map(d => `<p>${esc(labels[d.status])} · ${esc(d.reviewer)}<br>${esc(displayReason(d.basis))}</p>`).join('') || '<p class="muted">尚无历史判断。</p>';
   }
   function renderPolicy() {
     const chapter = draftGraph?.chapters.find(c => c.id === $('policyChapter').value);
@@ -186,7 +200,7 @@
   $('hintButton').onclick = () => run(async () => { await saveDraft(); await mutate('hint', {lesson_id:state.current_lesson.id}); });
   $('lessonContent').onclick = event => {
     const paragraph = event.target.closest('[data-paragraph]');
-    if (paragraph) { annotationId = paragraph.dataset.paragraph; const text = state.current_lesson.paragraphs.find(p => p.id === annotationId).text; const selected = window.getSelection()?.toString(); $('annotationQuote').value = selected && text.includes(selected) ? selected.slice(0,3000) : text.slice(0,3000); $('annotationQuestion').value = ''; $('annotationDialog').showModal(); }
+    if (paragraph) { annotationId = paragraph.dataset.paragraph; const text = paragraphText(state.current_lesson.paragraphs.find(p => p.id === annotationId).text); const selected = window.getSelection()?.toString(); $('annotationQuote').value = selected && text.includes(selected) ? selected.slice(0,3000) : text.slice(0,3000); $('annotationQuestion').value = ''; $('annotationDialog').showModal(); }
     const resource = event.target.closest('[data-resource]');
     if (resource) { event.preventDefault(); if (busy) return; const tab = window.open('about:blank', '_blank'); if (tab) tab.opener = null; run(async () => { try { await saveDraft(); await mutate('resource', {lesson_id:state.current_lesson.id, resource_id:resource.dataset.resource}); if (tab) tab.location.href = resource.href; } catch (failure) { tab?.close(); throw failure; } }); }
   };
@@ -194,7 +208,7 @@
   $('annotationForm').onsubmit = event => { event.preventDefault(); run(async () => { await saveDraft(); await mutate('annotate', {lesson_id:state.current_lesson.id, paragraph_id:annotationId, quote:$('annotationQuote').value, question:$('annotationQuestion').value}); $('annotationDialog').close(); }); };
   $('chapterReports').onclick = event => { const button = event.target.closest('[data-report]'); if (button) run(async () => { await saveDraft(); await mutate('report', {chapter_id:button.dataset.report}); }); };
   $('exportButton').onclick = () => run(async () => { if (!teacher) await saveDraft(); const data = await api(`/api/course-graph/learner/export?${studentQuery()}`); download(`PLIAC-${studentId}.json`, JSON.stringify(data,null,2)); });
-  $('exportHandbook').onclick = () => download('个人知识手册.txt', state.handbook.map(h => `${h.title} · ${labels[h.status]}\n${h.reason}\n${h.concept}\n下一步：${h.next_step}\n证据：${h.evidence_ids.join(', ')}\n`).join('\n'), 'text/plain');
+  $('exportHandbook').onclick = () => download('个人知识手册.txt', state.handbook.map(h => `${h.title} · ${labels[h.status]}\n${displayReason(h.reason)}\n${h.concept}\n下一步：${h.next_step}\n证据：${h.evidence_ids.join(', ')}\n`).join('\n'), 'text/plain');
   $('reviewNode').onchange = renderEvidence;
   $('policyChapter').onchange = renderPolicy;
   $('taskNode').onchange = renderTask;

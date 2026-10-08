@@ -572,7 +572,7 @@ class CourseGraphStore:
             last_mastery = mastered[-1] if mastered else None
             recorded = latest["status"] if latest else "unknown"
             status = recorded
-            reason = "尚无学习证据，不能据此判断不会。"
+            reason = "待完成首次作答。"
             state = {"status": status, "recorded_status": recorded, "due_at": None,
                      "last_mastered_at": last_mastery.get("mastered_at", last_mastery["created_at"]) if last_mastery else None,
                      "reason": reason, "evidence_ids": [e["id"] for e in raw],
@@ -602,7 +602,7 @@ class CourseGraphStore:
                 due = _date(state["last_mastered_at"], "掌握时间") + timedelta(days=graph["review_policy"]["intervals_days"][stage])
                 state["due_at"] = due.isoformat().replace("+00:00", "Z")
                 if self._now() >= due:
-                    status, reason = "uncertain", "已到间隔复习时间，请先做简短复测；到期不代表不会。"
+                    status, reason = "uncertain", "已到复习时间，请完成复测。"
                     state["due"] = True
             state.update(status=status, reason=reason)
             states[ident] = state
@@ -835,7 +835,7 @@ class CourseGraphStore:
                   "reason": ("目标知识点；" if ident == target_id else "相关先修知识；") + learner["states"][ident]["reason"]}
                  for ident in nx.lexicographical_topological_sort(directed.subgraph(required), key=lambda n: (nodes[n]["chapter_id"], n))]
         return {"target_id": target_id, "steps": steps, "ready": required == {target_id},
-                "preview_only": view == "draft", "notice": "仅预览草稿结构，不使用或写入正式学习记录。" if view == "draft" else "依据已发布课程及当前有效诊断生成。"}
+                "preview_only": view == "draft", "notice": "草稿预览" if view == "draft" else ""}
 
     def recommendations(self, node_id, student_id="", view="published"):
         graph = self.load_graph(view)
@@ -886,7 +886,7 @@ class CourseGraphStore:
                     "learner": learner,
                     "selection": selection, "action_history": self._action_history(learner, graph, node_id),
                     "unavailable_count": len(selection["excluded_resources"]),
-                    "notice": "草稿资源仅供审核预览，不生成正式学习记录。" if view == "draft" else "仅推荐已审核且关联当前节点的资源；使用资源本身不代表掌握。"}
+                    "notice": "草稿预览" if view == "draft" else ""}
 
     @staticmethod
     def _action_history(learner, graph, node_id):

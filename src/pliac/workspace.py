@@ -280,7 +280,7 @@ class LearningWorkspace:
                            "required_node_ids": required, "unresolved_node_ids": unresolved, "nodes": rows,
                            "next_chapter_id": graph["chapters"][index + 1]["id"] if passed and index + 1 < len(graph["chapters"]) else None,
                            "advice": "当前证据满足章节规则，可以继续下一单元并保留复习计划。" if passed else
-                                     "教师尚未配置章节达标规则；以下仅汇总学习状态。" if not rule else
+                                     "请教师配置本章必达节点。" if not rule else
                                      "先处理需要补学的节点，再用新任务核验未涉及、冲突、到期或证据不足的节点。"})
         return result
 

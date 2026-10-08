@@ -6,7 +6,7 @@ import uuid
 from .course_graph import ROOT, CourseGraphError, CourseGraphStore, _fingerprint, validate_graph
 
 DEMO_ID = "ml_acceptance_demo"
-NOTICE = "验收示范课程 · 两章十节 · 约 45—60 分钟。客观题由固定规则判定，记录独立保存；内容未经过人工审核。"
+NOTICE = ""
 
 
 def build_graph():
@@ -36,7 +36,7 @@ def build_graph():
     for chapter in graph["chapters"]:
         chapter["completion_policy"] = {"mode": "all_required_mastered",
             "required_node_ids": [n["id"] for n in graph["nodes"] if n["chapter_id"] == chapter["id"]],
-            "configured_by": "内置验收课程规则（非人工审核）",
+            "configured_by": "课程预设",
             "basis": "本章每个节点均有当前、无提示的客观题通过证据；到期复习或未处理的新困惑会重新进入待核验。"}
     validate_graph(graph)
     return graph
@@ -88,7 +88,7 @@ class AcceptanceCourseStore(CourseGraphStore):
         passed = choice == task["answer_key"]
         independent = self._independent(record)
         status = "mastered" if passed and independent else "uncertain" if passed else "needs_review"
-        basis = ("示范客观题独立通过；仅表示本课程该节点的规则核验结果。" if status == "mastered" else
+        basis = ("本题独立作答通过。" if status == "mastered" else
                  "提示或解析后答对，需换题独立复测；若两题均已看过，请教师复核。" if passed else
                  "本次选项未通过，请重读算例、按需查看提示，再安排本节点复测。")
         previous = [d for d in learner["diagnoses"] if d["node_id"] == node["id"]

@@ -158,5 +158,5 @@ def audit_graph(graph):
         "issues": issues, "relation_schema": schema, "book_references": deepcopy(BOOK_REFERENCES),
         "sources": [{"id": s["id"], "title": s.get("title", ""), "url": s.get("url", ""),
                      "locator": deepcopy(s.get("locator"))} for s in sources],
-        "notice": "核查结果仅供教师逐条确认，不会自动合并概念、删边、批准发布或改变学习者状态。",
+        "notice": "请逐项核查以下条目。",
     }

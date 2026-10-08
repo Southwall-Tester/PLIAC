@@ -30,7 +30,7 @@ def main():
                 page.locator("#startDemo").click()
                 page.locator("#studentId").fill("synthetic-course-acceptance")
                 page.locator("#identityForm button[type=submit]").click()
-                expect(page.locator("#notice")).to_contain_text("验收示范课程")
+                expect(page.locator("#notice")).to_be_hidden()
                 page.locator("#goals").fill("Synthetic: complete the acceptance course")
                 page.locator("#onboardForm button[type=submit]").click()
                 expect(page.locator("#onboarding")).not_to_be_visible()
