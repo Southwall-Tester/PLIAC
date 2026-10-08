@@ -24,6 +24,9 @@ def _directory(default_store, course_id):
 def resolve_course(default_store, course_id=""):
     if course_id == "":
         return default_store
+    from .acceptance_course import AcceptanceCourseStore, DEMO_ID
+    if course_id == DEMO_ID:
+        return AcceptanceCourseStore(default_store)
     safe_id(course_id, "课程 ID")
     if course_id == default_store.load_graph("draft")["id"]:
         return default_store

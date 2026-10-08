@@ -2,7 +2,15 @@
 
 依据《课程个性化学习智能体_项目搭建方案_v7_20261008.docx》建设的独立项目。PLIAC 承担整个平台开发，原 learning-agent 作为其中的课程知识、资料建图与证据诊断模块继续使用。项目仓库：[Southwall-Tester/PLIAC](https://github.com/Southwall-Tester/PLIAC)，本轮开发分支为 `feat/learning-workspace`。
 
-## 学习工作台与教师复核（0.5.0）
+## 直接验收完整示范课程（0.6.0）
+
+双击「启动学习平台.cmd」，在课程首页打开 **机器学习分类入门：从数据到可靠评估**。课程已经配置好两章 10 节、20 道诊断 / 复测题、讲解算例、四级提示和章节规则。可直接走完答题、补学、换题复测、报告、知识手册及刷新续学，无需先建课。详见 [逐步验收说明](docs/acceptance-course.md)。
+
+这门内置课使用明确标注的客观题规则和独立验收记录；没有虚构人工审核。正式课程继续使用审核发布及教师复核流程。
+
+计组扫描图谱已放入 [压力测试样本目录](datasets/stress/README.md)：500 个概念、2,000 条关系，加上章节投影为 727 个节点、5,074 条边；附原始 JSON、文件校验和真实浏览器压测命令。
+
+## 学习工作台与教师复核
 
 独立验证原图谱模块：检出分支 [`feat/knowledge-graph`](https://github.com/Southwall-Tester/PLIAC/tree/feat/knowledge-graph) 或固定标签 [`knowledge-graph-v0.4.2`](https://github.com/Southwall-Tester/PLIAC/tree/knowledge-graph-v0.4.2)。两者起点均为提交 `02aacf1b8a442f168e146f83e0e72cb27f0033bb`，不包含本轮学习工作台。完整检出与验证命令见 [版本定位](docs/platform-workspace.md#独立验证图谱版本)。
 
@@ -17,7 +25,7 @@
 
 平台编排在 `src/pliac/`，图谱和资料能力保留在 `src/learning_agent/`；`learning_agent.main:app` 继续兼容旧入口。当前本地目录名称仍为 `learning-agent`，不需要移动已有运行数据。新增工作台与原图谱共用学习记录的版本指针，每次提交同时保存会话和证据，写入中断或并发冲突不会覆盖已提交记录。具体结构、验收范围与后续工作见 [平台接入说明](docs/platform-workspace.md)。
 
-当前小节采用规则选点和已发布课程材料，不是已验收的大模型动态教案；任务判断仍需人工复核。本轮不宣称 Docker 实训、AI 情境生成、摄像头回看、账号权限和真实学习者试跑已完成。旧版知识模块的功能与操作如下。
+当前小节采用规则选点和课程材料；正式课程任务判断仍需人工复核，内置示范课客观题由固定规则判定。本轮不宣称 Docker 实训、AI 情境生成、摄像头回看、账号权限和真实学习者试跑已完成。旧版知识模块的功能与操作如下。
 
 ## 书籍自动建图与层级浏览
 

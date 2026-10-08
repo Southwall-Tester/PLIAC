@@ -128,8 +128,12 @@ class LearningWorkspace:
             selection = recommend_resources(graph, learner["states"], node["id"])
             state = learner["states"][node["id"]]
             task = node.get("check_task") if node.get("check_question") else None
+            demo = getattr(self.store, "is_demo", False)
+            if demo:
+                task = self.store.choose_task(node, workspace)
+            question = task["question"] if demo else node.get("check_question")
             # Re-labeling a seen question with a new version cannot erase assistance.
-            task_key = hashlib.sha256(json.dumps([node["id"], node.get("check_question")], ensure_ascii=False).encode()).hexdigest()
+            task_key = hashlib.sha256(json.dumps([node["id"], question], ensure_ascii=False).encode()).hexdigest()
             level = workspace["exposures"].get(task_key, 0)
             seen_hints = {h["level"]: copy.deepcopy(h) for old in workspace["lessons"]
                           if old["task_key"] == task_key for h in old["hints"]}
@@ -139,7 +143,7 @@ class LearningWorkspace:
                       "mode": "retest" if state["due"] else "remediate" if state["status"] == "needs_review" else "diagnose",
                       "paragraphs": [{"id": "concept", "text": node.get("description", "")},
                                      *[{"id": f"objective_{i}", "text": text} for i, text in enumerate(node["objectives"])]],
-                      "question": node.get("check_question") or "请用自己的话说明这一概念，并指出一个仍不确定的地方。",
+                      "question": question or "请用自己的话说明这一概念，并指出一个仍不确定的地方。",
                       "task": {"id": task["id"], "version": task["version"]} if task else None,
                       "task_key": task_key, "prompt_level": level, "hints": [seen_hints[k] for k in sorted(seen_hints)],
                       "resource_ids": [r["id"] for r in selection["resources"]], "resources": selection["resources"],
@@ -148,6 +152,9 @@ class LearningWorkspace:
                       "state_snapshot": copy.deepcopy(learner["states"]), "learner_revision": learner["version"],
                       "policy_version": selection["rule_version"], "selection_trace": selection,
                       "responses": [], "annotations": [], "status": "active"}
+            if demo:
+                lesson.update(paragraphs=copy.deepcopy(node["lesson_content"]), options=copy.deepcopy(task["options"]),
+                              sources=[copy.deepcopy(s) for s in graph["sources"] if s["id"] in node["source_ids"]])
             workspace["lessons"].append(lesson)
             workspace["current_lesson_id"] = lesson["id"]
             learner["profile"]["current_position"] = {k: lesson[k] for k in ("course_id", "course_version", "chapter_id", "node_id")}
@@ -169,7 +176,17 @@ class LearningWorkspace:
             lesson = self._lesson(payload, graph, workspace)
             text = _text(payload.get("text", ""), "作答草稿", 4000, False)
             workspace["drafts"][lesson["id"]] = {"text": text, "saved_at": self.store._stamp()}
+            if lesson.get("options"):
+                choice = self._choice(lesson, payload, required=False)
+                workspace["drafts"][lesson["id"]]["choice_id"] = choice
         return self._mutate(payload, "draft", apply)
+
+    @staticmethod
+    def _choice(lesson, payload, required=True):
+        choice = payload.get("choice_id", "")
+        if not isinstance(choice, str) or choice not in {o["id"] for o in lesson["options"]} | ({""} if not required else set()):
+            raise CourseGraphError("请选择当前题目中的一个选项。")
+        return choice
 
     def hint(self, payload):
         def apply(graph, learner, workspace):
@@ -181,7 +198,8 @@ class LearningWorkspace:
                 raise CourseGraphError("该题已给出全部四级提示，请整理思路后作答。", 409)
             node = self.store._node(graph, lesson["node_id"])
             level += 1
-            text = node["check_task"]["hint_levels"][level - 1]
+            task = self.store.lesson_task(node, lesson) if getattr(self.store, "is_demo", False) else node["check_task"]
+            text = task["hint_levels"][level - 1]
             workspace["exposures"][lesson["task_key"]] = level
             lesson["prompt_level"] = level
             lesson["hints"].append({"level": level, "text": text, "created_at": self.store._stamp()})
@@ -197,9 +215,20 @@ class LearningWorkspace:
             context = {"turn_id": len(lesson["responses"]) + 1}
             if task:
                 context.update(task_id=task["id"], task_version=task["version"])
-            record = self._evidence(graph, learner, node, payload.get("text"), "quiz" if task else "dialog", level, context)
+            text = payload.get("text")
+            demo = getattr(self.store, "is_demo", False)
+            if demo:
+                if lesson["responses"]:
+                    raise CourseGraphError("本小节已提交，请安排新的复测小节；原始作答已保留。", 409)
+                choice = self._choice(lesson, payload)
+                option = next(o for o in lesson["options"] if o["id"] == choice)
+                reasoning = _text(payload.get("text", ""), "作答思路", 3500, False)
+                text = f"{choice}. {option['text']}" + (f"\n我的思路：{reasoning}" if reasoning else "")
+            record = self._evidence(graph, learner, node, text, "quiz" if task else "dialog", level, context)
             lesson["responses"].append({"evidence_id": record["id"], "text": record["text"], "prompt_level": level, "created_at": record["created_at"]})
             lesson["status"] = "awaiting_review"
+            if demo:
+                lesson["responses"][-1]["judgement"] = self.store.grade(graph, learner, workspace, lesson, node, record, choice)
             workspace["drafts"].pop(lesson["id"], None)
             self._event(workspace, "answer", lesson_id=lesson["id"], evidence_id=record["id"], prompt_level=level)
         return self._mutate(payload, "answer", apply)
@@ -292,4 +321,10 @@ class LearningWorkspace:
         tasks = {n["id"]: {"question": n.get("check_question", ""), "expected_answer": n.get("expected_answer", ""),
                              "rubric": n.get("check_task", {}).get("rubric", [])} for n in graph["nodes"]} if graph else {}
         view["teacher_tasks"] = tasks
+        if getattr(self.store, "is_demo", False):
+            for node in graph["nodes"]:
+                variants = self.store.tasks(node)
+                tasks[node["id"]]["question"] = "\n\n".join(f"{t['id']}：{t['question']}" for t in variants)
+                tasks[node["id"]]["expected_answer"] = "\n\n".join(
+                    f"{t['id']}：{t['answer_key']} · {t['explanation']}" for t in variants)
         return view

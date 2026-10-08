@@ -6,8 +6,8 @@
   <script src="/static/theme.js?v=28"></script>
   <link rel="stylesheet" href="/static/theme.css?v=1">
   <link rel="stylesheet" href="/static/courses.css?v=18">
-  <link rel="stylesheet" href="/static/learning.css?v=1">
-  <script defer src="/static/learning.js?v=1"></script>
+  <link rel="stylesheet" href="/static/learning.css?v=2">
+  <script defer src="/static/learning.js?v=2"></script>
 </head>
 <body>
   <header class="toolbar"><a href="/courses">PLIAC · 课程</a><a id="graphLink" href="/knowledge">知识图谱</a><a id="roleLink" href="/review">教师复核</a><button id="themeButton">深色</button></header>
@@ -19,11 +19,12 @@
       <h2>从你现在的位置开始</h2><p class="muted">自评帮助安排起点，掌握情况还需要作答与复核。</p>
       <form id="onboardForm"><div class="profile-grid"><label>学习目标<textarea id="goals" maxlength="2000" placeholder="这次希望学会什么？"></textarea></label><label>已有基础<textarea id="background" maxlength="2000" placeholder="学过哪些相关内容？"></textarea></label></div><label>兴趣偏好<input id="interests" maxlength="500" placeholder="用逗号分隔，例如科幻、运动"></label><details><summary>知识点三档自评（可选）</summary><div id="selfAssessments" class="assessment-grid"></div></details><button type="submit" class="primary">保存起点资料</button></form>
     </section>
+    <p id="courseProgress" class="notice" hidden></p>
     <section id="studentWorkspace" class="workspace-grid" hidden>
       <aside class="panel navigation"><div class="section-heading"><h2>学习路线</h2><button id="profileButton">资料</button></div><p class="muted">绿：掌握 · 红：补学 · 黄：待核验 · 灰：未涉及</p><div id="nodeList"></div></aside>
       <div class="learning-column">
         <section class="panel"><div class="section-heading"><h2>当前小节</h2><button id="nextLesson" class="primary">安排下一小节</button></div><div id="lessonContent"><p class="muted">保存起点资料后，安排第一小节。</p></div></section>
-        <section id="taskPanel" class="panel" hidden><div class="section-heading"><h2>先说说你的理解</h2><span id="promptBadge" class="badge"></span></div><p id="questionText" class="question"></p><p id="taskNotice" class="muted"></p><div id="hintList"></div><form id="answerForm"><label class="sr-only" for="answerText">我的作答</label><textarea id="answerText" rows="6" maxlength="4000" placeholder="写下结论，也写下你这样判断的原因。"></textarea><div class="form-actions"><button type="submit" class="primary">提交作答</button><button id="hintButton" type="button">给我一级提示</button><button id="saveDraftButton" type="button">保存草稿</button></div></form><div id="responses" class="history"></div></section>
+        <section id="taskPanel" class="panel" hidden><div class="section-heading"><h2>先说说你的理解</h2><span id="promptBadge" class="badge"></span></div><p id="questionText" class="question"></p><p id="taskNotice" class="muted"></p><div id="hintList"></div><form id="answerForm"><div id="answerChoices" role="group" aria-label="??????" hidden></div><label class="sr-only" for="answerText">我的作答</label><textarea id="answerText" rows="6" maxlength="4000" placeholder="写下结论，也写下你这样判断的原因。"></textarea><div class="form-actions"><button type="submit" class="primary">提交作答</button><button id="hintButton" type="button">给我一级提示</button><button id="saveDraftButton" type="button">保存草稿</button></div></form><div id="responses" class="history"></div></section>
         <section class="panel"><div class="section-heading"><h2>章节报告</h2><span class="muted">依据当前课程规则</span></div><div id="chapterReports"></div></section>
         <section class="panel"><div class="section-heading"><h2>个人知识手册</h2><button id="exportHandbook" type="button">导出手册</button></div><div id="handbook"></div></section>
       </div>

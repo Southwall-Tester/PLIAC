@@ -312,7 +312,7 @@ def student_graph(graph):
     if graph is None:
         return None
     result = copy.deepcopy(graph)
-    private = {"expected_answer", "reference_answer", "rubric", "solution", "hints", "hint_levels", "answers"}
+    private = {"expected_answer", "reference_answer", "rubric", "solution", "hints", "hint_levels", "answers", "answer_key", "explanation"}
 
     def clean(value):
         if isinstance(value, dict):
@@ -539,6 +539,13 @@ class CourseGraphStore:
         return (evidence["source_type"] != "practice"
                 or bool(context.get("skeleton_id") and context.get("skeleton_version")))
 
+    def _confirmed(self, diagnosis):
+        return diagnosis["review_status"] == "reviewed"
+
+    def _published_history(self):
+        publication = _read_json(self.output_dir / "publication.json")
+        return publication.get("published_versions", [publication["published_version"]])
+
     def _derive(self, learner, graph):
         states = {}
         if graph is None:
@@ -550,8 +557,7 @@ class CourseGraphStore:
         history = {}
         if course_diagnoses:
             oldest_version = min(d["course_version"] for d in course_diagnoses)
-            publication = _read_json(self.output_dir / "publication.json")
-            for version in publication.get("published_versions", [publication["published_version"]]):
+            for version in self._published_history():
                 if oldest_version < version <= graph["version"]:
                     snapshot = graph if version == graph["version"] else self.load_graph("published", version)
                     history[version] = {item["id"]: _fingerprint(item) for item in snapshot["nodes"]}
@@ -562,7 +568,7 @@ class CourseGraphStore:
             resolved = {ref for d in diagnostics for ref in d.get("resolves_diagnosis_ids", [])}
             active = [d for d in diagnostics if d["id"] not in resolved]
             latest = diagnostics[-1] if diagnostics else None
-            mastered = [d for d in diagnostics if d["status"] == "mastered" and d["review_status"] == "reviewed"]
+            mastered = [d for d in diagnostics if d["status"] == "mastered" and self._confirmed(d)]
             last_mastery = mastered[-1] if mastered else None
             recorded = latest["status"] if latest else "unknown"
             status = recorded
@@ -574,9 +580,9 @@ class CourseGraphStore:
                      "version_changed": False, "due": False}
             if latest:
                 reason = latest["basis"]
-                if latest["review_status"] != "reviewed":
+                if not self._confirmed(latest):
                     status, reason = "uncertain", "最新诊断尚待人工复核。"
-                decisive = {d["status"] for d in active if d["review_status"] == "reviewed" and d["status"] in {"mastered", "needs_review"}}
+                decisive = {d["status"] for d in active if self._confirmed(d) and d["status"] in {"mastered", "needs_review"}}
                 if len(decisive) > 1:
                     status, reason = "uncertain", "掌握与补学判断存在未调和冲突，请复核证据。"
                 changed = latest.get("node_fingerprint") != _fingerprint(node)
@@ -748,7 +754,7 @@ class CourseGraphStore:
                 if (review != "reviewed" or not any(e["source_type"] not in {"self_assessment", "annotation"} for e in support)
                         or any(e["id"] in old_refs or _date(e["created_at"], "证据时间") < _date(action["created_at"], "动作时间") for e in evidence)):
                     _fail("后续核验需要动作之后新记录的任务作答和人工复核；旧证据、点击、自评或技术异常不能代替。")
-            previous_mastery = [d for d in previous if d["status"] == "mastered" and d["review_status"] == "reviewed"]
+            previous_mastery = [d for d in previous if d["status"] == "mastered" and self._confirmed(d)]
             stage = previous_mastery[-1].get("review_stage", 0) if previous_mastery else 0
             if status == "mastered" and previous_mastery:
                 used = {ref for d in previous for ref in d["evidence_ids"]}

@@ -4,6 +4,7 @@
   const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const teacher = location.pathname === '/review';
   const courseId = new URLSearchParams(location.search).get('course_id') || '';
+  const demo = courseId === 'ml_acceptance_demo';
   const query = new URLSearchParams({course_id: courseId});
   const labels = {unknown:'尚未涉及', uncertain:'待核验', needs_review:'需要补学', mastered:'当前已掌握'};
   let state, draftGraph, studentId = '', busy = false, annotationId, saveTimer, failedRequest;
@@ -36,6 +37,12 @@
     $('hintButton').disabled = !current?.task || current.prompt_level >= 4 || state.course_changed;
     $('answerForm').querySelector('button[type=submit]').disabled = !current || state.course_changed;
     $('saveDraftButton').disabled = !current || state.course_changed;
+    if (demo && current?.responses.length) {
+      $('answerForm').querySelectorAll('button,input,textarea').forEach(b => b.disabled = true);
+    }
+    const complete = state.chapters.length > 0 && state.chapters.every(c => c.passed);
+    $('nextLesson').disabled = !state.workspace.onboarded || complete;
+    $('nextLesson').textContent = complete ? '本课程当前已完成' : demo && current && state.learner.states[current.node_id].status !== 'mastered' ? '安排补学 / 复测' : '安排下一小节';
   }
   async function mutate(operation, values = {}, {renderPage = true} = {}) {
     const data = {student_id:studentId, course_version:state.course.version, ...values};
@@ -55,11 +62,14 @@
   function render() {
     $('refreshButton').hidden = false; $('exportButton').hidden = false;
     $('pageTitle').textContent = `${state.course?.title || '课程'} · ${teacher ? '教师复核' : '学习工作台'}`;
-    $('notice').hidden = !!state.course && !state.course_changed;
+    $('notice').hidden = !!state.course && !state.course_changed && !demo;
     $('notice').textContent = state.course_changed ? '课程已有新发布版本。这里保留了原小节与作答，请安排新小节后继续。' : state.publication.notice;
     $('studentWorkspace').hidden = teacher || !state.course;
     $('teacherWorkspace').hidden = !teacher;
-    $('taskAuthoring').hidden = !teacher;
+    $('taskAuthoring').hidden = !teacher || demo;
+    $('policyForm').closest('.panel').hidden = demo;
+    $('courseProgress').hidden = !demo || teacher;
+    $('courseProgress').textContent = demo ? `学习进度：${Object.values(state.learner.states).filter(s => s.status === 'mastered').length} / ${state.course.nodes.length} 小节已通过独立核验` : '';
     $('onboarding').hidden = teacher || !state.course || state.workspace.onboarded;
     if (teacher) { renderTeacher(); return; }
     if (!state.course) return;
@@ -80,15 +90,19 @@
     if (!lesson) { $('lessonContent').innerHTML = '<p class="muted">保存起点资料后，安排第一小节。</p>'; return; }
     const names = Object.fromEntries(state.course.nodes.map(n => [n.id,n.title]));
     const gaps = lesson.prerequisite_gaps.filter(i => i !== lesson.node_id);
-    $('lessonContent').innerHTML = `<h3>${esc(lesson.title)}</h3><p class="reason">安排依据：${esc(lesson.reason)}${gaps.length ? `<br>相关先修仍待核验：${gaps.map(i => esc(names[i] || i)).join('、')}` : ''}</p>${lesson.paragraphs.filter(p => p.text).map(p => `<div class="paragraph"><p>${esc(p.text)}</p><button data-paragraph="${esc(p.id)}">不明白</button></div>`).join('')}<div>${lesson.resources.length ? '<h3>可选学习材料</h3>' + lesson.resources.map(r => `<a class="resource-card" data-resource="${esc(r.id)}" href="${esc(r.url)}" target="_blank" rel="noopener noreferrer">${esc(r.title)}<small>${esc(r.organization)} · ${esc(r.applicable_segment || '')}</small></a>`).join('') : '<p class="muted">当前没有满足前置要求的已审核补充资源。</p>'}</div>${lesson.annotations.length ? `<details><summary>已记录 ${lesson.annotations.length} 处困惑</summary>${lesson.annotations.map(a => `<p>${esc(a.question)}</p>`).join('')}</details>` : ''}`;
+    $('lessonContent').innerHTML = `<h3>${esc(lesson.title)}</h3><p class="reason">安排依据：${esc(lesson.reason)}${gaps.length ? `<br>相关先修仍待核验：${gaps.map(i => esc(names[i] || i)).join('、')}` : ''}</p>${lesson.paragraphs.filter(p => p.text).map(p => `<div class="paragraph"><div class="paragraph-body">${p.heading ? `<h4>${esc(p.heading)}</h4>` : ''}<p>${esc(p.text)}</p></div><button data-paragraph="${esc(p.id)}">不明白</button></div>`).join('')}<div>${lesson.resources.length ? '<h3>可选学习材料</h3>' + lesson.resources.map(r => `<a class="resource-card" data-resource="${esc(r.id)}" href="${esc(r.url)}" target="_blank" rel="noopener noreferrer">${esc(r.title)}<small>${esc(r.organization)} · ${esc(r.applicable_segment || '')}</small></a>`).join('') : demo ? '' : '<p class="muted">当前没有满足前置要求的已审核补充资源。</p>'}</div>${(lesson.sources || []).map(s => `<a class="resource-card" href="${esc(s.url)}" target="_blank" rel="noopener noreferrer">延伸阅读：${esc(s.title)}<small>${esc(s.locator)}</small></a>`).join('')}${lesson.annotations.length ? `<details><summary>已记录 ${lesson.annotations.length} 处困惑</summary>${lesson.annotations.map(a => `<p>${esc(a.question)}</p>`).join('')}</details>` : ''}`;
     $('questionText').textContent = lesson.question;
-    $('promptBadge').textContent = lesson.prompt_level ? `已使用 ${lesson.prompt_level} 级提示` : '本题尚未使用提示';
-    $('taskNotice').textContent = lesson.task ? '作答提交后进入人工复核。同一道题已看过的提示会持续记录，重新打开不会重置。' : '此节点尚未配置正式诊断题。可记录理解与困惑，之后由教师补充任务验证。';
+    $('promptBadge').textContent = demo && lesson.responses.length ? '已显示本题解析' : lesson.prompt_level ? `已使用 ${lesson.prompt_level} 级提示` : '本题尚未使用提示';
+    $('taskNotice').textContent = demo ? '请选择一项，可补充思路。固定规则即时核验；提示后答对需换题独立复测。看过本题解析也会保留记录，重复答对不能视为新的独立证据。' : lesson.task ? '作答提交后进入人工复核。同一道题已看过的提示会持续记录，重新打开不会重置。' : '此节点尚未配置正式诊断题。可记录理解与困惑，之后由教师补充任务验证。';
     $('hintList').innerHTML = lesson.hints.map(h => `<div class="hint">提示 ${h.level}：${esc(h.text)}</div>`).join('');
     $('answerText').value = state.workspace.drafts[lesson.id]?.text || '';
+    $('answerText').maxLength = demo ? 3500 : 4000;
+    $('answerText').placeholder = demo ? '可选：写下你的判断理由。选项会和思路一起保存。' : '写下结论，也写下你这样判断的原因。';
+    $('answerChoices').hidden = !lesson.options;
+    $('answerChoices').innerHTML = (lesson.options || []).map(o => `<label class="answer-choice"><input type="radio" name="answerChoice" value="${esc(o.id)}" ${state.workspace.drafts[lesson.id]?.choice_id === o.id ? 'checked' : ''}><span>${esc(o.id)}. ${esc(o.text)}</span></label>`).join('');
     $('responses').innerHTML = lesson.responses.map(r => {
       const diagnoses = state.learner.diagnoses.filter(d => d.evidence_ids.includes(r.evidence_id));
-      return `<article><span class="badge">${r.prompt_level ? `${r.prompt_level} 级提示后作答` : '未使用本题提示'}</span><p>${esc(r.text)}</p>${diagnoses.length ? diagnoses.map(d => `<p class="muted">${esc(labels[d.status])} · ${esc(d.basis)}</p>`).join('') : '<p class="muted">已保存原始作答，等待复核。</p>'}</article>`;
+      return `<article><span class="badge">${r.prompt_level ? `${r.prompt_level} 级提示或解析后作答` : '未使用本题提示'}</span><p>${esc(r.text)}</p>${r.judgement ? `<p class="quiz-feedback"><strong>${r.judgement.passed ? '回答正确' : '需要再想一想'}</strong> · 演示客观题判定<br>${esc(r.judgement.explanation)}</p>` : ''}${diagnoses.length ? diagnoses.map(d => `<p class="muted">${esc(labels[d.status])} · ${esc(d.basis)}</p>`).join('') : '<p class="muted">已保存原始作答，等待复核。</p>'}</article>`;
     }).join('');
   }
   function renderReports() {
@@ -143,8 +157,9 @@
     if (!state?.current_lesson || state.course_changed) return;
     const lesson = state.current_lesson;
     const text = $('answerText').value;
-    if (text === (state.workspace.drafts[lesson.id]?.text || '')) return;
-    await mutate('draft', {lesson_id:lesson.id, text}, {renderPage:false});
+    const choice_id = choiceValue();
+    if (text === (state.workspace.drafts[lesson.id]?.text || '') && choice_id === (state.workspace.drafts[lesson.id]?.choice_id || '')) return;
+    await mutate('draft', {lesson_id:lesson.id, text, ...(demo ? {choice_id} : {})}, {renderPage:false});
   }
   $('themeButton').onclick = () => GraphTheme.toggle();
   $('graphLink').href = `/knowledge?${query}`;
@@ -152,8 +167,10 @@
   $('roleLink').href = `${teacher ? '/learn' : '/review'}?${query}`;
   $('roleLink').textContent = teacher ? '学习工作台' : '教师复核';
   try { $('studentId').value = localStorage.getItem(storageKey) || ''; } catch {}
+  if (demo && !$('studentId').value) $('studentId').value = 'demo-' + crypto.randomUUID().slice(0,8);
+  function choiceValue() { return document.querySelector('[name=answerChoice]:checked')?.value || ''; }
   $('identityForm').onsubmit = event => { event.preventDefault(); run(async () => { await saveDraft(); studentId = $('studentId').value.trim(); await load(); try { localStorage.setItem(storageKey, studentId); } catch {} }); };
-  $('refreshButton').onclick = () => run(async () => { const text = $('answerText').value, lessonId = state.current_lesson?.id; await load(); if (lessonId === state.current_lesson?.id && text) $('answerText').value = text; });
+  $('refreshButton').onclick = () => run(async () => { if (!teacher) await saveDraft(); await load(); });
   $('onboardForm').onsubmit = event => { event.preventDefault(); run(async () => {
     const selfAssessments = Object.fromEntries([...document.querySelectorAll('[data-assess]')].filter(s => s.value).map(s => [s.dataset.assess,s.value]));
     await mutate('onboard', {goals:$('goals').value, background:$('background').value, interests:$('interests').value.split(/[,，]/).map(x => x.trim()).filter(Boolean), self_assessments:selfAssessments});
@@ -163,8 +180,9 @@
   $('nodeList').onclick = event => { const button = event.target.closest('[data-node]'); if (button) run(async () => { await saveDraft(); await mutate('next', {node_id:button.dataset.node}); }); };
   function scheduleSave() { clearTimeout(saveTimer); saveTimer = setTimeout(() => { if (busy) scheduleSave(); else run(saveDraft); }, 900); }
   $('answerText').oninput = () => { $('saveStatus').textContent = '正在编辑'; scheduleSave(); };
+  $('answerChoices').onchange = () => { $('saveStatus').textContent = '正在编辑'; scheduleSave(); };
   $('saveDraftButton').onclick = () => run(saveDraft);
-  $('answerForm').onsubmit = event => { event.preventDefault(); clearTimeout(saveTimer); const text = $('answerText').value; if (!text.trim()) { error('请先写下你的思路。'); return; } run(() => mutate('answer', {lesson_id:state.current_lesson.id, text})); };
+  $('answerForm').onsubmit = event => { event.preventDefault(); clearTimeout(saveTimer); const text = $('answerText').value, choice_id = choiceValue(); if (demo ? !choice_id : !text.trim()) { error(demo ? '请先选择一个选项。' : '请先写下你的思路。'); return; } run(() => mutate('answer', {lesson_id:state.current_lesson.id, text, ...(demo ? {choice_id} : {})})); };
   $('hintButton').onclick = () => run(async () => { await saveDraft(); await mutate('hint', {lesson_id:state.current_lesson.id}); });
   $('lessonContent').onclick = event => {
     const paragraph = event.target.closest('[data-paragraph]');
@@ -195,5 +213,5 @@
     const result = await api('/api/learning/teacher/chapter-policy', {chapter_id:$('policyChapter').value, required_node_ids:[...document.querySelectorAll('[data-policy-node]:checked')].map(x => x.dataset.policyNode), configured_by:$('policyAuthor').value, basis:$('policyBasis').value, expected_version:draftGraph.version});
     draftGraph = result.graph; renderPolicy(); $('saveStatus').textContent = '规则草稿已保存，请审核发布';
   }); };
-  window.addEventListener('beforeunload', event => { if (state?.current_lesson && $('answerText').value !== (state.workspace.drafts[state.current_lesson.id]?.text || '') && !teacher) { event.preventDefault(); event.returnValue = ''; } });
+  window.addEventListener('beforeunload', event => { if (state?.current_lesson && !teacher && ($('answerText').value !== (state.workspace.drafts[state.current_lesson.id]?.text || '') || choiceValue() !== (state.workspace.drafts[state.current_lesson.id]?.choice_id || ''))) { event.preventDefault(); event.returnValue = ''; } });
 })();

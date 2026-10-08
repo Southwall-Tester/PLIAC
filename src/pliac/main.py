@@ -10,7 +10,7 @@ from learning_agent.documents import ocr_threads
 from .api import router as learning_router
 
 ROOT = Path(__file__).resolve().parents[2]
-app = FastAPI(title="PLIAC · 课程个性化学习智能体", version="0.5.0")
+app = FastAPI(title="PLIAC · 课程个性化学习智能体", version="0.6.0")
 app.mount("/static", StaticFiles(directory=ROOT / "static"), name="static")
 app.include_router(router)
 app.include_router(courses_router)
@@ -44,7 +44,7 @@ def workbench():
 
 @app.get("/health")
 def health():
-    return {"app": "learning-agent", "platform": "PLIAC", "capabilities": ["knowledge_graph", "learning_workspace"],
+    return {"app": "learning-agent", "platform": "PLIAC", "capabilities": ["knowledge_graph", "learning_workspace", "acceptance_course"],
             "version": app.version, "specification": "v7_20261008", "ocr_threads": ocr_threads()}
 
 
