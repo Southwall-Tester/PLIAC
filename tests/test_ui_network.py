@@ -20,6 +20,28 @@ from learning_agent.course_graph import CourseGraphStore
 from learning_agent.main import app
 
 
+def expect_controls(page, *, visible=(), hidden=()):
+    for selector in visible:
+        expect(page.locator(selector)).to_be_visible()
+    for selector in hidden:
+        expect(page.locator(selector)).to_be_hidden()
+
+
+def assert_neutral_toolbar(page):
+    page.mouse.move(0, page.viewport_size['height'] - 1)
+    page.wait_for_timeout(180)
+    styles = page.locator('.topbar button:visible, .topbar .button:visible').evaluate_all('''elements => elements.map(element => {
+      const style=getComputedStyle(element);
+      return [style.color,style.backgroundColor,style.borderTopColor];
+    })''')
+    assert styles and all(style == styles[0] for style in styles), styles
+    for color in styles[0]:
+        channels = [int(n) for n in re.findall(r'\d+', color)[:3]]
+        assert max(channels) - min(channels) <= 18, color
+    assert page.locator('.topbar nav a:visible').evaluate_all(
+        '(links,color)=>links.every(link=>getComputedStyle(link).color===color)', styles[0][0])
+
+
 def main():
     output = ROOT / 'outputs/verification'
     output.mkdir(parents=True, exist_ok=True)
@@ -49,8 +71,21 @@ def main():
                       get(){return this.__View},set(View){this.__View=class extends View{
                         constructor(...args){super(...args);window.__network=this;}
                       }}});""")
+                    page.goto(url+'/')
+                    expect(page.locator('#unpublished')).to_be_visible()
+                    expect_controls(page, visible=('#themeButton', '#authorView'), hidden=(
+                        '#physicsSettings', '#stabilizeButton', '#filtersButton', '#labelsButton',
+                        '#statsButton', '#profileButton', '#manageButton', '#importDocuments', '.zoom-buttons'))
+                    page.locator('#themeButton').click()
+                    expect(page.locator('body')).to_have_class(re.compile(r'network-dark'))
+                    assert_neutral_toolbar(page)
+                    page.locator('#themeButton').click()
+                    report['checks'].append('unpublished page hides graph actions while navigation and theme remain functional')
                     page.goto(url+'/author')
                     page.wait_for_function('window.__network?.data?.nodes.length === 43 && !window.__network.busy')
+                    expect_controls(page, visible=('#manageButton', '#importDocuments', '#stabilizeButton'),
+                                    hidden=('#profileButton',))
+                    assert_neutral_toolbar(page)
                     expect(page.locator('.sidebar')).to_be_hidden()
                     expect(page.locator('.detail-pane')).to_be_hidden()
                     assert page.evaluate('__network.graph.getOptions().node.type') == 'circle'
@@ -80,8 +115,9 @@ def main():
                     page.locator('#themeButton').click()
                     expect(page.locator('body')).to_have_class('author-mode network-dark')
                     page.wait_for_function('!__network.busy')
+                    assert_neutral_toolbar(page)
                     page.locator('#themeButton').click()
-                    report['checks'].append('labels and dark mode change rendered graph')
+                    report['checks'].append('author actions suit editing; toolbar controls share neutral colors in both themes; labels and theme update graph')
                     page.locator('#filtersButton').click()
                     expect(page.locator('#colorMode')).to_have_value('family')
                     color_data = page.evaluate('''() => {
@@ -113,8 +149,20 @@ def main():
                     page.wait_for_function('__network.data.nodes.length===3 && !__network.busy')
                     page.locator('#levelFilter').select_option('root')
                     page.wait_for_function('__network.data.nodes.length===1 && !__network.busy')
+                    expect_controls(page, visible=('#filtersButton', '#labelsButton'),
+                                    hidden=('#physicsSettings', '#stabilizeButton'))
                     page.locator('#levelFilter').select_option('concept')
                     page.wait_for_function('__network.data.nodes.length===43 && !__network.busy')
+                    page.locator('#relationFilter').select_option('prerequisite')
+                    page.locator('#search').fill('__no_course_node_matches__')
+                    page.wait_for_function('__network.data.nodes.length===0 && !__network.busy')
+                    expect_controls(page, visible=('#filtersButton', '#statsButton'), hidden=(
+                        '#physicsSettings', '#stabilizeButton', '#labelsButton', '.zoom-buttons'))
+                    page.locator('#search').fill('')
+                    page.locator('#relationFilter').select_option('all')
+                    page.wait_for_function('__network.data.nodes.length===43 && !__network.busy')
+                    expect_controls(page, visible=('#physicsSettings', '#stabilizeButton', '#labelsButton', '.zoom-buttons'))
+                    report['checks'].append('single-root and empty filtered views hide inapplicable tools; filters restore the complete graph')
                     page.locator('#closeFilters').click()
                     def position(ident):
                         return page.evaluate('id=>{const p=__network.graph.getViewportByCanvas(__network.graph.getElementPosition(id));const r=document.querySelector("#graph").getBoundingClientRect();return {x:p[0]+r.x,y:p[1]+r.y}}', ident)
@@ -268,6 +316,24 @@ def main():
                     assert page.evaluate('document.documentElement.scrollWidth<=innerWidth')
                     page.screenshot(path=str(output/'network-mobile.png'))
                     report['checks'].append('zoom, fit, mobile drawers and no horizontal overflow')
+
+                    # A browser-only published fixture exercises an empty learner
+                    # expression view without manufacturing review/publication records.
+                    fixture = httpx.get(url+'/api/course-graph?view=draft').json()
+                    fixture['learner'] = {'evidence': [], 'states': {}, 'profile': {}}
+                    page.route(re.compile(r'/api/course-graph\?'), lambda route: route.fulfill(json=fixture))
+                    page.set_viewport_size({'width':1440, 'height':900})
+                    page.goto(url+'/')
+                    page.wait_for_function('window.__network?.data?.nodes.length===43 && !window.__network.busy')
+                    expect_controls(page, visible=('#structureView',), hidden=('#manageButton', '#importDocuments', '#profileButton'))
+                    page.locator('#structureView').select_option('expressions')
+                    page.wait_for_function('__network.data.nodes.length===0 && !__network.busy')
+                    expect_controls(page, visible=('#filtersButton', '#statsButton'), hidden=(
+                        '#physicsSettings', '#stabilizeButton', '#labelsButton', '.zoom-buttons'))
+                    page.locator('#structureView').select_option('course')
+                    page.wait_for_function('__network.data.nodes.length===43 && !__network.busy')
+                    expect_controls(page, visible=('#stabilizeButton', '#labelsButton', '.zoom-buttons'))
+                    report['checks'].append('empty expression view keeps its recovery controls and restores graph tools on returning to course')
                     assert not report['errors'],report['errors']
                     browser.close()
             finally:

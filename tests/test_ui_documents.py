@@ -48,6 +48,28 @@ SOURCE = """# 知识图谱
 """
 
 
+def expect_controls(page, *, visible=(), hidden=()):
+    for selector in visible:
+        expect(page.locator(selector)).to_be_visible()
+    for selector in hidden:
+        expect(page.locator(selector)).to_be_hidden()
+
+
+def assert_neutral_toolbar(page):
+    page.mouse.move(0, page.viewport_size["height"] - 1)
+    page.wait_for_timeout(180)
+    styles = page.locator(".toolbar button:visible, .toolbar select:visible").evaluate_all("""elements => elements.map(element => {
+        const style=getComputedStyle(element);
+        return [style.color,style.backgroundColor,style.borderTopColor];
+    })""")
+    assert styles and all(style == styles[0] for style in styles), styles
+    for color in styles[0]:
+        channels = [int(n) for n in re.findall(r"\d+", color)[:3]]
+        assert max(channels) - min(channels) <= 18, color
+    assert page.locator(".toolbar a:visible").evaluate_all(
+        "(links,color)=>links.every(link=>getComputedStyle(link).color===color)", styles[0][0])
+
+
 @contextmanager
 def isolated_application(directory):
     course = CourseGraphStore(output_dir=directory / "course")
@@ -108,6 +130,29 @@ def main():
                         page.on("pageerror", lambda error: report["page_errors"].append(str(error)))
                         page.goto(base + "/documents")
                         expect(page.locator("#libraryPanel")).to_be_visible()
+                        expect_controls(page, visible=("#themeButton", '.toolbar a[href="/author"]'), hidden=(
+                            "#physicsSettings", "#stabilizeButton", "#filtersButton", "#labelsButton",
+                            "#statsButton", "#hierarchyLevel", "#importButton", "#exportButton", "#canvasControls"))
+                        page.locator("#themeButton").click()
+                        expect(page.locator("body")).to_have_class(re.compile(r"network-dark"))
+                        page.locator("#themeButton").click()
+                        passed("Empty library offers theme and course navigation without graph-specific actions")
+
+                        generating = browser.new_page(viewport={"width": 1440, "height": 900})
+                        generating.on("pageerror", lambda error: report["page_errors"].append(str(error)))
+                        generating.route("**/api/documents/toolbar-generating-fixture", lambda route: route.fulfill(json={
+                            "id": "toolbar-generating-fixture", "title": "Toolbar processing fixture",
+                            "status": "parsing", "progress": {"current": 1, "total": 5},
+                            "stats": {"nodes": 0, "edges": 0}, "warnings": [], "error": None,
+                        }))
+                        generating.goto(base + "/documents?id=toolbar-generating-fixture")
+                        expect(generating.locator("#jobStatus")).to_contain_text("解析中")
+                        expect_controls(generating, visible=("#themeButton", "#libraryButton", "#cancelButton"), hidden=(
+                            "#physicsSettings", "#stabilizeButton", "#filtersButton", "#labelsButton",
+                            "#statsButton", "#hierarchyLevel", "#importButton", "#exportButton", "#canvasControls"))
+                        generating.close()
+                        passed("A document still processing without graph data offers task actions and hides graph tools")
+
                         page.evaluate("""() => {
                             const original = G6.Graph.prototype.setData;
                             G6.Graph.prototype.setData = function(data) {
@@ -123,7 +168,23 @@ def main():
                         data = page.evaluate("window.lastGraphData")
                         assert len(data["nodes"]) > 5 and len(data["edges"]) > 2
                         assert any(n["style"].get("lineWidth") == 2 for n in data["nodes"])
+                        assert_neutral_toolbar(page)
+                        page.locator("#themeButton").click()
+                        expect(page.locator("body")).to_have_class(re.compile(r"network-dark"))
+                        assert_neutral_toolbar(page)
+                        page.locator("#themeButton").click()
                         passed("Upload automatically renders a hierarchical graph with semantic edges")
+
+                        page.locator("#libraryButton").click()
+                        expect(page.locator("#libraryPanel")).to_be_visible()
+                        expect_controls(page, visible=("#themeButton", "#closeLibrary"), hidden=(
+                            "#physicsSettings", "#stabilizeButton", "#filtersButton", "#labelsButton",
+                            "#statsButton", "#hierarchyLevel", "#importButton", "#exportButton", "#canvasControls"))
+                        page.locator("#closeLibrary").click()
+                        expect(page.locator("#libraryPanel")).to_be_hidden()
+                        expect_controls(page, visible=("#physicsSettings", "#stabilizeButton", "#filtersButton",
+                            "#labelsButton", "#statsButton", "#hierarchyLevel", "#importButton", "#exportButton", "#canvasControls"))
+                        passed("Opening the library hides graph tools; returning restores them, with neutral controls in both themes")
 
                         extracted = documents.graph(ident)
                         sections = {n["id"]: n["title"] for n in extracted["hierarchy"]["nodes"]}
@@ -193,6 +254,8 @@ def main():
                         expect(page.locator("#graphContextMenu")).to_be_visible()
                         page.get_by_role("menuitem",name=re.compile(r"^收起下级")).click()
                         page.wait_for_function("window.testGraph.getNodeData().length===1")
+                        expect_controls(page, visible=("#filtersButton", "#labelsButton"),
+                                        hidden=("#physicsSettings", "#stabilizeButton"))
                         collapsed_geometry = geometry()
                         assert collapsed_geometry["zoom"] == before_menu["zoom"]
                         assert collapsed_geometry["origin"] == before_menu["origin"]
@@ -300,12 +363,25 @@ def main():
                         full_count = len(data["nodes"])
                         page.locator("#hierarchyLevel").select_option("book")
                         page.wait_for_function("window.lastGraphData.nodes.length === 1")
+                        expect_controls(page, visible=("#hierarchyLevel", "#labelsButton"),
+                                        hidden=("#physicsSettings", "#stabilizeButton"))
                         page.locator("#hierarchyLevel").select_option("chapters")
                         page.wait_for_function("max => window.lastGraphData.nodes.length > 1 && window.lastGraphData.nodes.length < max", arg=full_count)
                         page.locator("#hierarchyLevel").select_option("all")
                         page.wait_for_function("count => window.lastGraphData.nodes.length === count", arg=full_count)
                         assert page.evaluate("expected => window.testGraph.getNodeData().every(n=>n.style.fill===expected[n.id])", original_colors)
                         passed("Book, chapter and all levels update graph topology")
+
+                        page.locator("#filtersButton").click()
+                        page.locator("#search").fill("__no_document_node_matches__")
+                        page.wait_for_function("window.lastGraphData.nodes.length === 0")
+                        expect_controls(page, visible=("#filtersButton", "#statsButton"), hidden=(
+                            "#physicsSettings", "#stabilizeButton", "#labelsButton", "#canvasControls"))
+                        page.locator("#search").fill("")
+                        page.wait_for_function("count => window.lastGraphData.nodes.length === count", arg=full_count)
+                        expect_controls(page, visible=("#physicsSettings", "#stabilizeButton", "#labelsButton", "#canvasControls"))
+                        page.locator("#closeFilters").click()
+                        passed("Empty search hides graph-only actions while its filters remain available to restore the graph")
 
                         page.locator("#importButton").click()
                         expect(page.locator("#confirmImport")).to_be_enabled()

@@ -1,6 +1,10 @@
 /* Shared circular graph renderer for course and document graphs. */
 (() => {
   class NetworkView {
+    static bindTheme(redraw) {
+      const button=document.getElementById('themeButton');
+      button.onclick=async()=>{document.body.classList.toggle('network-dark');button.textContent=document.body.classList.contains('network-dark')?'浅色':'深色';await redraw?.();};
+    }
     constructor(element, select, edgeSelect, contextMenu) {
       this.element=element;this.select=select;this.edgeSelect=edgeSelect;
       this.force=new CourseNetwork();this.labels=true;this.busy=false;this.dragging=false;
@@ -102,7 +106,7 @@
       $('stabilizeButton').onclick=arrange;
       $('applyLayout').onclick=async()=>{$('physicsDialog').close();await arrange();};
       $('labelsButton').onclick=async()=>{this.labels=!this.labels;$('labelsButton').textContent=this.labels?'隐藏标签':'显示标签';await this.redraw();};
-      $('themeButton').onclick=async()=>{document.body.classList.toggle('network-dark');$('themeButton').textContent=document.body.classList.contains('network-dark')?'浅色':'深色';await this.redraw();};
+      NetworkView.bindTheme(()=>this.redraw());
       $('physicsSettings').onclick=()=>$('physicsDialog').showModal();
       $('repulsion').oninput=e=>{this.force.repulsion=+e.target.value;};
       $('distance').oninput=e=>{this.force.distance=+e.target.value;};

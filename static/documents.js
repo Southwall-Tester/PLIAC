@@ -11,6 +11,22 @@
   network.bindControls();
   new ResizeObserver(()=>document.documentElement.style.setProperty('--toolbar-height',`${document.querySelector('.toolbar').offsetHeight}px`)).observe(document.querySelector('.toolbar'));
 
+  function updateToolbar(){
+    const library=!$('libraryPanel').hidden,active=!!graph&&!library;
+    const count=active?(network.data?.nodes.length||0):0;
+    $('physicsSettings').hidden=count<2;$('stabilizeButton').hidden=count<2;$('labelsButton').hidden=!count;
+    $('filtersButton').hidden=!active;$('statsButton').hidden=!active;
+    $('hierarchyLevel').hidden=!active||structure.length<2;
+    $('libraryButton').hidden=library;
+    $('importButton').hidden=!active||!graph.nodes.length;$('importButton').disabled=$('importButton').hidden;
+    $('exportButton').hidden=!active;$('exportButton').disabled=!active;
+    $('canvasControls').hidden=!count;
+    $('edgeLegend').hidden=!active||!network.data?.edges.length;
+    $('encodingLegend').hidden=!count;$('graphCaption').hidden=library||!current;
+    $('graph').style.visibility=library?'hidden':'';$('graph').inert=library;$('graph').setAttribute('aria-hidden',String(library));
+    if(library){$('filtersPanel').hidden=true;$('sourcePanel').hidden=true;$('filtersButton').setAttribute('aria-expanded','false');$('jobPanel').hidden=true;}
+  }
+
   function toast(message){const dialog=document.querySelector('dialog[open]');(dialog||document.body).appendChild($('toast'));$('toast').textContent=message;$('toast').hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').hidden=true,5500);}
   function showError(id,message){$(id).textContent=message||'';$(id).hidden=!message;}
   async function api(path='',options={}){
@@ -22,8 +38,8 @@
   async function action(button,work){button.disabled=true;try{await work();}catch(error){toast(error.message);}finally{button.disabled=false;}}
   function remember(id){const url=new URL(location.href);if(id)url.searchParams.set('id',id);else url.searchParams.delete('id');history.replaceState({},'',url);try{localStorage.setItem('pliac-document-id',id||'');}catch{}}
   function sourceURL(page){return `/api/documents/${encodeURIComponent(current.id)}/source${page?`#page=${Number(page)}`:''}`;}
-  function openLibrary(){ $('libraryPanel').hidden=false;$('closeLibrary').hidden=!current;refreshList().catch(error=>showError('libraryError',error.message)); }
-  function closeLibrary(){if(current)$('libraryPanel').hidden=true;}
+  function openLibrary(){ $('libraryPanel').hidden=false;$('closeLibrary').hidden=!current;updateToolbar();refreshList().catch(error=>showError('libraryError',error.message)); }
+  function closeLibrary(){if(current){$('libraryPanel').hidden=true;updateJob();}}
 
   async function refreshList(){
     const data=await api();const docs=data.documents||[];const signature=JSON.stringify(docs.map(d=>[d.id,d.status,d.updated_at,d.stats]));
@@ -42,9 +58,8 @@
     $('cancelButton').hidden=!active;$('retryButton').hidden=!['failed','cancelled','partial'].includes(current.status);
     $('viewResultButton').hidden=!(stats.nodes>0)||!!graph;$('hideJobButton').hidden=active;
     $('closeLibrary').hidden=false;
-    $('importButton').disabled=!graph?.nodes?.length;$('exportButton').disabled=!graph;
     if(active||current.error||current.status==='partial'||current.status==='cancelled')$('jobPanel').hidden=false;
-    updateStats();
+    updateStats();updateToolbar();
   }
   function schedulePoll(){clearTimeout(timer);timer=setTimeout(poll,2000);}
   async function poll(){
@@ -63,6 +78,7 @@
     current=job;graph=null;shownSignature='';structure=[];memberships=[];collapsed.clear();remember(id);
     $('search').value='';$('relationFilter').value='all';$('hierarchyLevel').value='all';$('sourcePanel').hidden=true;
     $('libraryPanel').hidden=true;$('jobPanel').hidden=false;$('edgeLegend').hidden=true;$('graphCaption').textContent=job.title||job.filename;
+    updateToolbar();
     await network.setData({nodes:[],edges:[]},true);updateJob();
     if(job.stats?.nodes>0||['completed','partial'].includes(job.status))await loadGraph(token);
     schedulePoll();
@@ -76,14 +92,13 @@
     const raw=graph.memberships||hierarchy.memberships||[];
     memberships=Array.isArray(raw)?raw.map(m=>({node_id:m.node_id||m.concept_id||m.target,parent_id:m.parent_id||m.chapter_id||m.source})):Object.entries(raw).flatMap(([node,parents])=>(Array.isArray(parents)?parents:[parents]).map(parent=>({node_id:node,parent_id:parent})));
     for(const n of graph.nodes||[])if(n.chapter_id&&!memberships.some(m=>m.node_id===n.id))memberships.push({node_id:n.id,parent_id:n.chapter_id});
-    $('hierarchyLevel').hidden=!structure.length;
   }
   async function loadGraph(token=loadToken){
     if(!current)return;const id=current.id;const next=await api(`/${encodeURIComponent(id)}/graph`);
     if(token!==loadToken||current?.id!==id)return;
     graph=next;readHierarchy();await render(true);updateJob();
     if(current.status==='completed'&&!current.error&&!(current.warnings||[]).length)$('jobPanel').hidden=true;
-    $('edgeLegend').hidden=false;
+    updateToolbar();
   }
   function ancestorVisible(id){const item=structure.find(n=>n.id===id);if(!item)return true;let p=item.parent_id;const visited=new Set();while(p&&!visited.has(p)){if(collapsed.has(p))return false;visited.add(p);p=structure.find(n=>n.id===p)?.parent_id;}return true;}
   function visibleData(){
@@ -109,6 +124,7 @@
     $('encodingLegend').hidden=false;
     $('colorLegend').innerHTML=encoding.families.map(f=>`<span data-family="${escape(f.id)}"><i style="background:${f.color}"></i>${escape(f.title)}</span>`).join('');
     await network.setData({nodes:data.nodes.map(n=>{const e=encoding.encoding(n.id),container=e.kind!=='concept';return {id:n.id,data:{title:n.title,family_id:e.family_id,family_title:e.family_title,kind:e.kind,depth:e.depth},style:{fill:e.fill,size:e.size,...(container?{lineWidth:2,labelFontWeight:600}:{})}};}),edges:data.edges.map(e=>({id:e.id,source:e.source,target:e.target,data:{label:names[e.type]||e.type},style:{endArrow:['prerequisite','contains','structure'].includes(e.type),lineDash:e.type==='cooccurs'?[4,4]:undefined,lineWidth:e.type==='structure'?1.5:1,opacity:e.type==='structure'?.3:.35}}))},true);
+    updateToolbar();
   }
   function revealSource(){ $('sourcePanel').hidden=false;if(innerWidth<750){$('filtersPanel').hidden=true;$('filtersButton').setAttribute('aria-expanded','false');} }
   function renderEvidence(evidence=[]){return evidence.length?evidence.map(e=>`<section class="source-quote"><a class="quote-link" href="${escape(sourceURL(e.page))}" target="_blank" rel="noopener">第 ${escape(e.page)} ${current.page_kind==='pdf'?'页':'段'} ↗</a><blockquote>${escape(e.quote)}</blockquote></section>`).join(''):'<a class="quote-link" href="'+escape(sourceURL())+'" target="_blank" rel="noopener">打开资料 ↗</a>';}
@@ -147,7 +163,7 @@
       const job=await new Promise((resolve,reject)=>{const request=new XMLHttpRequest();request.open('POST','/api/documents/upload');request.upload.onprogress=e=>{if(e.lengthComputable){$('uploadMeter').value=100*e.loaded/e.total;$('uploadStatus').textContent=e.loaded===e.total?'正在建立任务…':`上传 ${Math.round(100*e.loaded/e.total)}%`;}};request.onerror=()=>reject(new Error('上传中断，请重试。'));request.onload=()=>{let result;try{result=JSON.parse(request.responseText);}catch{reject(new Error('上传响应读取失败。'));return;}if(request.status>=200&&request.status<300)resolve(result);else reject(new Error(typeof result.detail==='string'?result.detail:'上传失败，请重试。'));};request.send(data);});
       await loadDocument(job.id);await refreshList();
     }catch(error){showError('libraryError',error.message);$('libraryPanel').hidden=false;}
-    finally{uploading=false;$('fileInput').disabled=false;$('fileInput').value='';$('uploadProgress').hidden=true;}
+    finally{uploading=false;$('fileInput').disabled=false;$('fileInput').value='';$('uploadProgress').hidden=true;updateToolbar();}
   }
   async function readDraftVersion(){const response=await fetch('/api/course-graph?view=draft');const data=await response.json();if(!response.ok)throw new Error(data.detail||'课程草稿读取失败。');draftVersion=data.graph.version;$('draftVersion').textContent=`课程草稿 v${draftVersion}`;}
   function updateImportCount(){const inputs=[...$('importNodes').querySelectorAll('input')],checked=inputs.filter(n=>n.checked).length;$('importCount').textContent=`已选 ${checked} / ${inputs.length}`;$('selectAll').checked=checked===inputs.length;$('selectAll').indeterminate=checked>0&&checked<inputs.length;$('confirmImport').disabled=!checked;}
@@ -174,6 +190,7 @@
   $('exportButton').onclick=()=>{if(!graph)return;const blob=new Blob([JSON.stringify(graph,null,2)],{type:'application/json;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=`${current.title||'资料图谱'}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};
   let saved='';try{saved=localStorage.getItem('pliac-document-id')||'';}catch{}
   const initial=new URL(location.href).searchParams.get('id')||saved;
+  updateToolbar();
   refreshList().catch(error=>showError('libraryError',error.message));
-  if(initial)loadDocument(initial).catch(error=>{remember('');showError('libraryError',error.message);$('libraryPanel').hidden=false;});else schedulePoll();
+  if(initial)loadDocument(initial).catch(error=>{remember('');showError('libraryError',error.message);$('libraryPanel').hidden=false;updateToolbar();});else schedulePoll();
 })();

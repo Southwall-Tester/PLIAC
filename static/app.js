@@ -15,6 +15,16 @@
   const collapsed=new Set();
   let structureSelection=null;
   let writeQueue = Promise.resolve();
+  function updateToolbar(){
+    const ready=!!graph,count=ready?(network?.data?.nodes.length||0):0;
+    $('physicsSettings').hidden=count<2;$('stabilizeButton').hidden=count<2;
+    $('labelsButton').hidden=!count;$('filtersButton').hidden=!ready;$('statsButton').hidden=!ready;
+    document.querySelector('.zoom-buttons').hidden=!count;
+    $('manageButton').hidden=view!=='draft'||!ready;$('importDocuments').hidden=view!=='draft';
+    $('profileButton').hidden=view!=='published'||!ready||!student;
+    $('profileInlineButton').hidden=$('profileButton').hidden;
+    $('structureView').hidden=view==='draft';
+  }
   const node = id => graph?.nodes.find(n=>n.id===id);
   const state = id => view==='draft' ? 'unknown' : learner.states?.[id]?.status || 'unknown';
   const nodeState = id => learner.states?.[id] || {};
@@ -85,8 +95,7 @@
   function updateStats() {
     document.body.classList.toggle('author-mode',view==='draft');
     $('authorView').classList.toggle('current',view==='draft');$('studentView').classList.toggle('current',view==='published');
-    $('manageButton').hidden=view!=='draft';
-    $('profileButton').hidden=view==='draft';$('profileInlineButton').hidden=view==='draft';
+    updateToolbar();
     $('structureView').disabled=view==='draft';
     $('nodeCount').textContent=graph?.nodes.length||'—';$('edgeCount').textContent=graph?.edges.length||'—';
     $('masteredCount').textContent=graph?graph.nodes.filter(n=>state(n.id)==='mastered').length:'—';
@@ -185,6 +194,7 @@
         renderer=network.graph;network.bindControls();
       }
       await network.setData(data,topology!==nextTopology);topology=nextTopology;
+      updateToolbar();
       $('graphMessage').hidden=data.nodes.length>0;$('graphMessage').textContent=isExpression?'暂无表达记录':'暂无匹配';
     }catch(error){$('graphMessage').hidden=false;$('graphMessage').textContent=error.message;console.error(error);}
     finally{renderBusy=false;if(renderAgain){renderAgain=false;renderGraph();}}
@@ -448,5 +458,6 @@
   $('reportButton').onclick=event=>{if(!student){toast('请从正式课程加载匿名编号。',true);return;}busy(event.target,async()=>download(await api(`/learner/export?student_id=${encodeURIComponent(student)}`),`${student}-画像与原始证据.json`));};
   let initial='';if(view==='published')try{initial=localStorage.getItem('learningAgent.student')||'';}catch{}
   $('studentId').value=initial;
+  NetworkView.bindTheme(()=>network?.redraw());updateToolbar();
   loadStudent(initial,true).catch(error=>{$('graphMessage').textContent=error.message;toast(error.message,true);});
 })();
