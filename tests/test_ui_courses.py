@@ -96,7 +96,7 @@ def main():
                     assert len(saved_a['nodes']) == 2 and len(saved_a['edges']) == 1
                     assert all(n['review_status'] == 'draft' for n in saved_a['nodes'])
                     page.reload()
-                    page.wait_for_function('__network?.data?.nodes.length >= 4 && !__network.busy')
+                    page.wait_for_function('window.__network?.data?.nodes.length >= 4 && !window.__network.busy')
                     report['checks'].append('Two knowledge points and their relation can be created through visible UI and survive reload')
 
                     for dark in (False, True, False):

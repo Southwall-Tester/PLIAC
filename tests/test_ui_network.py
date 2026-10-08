@@ -176,6 +176,7 @@ def main():
                     positions_before_zoom = page.evaluate('__network.force.positions()')
                     page.locator('#zoomIn').click()
                     page.wait_for_timeout(180)
+                    page.wait_for_function('!__network.graph.zoomTarget')
                     assert abs(page.evaluate('__network.graph.getZoom()') / zoom_small - 1.1) < .005
                     assert positions_before_zoom == page.evaluate('__network.force.positions()')
                     page.locator('#fitButton').click()
@@ -322,7 +323,8 @@ def main():
                     report['checks'].append('single click opens details; structural right-click collapse and expand preserve geometry; concept menu only opens details')
                     page.mouse.move(10,10)
                     page.wait_for_timeout(300)
-                    base_size = page.evaluate('__network.graph.getNodeData("ml001").style.size')
+                    page.evaluate("window.__renderNodes=()=>__network.graph.getNodeData().map(n=>({...n,style:__network.graph.getElementRenderStyle(n.id)}))")
+                    base_size = page.evaluate('__network.graph.getElementRenderStyle("ml001").size')
                     pos = position('ml001')
                     zoom = page.evaluate('__network.graph.getZoom()')
                     radius = base_size * zoom / 2
@@ -331,11 +333,11 @@ def main():
                     page.mouse.move(pos['x'], pos['y'] + radius + 10 * zoom)
                     page.wait_for_timeout(280)
                     assert page.evaluate('__network.focus') is None
-                    assert page.evaluate('__network.graph.getNodeData().every(n => Math.abs((n.style.opacity??1)-1)<.001)')
+                    assert page.evaluate('__renderNodes().every(n => Math.abs((n.style.opacity??1)-1)<.001)')
                     page.mouse.move(pos['x'] + radius + 2, pos['y'])
                     page.wait_for_timeout(280)
                     assert page.evaluate('__network.focus') is None
-                    assert page.evaluate('__network.graph.getNodeData().every(n => Math.abs((n.style.opacity??1)-1)<.001)')
+                    assert page.evaluate('__renderNodes().every(n => Math.abs((n.style.opacity??1)-1)<.001)')
                     report['checks'].append('text label and points beyond the resting circle do not trigger hover')
                     other = page.evaluate('''() => {
                       const near = new Set(['ml001']);
@@ -349,7 +351,7 @@ def main():
                       window.__hoverSamples = [];
                       window.__hoverSampling = true;
                       const sample = time => {
-                        const nodes = __network.graph.getNodeData();
+                        const nodes = __renderNodes();
                         const first = nodes.find(n => n.id === 'ml001');
                         const other = nodes.find(n => n.id === id);
                         __hoverSamples.push({time, focus: __network.focus,
@@ -361,12 +363,12 @@ def main():
                     }''', other)
                     pos = position('ml001')
                     page.mouse.move(pos['x'],pos['y'])
-                    page.wait_for_function('__network.focus === "ml001" && __network.graph.getNodeData().some(n=>Math.abs(n.style.opacity-.12)<.001)')
+                    page.wait_for_function('__network.focus === "ml001" && __renderNodes().some(n=>Math.abs(n.style.opacity-.12)<.001)')
                     page.wait_for_timeout(80)
                     samples = page.evaluate('window.__hoverSampling=false; window.__hoverSamples')
                     assert any(.13 < sample['opacity'] < .99 for sample in samples), samples
                     assert any(base_size < sample['size'] < base_size * 1.15 for sample in samples), samples
-                    highlighted = page.evaluate('__network.graph.getNodeData("ml001").style')
+                    highlighted = page.evaluate('__network.graph.getElementRenderStyle("ml001")')
                     assert abs(highlighted['size'] - base_size * 1.16) < .05, highlighted
                     assert highlighted.get('shadowBlur', 0) > 0 or highlighted.get('haloLineWidth', 0) > 0, highlighted
                     report['checks'].append('hover opacity and size have intermediate animation frames; focused node finishes enlarged and glowing')
@@ -375,29 +377,29 @@ def main():
                     for ident, target in [(other,other_pos),('ml001',pos),(other,other_pos),('ml001',pos),(other,other_pos)]:
                         page.mouse.move(target['x'],target['y'])
                         page.wait_for_timeout(25)
-                    page.wait_for_function('id => __network.focus===id && __network.graph.getNodeData("ml001").style.opacity <= .121', arg=other)
+                    page.wait_for_function('id => __network.focus===id && __network.graph.getElementRenderStyle("ml001").opacity <= .121', arg=other)
                     page.mouse.move(10,10)
-                    page.wait_for_function('!__network.focus && __network.graph.getNodeData().every(n => Math.abs((n.style.opacity??1)-1)<.001)')
-                    restored = page.evaluate('__network.graph.getNodeData("ml001").style')
+                    page.wait_for_function('!__network.focus && __renderNodes().every(n => Math.abs((n.style.opacity??1)-1)<.001)')
+                    restored = page.evaluate('__network.graph.getElementRenderStyle("ml001")')
                     assert abs(restored['size'] - base_size) < .05, restored
-                    assert restored.get('shadowBlur',0) < .05 and restored.get('haloLineWidth',0) < .05, restored
+                    assert restored.get('shadowBlur',0) < .05 and (not restored.get('halo') or restored.get('haloLineWidth',0) < .05), restored
                     report['checks'].append('rapid cross-node hover retargets correctly and restores opacity, size and glow on exit')
                     page.wait_for_function('__network.frame===null && !__network.busy && !__network.transition')
                     page.evaluate('''Object.defineProperty(document,'hidden',{configurable:true,value:true});
                       __network.setFocus('ml001');document.dispatchEvent(new Event('visibilitychange'));''')
                     assert page.evaluate('__network.frame===null && __network.focusDirty')
                     page.evaluate("delete document.hidden;document.dispatchEvent(new Event('visibilitychange'))")
-                    page.wait_for_function('__network.graph.getNodeData("ml001").style.shadowBlur===16 && !__network.transition')
+                    page.wait_for_function('__network.graph.getElementRenderStyle("ml001").shadowBlur===16 && !__network.transition')
                     page.evaluate('__network.setFocus(null)')
                     page.wait_for_function('__network.frame===null && !__network.busy && !__network.transition')
-                    assert page.evaluate('__network.graph.getNodeData().every(n=>Math.abs((n.style.opacity??1)-1)<.001)')
+                    assert page.evaluate('__renderNodes().every(n=>Math.abs((n.style.opacity??1)-1)<.001)')
                     report['checks'].append('Hidden-page highlights defer frames, resume after visibility changes, and stop again when settled')
 
                     # A resting graph stays still before, during and after hover.
                     pos = position('ml001')
                     page.mouse.move(pos['x'],pos['y'])
                     page.wait_for_function('__network.focus === "ml001"')
-                    page.evaluate('window.__hoverLeaves=[];__network.graph.on("node:pointerleave",e=>__hoverLeaves.push(e.target.id))')
+                    page.evaluate('() => {window.__hoverLeaves=[];__network.graph.on("node:pointerleave",e=>__hoverLeaves.push(e.target.id));}')
                     positions = page.evaluate('__network.force.positions()')
                     page.wait_for_timeout(350)
                     assert positions == page.evaluate('__network.force.positions()')

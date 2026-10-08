@@ -9,7 +9,7 @@ from .document_api import router as document_router
 from .documents import ocr_threads
 
 ROOT = Path(__file__).resolve().parents[2]
-app = FastAPI(title="课程个性化学习智能体 · 知识与诊断底座", version="0.4.1")
+app = FastAPI(title="课程个性化学习智能体 · 知识与诊断底座", version="0.4.2")
 app.mount("/static", StaticFiles(directory=ROOT / "static"), name="static")
 app.include_router(router)
 app.include_router(courses_router)

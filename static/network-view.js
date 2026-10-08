@@ -11,12 +11,15 @@
       this.force=new CourseNetwork();this.labels=true;this.busy=false;this.dragging=false;
       this.operations=Promise.resolve();
       this.focus=null;this.focusDirty=false;this.frame=null;this.visualNodes=new Map();this.visualEdges=new Map();
-      this.graph=new G6.Graph({container:element,width:element.clientWidth,height:element.clientHeight,
+      const Graph=window.PIXI&&window.CoursePixiGraph?CoursePixiGraph:G6.Graph;
+      this.graph=new Graph({container:element,width:element.clientWidth,height:element.clientHeight,
         animation:false,padding:65,zoomRange:[.08,6],
         node:{type:'circle',style:{labelText:d=>d.data.title,labelPlacement:'bottom',labelOffsetY:5,labelFontSize:11,labelFontFamily:'Microsoft YaHei, sans-serif'}},
         edge:{style:{lineWidth:1,endArrowSize:5,labelFontSize:8,labelAutoRotate:true}},
-        transforms:[{type:'process-parallel-edges',mode:'bundle',distance:24}],
-        behaviors:['drag-canvas',{type:'zoom-canvas',sensitivity:.2,animation:{duration:120}},{type:'drag-element',animation:false,dropEffect:'none'}]});
+        transforms:typeof CourseNetwork.routeEdges==='function'?[]:[{type:'process-parallel-edges',mode:'bundle',distance:24}],
+        behaviors:['drag-canvas',{type:'zoom-canvas',sensitivity:.2,animation:{duration:120}},{type:'drag-element',animation:false,dropEffect:'none'},
+          {type:'optimize-viewport-transform',enable:()=>this.data?.edges.length>800,debounce:120,
+            shapes:(type,shape)=>!['label','text','background'].includes(shape.className)}]});
       this.graph.on('node:click',e=>select?.(e.target.id));
       this.graph.on('edge:click',e=>edgeSelect?.(e.target.id));
       // G6 node events include the text label. Hit-test the circular key shape only.
@@ -24,7 +27,8 @@
       element.addEventListener('pointerleave',()=>{if(!this.dragging)this.setFocus(null);});
       element.addEventListener('contextmenu',event=>{const id=this.hitTest(event);if(id&&contextMenu){event.preventDefault();contextMenu(id,{x:event.clientX,y:event.clientY});}});
       this.graph.on('node:dragstart',()=>{this.dragging=true;});
-      this.graph.on('node:dragend',e=>{const p=this.graph.getElementPosition(e.target.id);this.force.move(e.target.id,p[0],p[1]);this.dragging=false;this.wake();});
+      this.graph.on('node:dragend',e=>{const p=this.graph.getElementPosition(e.target.id);this.force.move(e.target.id,p[0],p[1]);const hit=this.hitNodes?.find(n=>n.id===e.target.id);if(hit){hit.x=p[0];hit.y=p[1];}this.dragging=false;this.wake();});
+      this.graph.on('afterdraw',()=>{if(!this.busy)this.restoreFocusStyles();});
       new ResizeObserver(()=>{if(element.clientWidth&&element.clientHeight)this.graph.setSize(element.clientWidth,element.clientHeight);}).observe(element);
       this.tick=async()=>{
         this.frame=null;
@@ -33,7 +37,7 @@
           this.busy=true;
           try{
             if(this.focusDirty)this.startFocusTransition(now);
-            if(this.transition){this.drawFocusTransition(now);await this.graph.draw();}
+            if(this.transition)this.drawFocusTransition(now);
           }catch(error){console.error(error);}finally{this.busy=false;}
         }
         this.wake();
@@ -77,10 +81,12 @@
         const positions=new Map(this.force.positions().map(p=>[p.id,p.style]));
         const dark=document.body.classList.contains('network-dark');
         const nodes=data.nodes.map(n=>({...n,style:{fill:GraphEncoding.rootFill,stroke:GraphEncoding.outline(n.style?.fill||GraphEncoding.rootFill),lineWidth:1,opacity:1,labelOpacity:1,shadowBlur:0,size:12,...n.style,...positions.get(n.id),labelFill:dark?'#e8edf6':'#303b4c',labelText:this.labels?n.data.title:''}}));
+        for(const node of nodes){node.style.hitRadius=Number(node.style.size)/2;node.style.baseLineWidth=node.style.lineWidth;}
         const fills=new Map(nodes.map(n=>[n.id,n.style.fill]));
         // Relations follow the source node's family; line style still encodes relation type.
         // G6's graph-level styles override data styles, so theme-dependent labels live here.
-        const edges=data.edges.map(e=>({...e,style:{stroke:fills.get(e.source)||GraphEncoding.rootFill,opacity:.35,...e.style,labelText:this.labels?(e.data?.label||''):'',labelFill:dark?'#a6b2c2':'#5c6778',labelBackground:!dark,labelBackgroundFill:'#fcfbf9',labelBackgroundOpacity:.78}}));
+        if(this.routedSource!==data.edges){this.routedSource=data.edges;this.routedEdges=CourseNetwork.routeEdges?CourseNetwork.routeEdges(data.edges):data.edges;}
+        const edges=this.routedEdges.map(e=>({...e,style:{stroke:fills.get(e.source)||GraphEncoding.rootFill,opacity:.35,...e.style,labelText:this.labels?(e.data?.label||''):'',labelFill:dark?'#a6b2c2':'#5c6778',labelBackground:!dark,labelBackgroundFill:'#fcfbf9',labelBackgroundOpacity:.78}}));
         this.baseNodes=new Map(nodes.map(n=>[n.id,{...n.style}]));this.baseEdges=new Map(edges.map(e=>[e.id,{...e.style}]));
         // Preserve an in-flight highlight when node selection redraws the same topology.
         if(!reset){for(const n of nodes)if(this.visualNodes.has(n.id))Object.assign(n.style,this.visualNodes.get(n.id));for(const e of edges)if(this.visualEdges.has(e.id))Object.assign(e.style,this.visualEdges.get(e.id));}
@@ -88,6 +94,9 @@
         if(this.focus&&!this.baseNodes.has(this.focus))this.focus=null;
         if(reset){this.graph.setData({nodes,edges});await this.graph.render();if(firstLayout)await this.fit();}
         else{this.graph.updateNodeData(nodes);this.graph.updateEdgeData(edges);await this.graph.draw();}
+        this.hitNodes=nodes.map(n=>({id:n.id,x:n.style.x,y:n.style.y,radius:Number(this.baseNodes.get(n.id).size)/2}));
+        this.guardCanvasFrames();
+        this.cacheFocusShapes();
         this.focusDirty=true;
       }finally{this.busy=false;this.wake();}
     }
@@ -103,10 +112,9 @@
       if(!this.data)return null;
       const rect=this.element.getBoundingClientRect(),p=this.graph.getCanvasByViewport([event.clientX-rect.left,event.clientY-rect.top]);
       let hit=null,closest=Infinity;
-      for(const n of this.graph.getNodeData()){
-        const base=this.baseNodes?.get(n.id);if(!base)continue;
+      for(const n of this.hitNodes||[]){
         // Use the resting radius so the visual enlargement cannot make labels hoverable.
-        const radius=Number(base.size)/2,dx=p[0]-n.style.x,dy=p[1]-n.style.y,distance=dx*dx+dy*dy;
+        const radius=n.radius,dx=p[0]-n.x,dy=p[1]-n.y,distance=dx*dx+dy*dy;
         if(distance<=radius*radius&&distance<closest){hit=n.id;closest=distance;}
       }
       return hit;
@@ -121,17 +129,62 @@
         return {id:n.id,from:{...from},to,shadowColor:base.fill};
       });
       const edges=this.data.edges.map(e=>{const base=this.baseEdges.get(e.id),connected=e.source===id||e.target===id;return {id:e.id,from:{...(this.visualEdges.get(e.id)||{opacity:base.opacity})},to:{opacity:id?(connected?.95:.05):base.opacity}};});
-      const changed=items=>items.some(item=>Object.keys(item.to).some(key=>item.from[key]!==item.to[key]));
-      this.transition=changed(nodes)||changed(edges)?{started:now,duration:matchMedia('(prefers-reduced-motion: reduce)').matches?0:220,nodes,edges}:null;
+      const changed=item=>Object.keys(item.to).some(key=>item.from[key]!==item.to[key]);
+      const changedNodes=nodes.filter(changed),changedEdges=edges.filter(changed);
+      this.transition=changedNodes.length||changedEdges.length?{focus:id,near,started:now,duration:matchMedia('(prefers-reduced-motion: reduce)').matches?0:220,nodes:changedNodes,edges:changedEdges}:null;
+      if(this.transition)this.graph.beginFocusTransition?.(this.transition);
     }
     drawFocusTransition(now){
       const transition=this.transition;if(!transition)return;
       const progress=transition.duration?Math.min(1,(now-transition.started)/transition.duration):1;
       const eased=progress*progress*(3-2*progress);
       const interpolate=item=>{const style={};for(const key of Object.keys(item.to))style[key]=progress===1?item.to[key]:item.from[key]+(item.to[key]-item.from[key])*eased;return style;};
-      this.graph.updateNodeData(transition.nodes.map(item=>{const style=interpolate(item);this.visualNodes.set(item.id,style);return {id:item.id,style:{...style,shadowColor:item.shadowColor}};}));
-      this.graph.updateEdgeData(transition.edges.map(item=>{const style=interpolate(item);this.visualEdges.set(item.id,style);return {id:item.id,style};}));
+      this.graph.beginFocusFrame?.(eased);
+      for(const item of transition.nodes){const style=interpolate(item);this.visualNodes.set(item.id,style);this.paintFocusNode(item.id,style,item.shadowColor);}
+      for(const item of transition.edges){const style=interpolate(item);this.visualEdges.set(item.id,style);this.paintFocusEdge(item.id,style);}
+      this.graph.endFocusFrame?.();
       if(progress===1)this.transition=null;
+    }
+    guardCanvasFrames(){
+      // G6 5.1.1's G canvas scans the entire scene before its dirty check.
+      // Keep native camera/animation scheduling, but skip clean display frames.
+      // Scope the adapter to these canvas instances; do not patch the vendor.
+      for(const layer of Object.values(this.graph.getCanvas?.().getLayers?.()||{})){
+        if(layer.__networkDirtyGuard)continue;
+        const reasons=layer.context?.renderingContext?.renderReasons,render=layer.render;
+        if(!(reasons instanceof Set)||typeof render!=='function')continue;
+        layer.render=function(...args){if(reasons.size)return render.apply(this,args);};
+        layer.__networkDirtyGuard=true;
+      }
+    }
+    cacheFocusShapes(){
+      if(this.graph.paintFocusNode){this.restoreFocusStyles();return;}
+      // G6 5.1.1 display objects expose attr/getShape. Hover is transient paint,
+      // not a graph-data change: leave topology, parallel paths and layout alone.
+      const capture=id=>{const element=this.graph.context.element.getElement(id),label=element?.getShape('label');return {element,key:element?.getShape('key'),label,text:label?.getShape('text'),background:label?.getShape('background')};};
+      this.nodeShapes=new Map(this.data.nodes.map(n=>[n.id,capture(n.id)]));
+      this.edgeShapes=new Map(this.data.edges.map(e=>[e.id,capture(e.id)]));
+      this.restoreFocusStyles();
+    }
+    paintFocusNode(id,style,color=this.baseNodes.get(id)?.fill){
+      if(this.graph.paintFocusNode){this.graph.paintFocusNode(id,style,color);return;}
+      const shapes=this.nodeShapes?.get(id);if(!shapes?.key||shapes.key.destroyed)return;
+      shapes.element.attr({...style,shadowColor:color});
+      shapes.key.attr({opacity:style.opacity,r:style.size/2,lineWidth:style.lineWidth,shadowBlur:style.shadowBlur,shadowColor:color});
+      shapes.label?.attr('opacity',style.labelOpacity);shapes.text?.attr('opacity',style.labelOpacity);
+      shapes.background?.attr('opacity',style.labelOpacity*(this.baseNodes.get(id)?.labelBackgroundOpacity??.75));
+    }
+    paintFocusEdge(id,style){
+      if(this.graph.paintFocusEdge){this.graph.paintFocusEdge(id,style);return;}
+      const shapes=this.edgeShapes?.get(id);if(!shapes?.key||shapes.key.destroyed)return;
+      shapes.element.attr('opacity',style.opacity);shapes.key.attr('opacity',style.opacity);
+      const opacity=Math.min(1,style.opacity/(this.baseEdges.get(id)?.opacity||1));
+      shapes.label?.attr('opacity',opacity*(this.baseEdges.get(id)?.opacity??1));shapes.text?.attr('opacity',opacity*(this.baseEdges.get(id)?.opacity??1));
+      shapes.background?.attr('opacity',opacity*(this.baseEdges.get(id)?.labelBackgroundOpacity??.78));
+    }
+    restoreFocusStyles(){
+      for(const [id,style] of this.visualNodes)this.paintFocusNode(id,style);
+      for(const [id,style] of this.visualEdges)this.paintFocusEdge(id,style);
     }
     bindControls() {
       const $=id=>document.getElementById(id);

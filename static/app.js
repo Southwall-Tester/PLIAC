@@ -93,8 +93,7 @@
     for(const c of graph.chapters.filter(c=>chapter==='all'||chapter===c.id)){
       const id='chapter_'+c.id,group=graph.chapters.indexOf(c);
       structure.push({id,title:c.title,parent_id:'course_root',group,depth:1});
-      const textDocument=graph.nodes.some(n=>n.chapter_id===c.id&&n.document_page_kind==='section');
-      const h=textDocument&&GraphEncoding.collapseTextSections?GraphEncoding.collapseTextSections(c.document_hierarchy):c.document_hierarchy, remap=new Map((h?.nodes||[]).map(s=>[s.id,s.kind==='book'?id:`section_${c.id}_${s.id}`]));
+      const h=GraphEncoding.collapseTextSections?GraphEncoding.collapseTextSections(c.document_hierarchy):c.document_hierarchy, remap=new Map((h?.nodes||[]).map(s=>[s.id,s.kind==='book'?id:`section_${c.id}_${s.id}`]));
       for(const s of h?.nodes||[])if(s.kind!=='book')structure.push({id:remap.get(s.id),title:s.title,parent_id:remap.get(s.parent_id)||id,group,depth:Math.max(2,(s.level||1)+1)});
       for(const n of graph.nodes.filter(n=>n.chapter_id===c.id)){
         const parents=(h?.memberships||[]).filter(m=>m.target===n.id&&remap.has(m.source)).map(m=>remap.get(m.source));

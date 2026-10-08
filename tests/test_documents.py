@@ -9,7 +9,7 @@ from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
-from learning_agent.documents import DocumentStore, chunks, document_outline, extract_local, extract_llm, hierarchy, term_id
+from learning_agent.documents import DocumentStore, atomic_json, cached_pdf_outline, chunks, document_outline, extract_local, extract_llm, hierarchy, term_id
 from learning_agent.course_graph import CourseGraphStore, CourseGraphError
 
 
@@ -110,6 +110,133 @@ class DocumentsTests(unittest.TestCase):
         titles = {n["title"] for n in graph["hierarchy"]["nodes"]}
         self.assertTrue({"Networks", "Neurons"} <= titles)
         self.assertNotIn("Introduction", titles)
+
+    def test_cached_pdf_headings_preserve_nested_structure_and_exact_crlf_evidence(self):
+        header = "An Example Textbook With An Ordinary Repeated English Running Header " * 2
+        pages = [
+            {"page": 10, "text": f"  第1章\r\n{header}\r\n模型训练\r\n1.1 训练数据\r\n训练集用于拟合。\r\n", "ocr": True},
+            {"page": 11, "text": "2\n第1章\n1.1.1 数据采样\n神经网络使用训练集。\n1.2 模型评估\n测试集用于评估。", "ocr": True},
+        ]
+        outline = cached_pdf_outline(pages)
+        self.assertEqual([(h["level"], h["title"]) for h in outline], [
+            (1, "第1章 模型训练"), (2, "1.1 训练数据"), (3, "1.1.1 数据采样"), (2, "1.2 模型评估"),
+        ])
+        by_page = {page["page"]: page["text"] for page in pages}
+        for heading in outline:
+            self.assertEqual(by_page[heading["page"]][heading["start"]:heading["end"]], heading["quote"])
+        concepts = extract_local(pages[1]["text"], 11)["nodes"]
+        tree = hierarchy({"id": "example", "title": "教材", "start_page": 10, "page_kind": "pdf"}, outline, concepts)
+        by_title = {node["title"]: node for node in tree["nodes"]}
+        self.assertEqual(by_title["1.1.1 数据采样"]["parent_id"], by_title["1.1 训练数据"]["id"])
+        self.assertEqual(by_title["1.2 模型评估"]["parent_id"], by_title["第1章 模型训练"]["id"])
+        for node in tree["nodes"]:
+            if node["kind"] == "chapter":
+                self.assertEqual(by_page[node["page"]][node["start"]:node["end"]], node["quote"])
+
+    def test_cached_pdf_headings_reject_contents_headers_formulas_references_and_exercises(self):
+        pages = [
+            {"page": 1, "text": "目录\n第1章 错误目录\n1.1 目录条目……10\n1.2 目录条目……12\n1.3 目录条目……14"},
+            {"page": 2, "text": "第1章\n1.1~1.12\n1.13（历史）\n2.1~2.4"},
+            {"page": 10, "text": "第1章 模型训练\n1.1 训练数据\n训练集用于拟合。"},
+            {"page": 11, "text": "2\n第1章\n1.2×时钟周期\n1.3 GHz\n1.4节问题讨论：可以有多种答案。\n1.5 [2] <1.1>请列举\n1.6.1 缺失父编号\n1.2 模型评估\n测试集用于评估。"},
+            {"page": 12, "text": "3\n第1章\n1.3 练习\n1.1 [2] <1.1>请列举三种类型。\n1.4 2004年发布的处理器\n1.4.1 求出功耗"},
+            {"page": 13, "text": "4\n第1章\n1.9 更多练习题\n1.9.1 假设处理器工作电压"},
+            {"page": 14, "text": "第2章 模型部署\n2.1 推理服务\n神经网络提供服务。"},
+        ]
+        outline = cached_pdf_outline(pages)
+        self.assertEqual([h["title"] for h in outline], [
+            "第1章 模型训练", "1.1 训练数据", "1.2 模型评估", "1.3 练习", "第2章 模型部署", "2.1 推理服务",
+        ])
+        self.assertTrue(all(h["page"] >= 10 for h in outline))
+
+    def test_cached_pdf_headings_do_not_mistake_numeric_tables_for_contents(self):
+        table = "\n".join(["1.00", "2.37", "2.13", "1.38 1.47", "42"] * 8)
+        pages = [{"page": 1, "text": "第1章 性能度量\n1.1 运行时间\n正文。"},
+                 {"page": 2, "text": table + "\n1.2 基准评测\n正文。"}]
+        self.assertEqual([h["number"] for h in cached_pdf_outline(pages)], ["1", "1.1", "1.2"])
+        uncertain = cached_pdf_outline([{"page": 1, "text": "第1章\n模型训练\n1.2 孤立编号\n正文。"}])
+        self.assertEqual([entry.get("role") for entry in uncertain], ["boundary"])
+        self.assertEqual(cached_pdf_outline([{"page": 1, "text": "1.1 未确认的编号\n正文。\n1.2 另一个编号"}]), [])
+
+    def test_later_repeated_running_headers_do_not_remove_confirmed_sections(self):
+        pages = [
+            {"page": 1, "text": "第1章 模型训练\n1.1 训练数据\n1.1.1 数据采样\n训练集用于拟合。"},
+            {"page": 2, "text": "1.1 训练数据\n2\n正文。"},
+            {"page": 3, "text": "1.1 训练数据\n3\n正文。"},
+            {"page": 4, "text": "1.1 训练数据\n4\n1.2 模型评估\n测试集用于评估。"},
+        ]
+        confirmed = cached_pdf_outline(pages[:1])
+        self.assertEqual([entry["number"] for entry in confirmed], ["1", "1.1", "1.1.1"])
+        for count in (2, 3, 4):
+            growing = cached_pdf_outline(pages[:count])
+            self.assertEqual(growing[:len(confirmed)], confirmed)
+            self.assertEqual(sum(entry["number"] == "1.1" for entry in growing), 1)
+        self.assertEqual(cached_pdf_outline(pages)[-1]["number"], "1.2")
+
+    def test_unconfirmed_new_chapter_stops_previous_section_ownership(self):
+        pages = [
+            {"page": 1, "text": "第1章 模型训练\n1.1 训练数据\n1.1.1 数据采样\n训练集用于拟合。"},
+            {"page": 2, "text": "第2章 模型评估\n章首导读。"},
+            {"page": 3, "text": "2.1 测试方法\n神经网络使用测试集。"},
+            {"page": 4, "text": "第3章 模型部署\n3.1 推理服务\n知识图谱支持关系抽取。"},
+        ]
+        outline = cached_pdf_outline(pages)
+        boundary = next(entry for entry in outline if entry.get("role") == "boundary")
+        self.assertEqual((boundary["page"], boundary["number"]), (2, "2"))
+        self.assertEqual(pages[1]["text"][boundary["start"]:boundary["end"]], boundary["quote"])
+        self.assertNotIn("2.1", {entry["number"] for entry in outline})
+        concepts = [node for page in pages for node in extract_local(page["text"], page["page"])["nodes"]]
+        tree = hierarchy({"id": "test", "title": "教材", "start_page": 1, "page_kind": "pdf"}, outline, concepts)
+        containers = {node["id"]: node for node in tree["nodes"]}
+        owners = {m["target"]: containers[m["source"]]["title"] for m in tree["memberships"]}
+        self.assertEqual(owners[term_id("训练集")], "1.1.1 数据采样")
+        self.assertEqual(owners[term_id("神经网络")], "教材")
+        self.assertEqual(owners[term_id("测试集")], "教材")
+        self.assertEqual(owners[term_id("知识图谱")], "3.1 推理服务")
+        self.assertNotIn("第2章 模型评估", {node["title"] for node in tree["nodes"]})
+
+    def test_assemble_extends_pdf_outline_from_cache_without_reopening_pdf_or_ocr(self):
+        ident = self.store.create("cached.pdf")["id"]
+        directory = self.store.directory(ident)
+        first = {"page": 1, "text": "第1章 模型训练\n1.1 训练数据\n训练集用于拟合。", "ocr": True}
+        second = {"page": 2, "text": "1.2 模型评估\n神经网络使用测试集。", "ocr": True}
+        atomic_json(directory / "pages/1.json", first)
+        atomic_json(directory / "chunks/000001-0000.json", extract_local(first["text"], 1))
+        with patch("learning_agent.documents.cached_pdf_outline", wraps=cached_pdf_outline) as infer, \
+                patch("fitz.open", side_effect=AssertionError("assemble must use cached pages")), \
+                patch("learning_agent.documents.ocr_page", side_effect=AssertionError("no repeat OCR")):
+            self.store.assemble(ident)
+            before = json.loads((directory / "outline.json").read_text(encoding="utf-8"))
+            self.store.assemble(ident)
+            self.assertEqual(infer.call_count, 1)
+            atomic_json(directory / "pages/2.json", second)
+            atomic_json(directory / "chunks/000002-0000.json", extract_local(second["text"], 2))
+            graph = self.store.assemble(ident)
+            self.assertEqual(infer.call_count, 2)
+        after = json.loads((directory / "outline.json").read_text(encoding="utf-8"))
+        self.assertEqual(after[:len(before)], before)
+        self.assertEqual(after[-1]["title"], "1.2 模型评估")
+        self.assertNotIn("page", {n["kind"] for n in graph["hierarchy"]["nodes"]})
+        self.assertEqual(self.store.status(ident)["stats"]["ocr_pages"], 2)
+
+    def test_pdf_outline_fallback_preserves_manual_or_embedded_outline(self):
+        import fitz
+        ident = self.store.create("established.pdf")["id"]
+        with fitz.open() as pdf:
+            page = pdf.new_page()
+            page.insert_text((40, 60), "Neural networks include neurons. Neural networks learn representations.")
+            pdf.save(self.store.source(ident))
+        established = [{"level": 1, "title": "Reviewed chapter", "page": 1, "start": 0}]
+        path = self.store.directory(ident) / "outline.json"
+        atomic_json(path, established)
+        with patch("learning_agent.documents.cached_pdf_outline", side_effect=AssertionError("existing outline wins")):
+            self.store.run(ident)
+        self.assertEqual(json.loads(path.read_text(encoding="utf-8")), established)
+        atomic_json(path, [])
+        self.store.update(ident, pdf_has_toc=True)
+        with patch("learning_agent.documents.cached_pdf_outline", side_effect=AssertionError("embedded TOC exists")):
+            self.store.assemble(ident)
+        self.assertEqual(json.loads(path.read_text(encoding="utf-8")), [])
 
     def test_invalid_pdf_and_out_of_range_fail_honestly(self):
         job = self.store.create("broken.pdf")
@@ -246,7 +373,26 @@ class DocumentsTests(unittest.TestCase):
         originals = {n["title"]: n for n in graph["nodes"]}
         self.assertTrue(all(n["document_evidence"] == originals[n["title"]]["evidence"] for n in additions))
 
-    def test_pdf_without_outline_keeps_physical_pages_and_imported_hierarchy(self):
+    def test_docx_without_headings_uses_root_across_text_blocks(self):
+        from docx import Document
+        job = self.store.create("unstructured.docx")
+        ident = job["id"]
+        document = Document()
+        document.add_paragraph("Knowledge graphs link entities.".ljust(6050, " "))
+        document.add_paragraph("Neural networks include neurons. Neural networks learn representations.")
+        document.save(self.store.source(ident))
+        self.store.run(ident)
+        graph = self.store.graph(ident)
+        self.assertTrue(graph["nodes"])
+        self.assertGreater(self.store.status(ident)["stats"]["pages"], 1)
+        self.assertEqual([n["kind"] for n in graph["hierarchy"]["nodes"]], ["book"])
+        root = graph["hierarchy"]["nodes"][0]["id"]
+        self.assertEqual({m["source"] for m in graph["hierarchy"]["memberships"]}, {root})
+        for node in graph["nodes"]:
+            for ev in node["evidence"]:
+                self.assertEqual(self.store.page(ident, ev["page"])["text"][ev["start"]:ev["end"]], ev["quote"])
+
+    def test_pdf_without_outline_uses_root_and_preserves_page_evidence_on_import(self):
         import fitz
         job = self.store.create("无目录.pdf")
         ident = job["id"]
@@ -260,11 +406,11 @@ class DocumentsTests(unittest.TestCase):
         graph = self.store.graph(ident)
         self.assertTrue(graph["nodes"])
         containers = {n["id"]: n for n in graph["hierarchy"]["nodes"]}
-        pages = [n for n in containers.values() if n["kind"] == "page"]
-        self.assertEqual({n["page"] for n in pages}, {1, 2})
-        self.assertEqual({n["title"] for n in pages}, {"第 1 页", "第 2 页"})
+        self.assertEqual(len(containers), 1)
+        self.assertEqual({n["kind"] for n in containers.values()}, {"book"})
         memberships = graph["hierarchy"]["memberships"]
-        self.assertEqual({containers[m["source"]]["kind"] for m in memberships}, {"page"})
+        self.assertEqual({containers[m["source"]]["kind"] for m in memberships}, {"book"})
+        self.assertEqual({ev["page"] for n in graph["nodes"] for ev in n["evidence"]}, {1, 2})
         for item in graph["nodes"] + graph["edges"]:
             for ev in item["evidence"]:
                 self.assertEqual(self.store.page(ident, ev["page"])["text"][ev["start"]:ev["end"]], ev["quote"])

@@ -220,8 +220,9 @@ def main():
                         passed("A document still processing without graph data offers task actions and hides graph tools")
 
                         page.evaluate("""() => {
-                            const original = G6.Graph.prototype.setData;
-                            G6.Graph.prototype.setData = function(data) {
+                            const Graph = window.PIXI && window.CoursePixiGraph ? CoursePixiGraph : G6.Graph;
+                            const original = Graph.prototype.setData;
+                            Graph.prototype.setData = function(data) {
                                 window.lastGraphData = data;
                                 window.testGraph = this;
                                 return original.call(this, data);
@@ -411,9 +412,9 @@ def main():
                         bounds = page.locator("#graph").bounding_box()
                         x, y = bounds["x"] + point["x"], bounds["y"] + point["y"]
                         page.mouse.move(x, y)
-                        page.wait_for_function("window.testGraph.getNodeData().some(n => n.style.opacity === .12)")
+                        page.wait_for_function("window.testGraph.getNodeData().some(n => window.testGraph.getElementRenderStyle(n.id).opacity === .12)")
                         page.mouse.move(20, 100)
-                        page.wait_for_function("!window.testGraph.getNodeData().some(n => n.style.opacity === .12)")
+                        page.wait_for_function("!window.testGraph.getNodeData().some(n => window.testGraph.getElementRenderStyle(n.id).opacity === .12)")
                         page.mouse.move(x, y)
                         before = page.evaluate("id => window.testGraph.getElementPosition(id)", point["id"])
                         page.mouse.down()
@@ -505,8 +506,9 @@ def main():
                         expect(page.locator("#nodeCount")).to_have_text(str(len(draft["nodes"])))
                         page.locator("#filtersButton").click()
                         page.evaluate("""() => {
-                            const original = G6.Graph.prototype.setData;
-                            G6.Graph.prototype.setData = function(data) {
+                            const Graph = window.PIXI && window.CoursePixiGraph ? CoursePixiGraph : G6.Graph;
+                            const original = Graph.prototype.setData;
+                            Graph.prototype.setData = function(data) {
                                 window.importedCourseGraph = data;
                                 return original.call(this, data);
                             };

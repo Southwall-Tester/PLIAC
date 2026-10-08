@@ -14,9 +14,10 @@ ROOT = Path(__file__).resolve().parents[1]
 OUTPUT = ROOT / "outputs" / "verification"
 
 
-def legacy_document(store, real_chapter=False):
+def legacy_document(store, real_chapter=False, page_kind="section"):
     """Saved pre-migration graph; no extraction worker or model is started."""
-    job = store.create("synthetic-chapter.md" if real_chapter else "synthetic-legacy.md")
+    extension = "pdf" if page_kind == "pdf" else "md"
+    job = store.create(f"synthetic-{'chapter' if real_chapter else 'legacy'}.{extension}")
     ident = job["id"]
     text = "实体表示对象。\n" + ("\n## 真实章节\n" if real_chapter else "") + "关系连接实体。"
     store.source(ident).write_text(text, encoding="utf-8")
@@ -39,7 +40,7 @@ def legacy_document(store, real_chapter=False):
     if real_chapter:
         hierarchy["nodes"].append({"id": "real_chapter", "title": "真实章节", "parent_id": "book_root",
                                    "kind": "chapter", "page": 1, "level": 1, "start": text.index("##")})
-    graph = {"id": ident, "title": job["title"], "engine": "local", "page_kind": "section",
+    graph = {"id": ident, "title": job["title"], "engine": "local", "page_kind": page_kind,
              "nodes": nodes, "edges": [{"id": "edge_1", "source": "entity", "target": "relation",
                                         "type": "cooccurs", "reason": "原文中共同出现。", "evidence": evidence(text),
                                         "review_status": "draft", "origin": "local"}],
@@ -66,8 +67,8 @@ def main():
                       get(){return this.__View},set(View){this.__View=class extends View{
                         constructor(...args){super(...args);window.__network=this;}
                       }}});""")
-                    for real_chapter in (False, True):
-                        ident, graph, source_page, snapshots = legacy_document(documents, real_chapter)
+                    for real_chapter, page_kind in ((False, "section"), (True, "section"), (False, "pdf"), (True, "pdf")):
+                        ident, graph, source_page, snapshots = legacy_document(documents, real_chapter, page_kind)
                         expected_count = 4 if real_chapter else 3
                         page.goto(f"{base}/documents?id={ident}")
                         page.wait_for_function("count=>window.__network?.data?.nodes.length===count && !__network.busy", arg=expected_count)
@@ -84,7 +85,7 @@ def main():
                         if real_chapter:
                             assert ("book_root", "real_chapter") in pairs
                             assert any(node["id"] == "real_chapter" and node["data"]["title"] == "真实章节" for node in shown["nodes"])
-                        page.screenshot(path=str(OUTPUT / f"text-hierarchy-{'chapter' if real_chapter else 'legacy'}-document.png"))
+                        page.screenshot(path=str(OUTPUT / f"text-hierarchy-{page_kind}-{'chapter' if real_chapter else 'legacy'}-document.png"))
 
                         created = client.post("/api/courses", json={"title": "合成层级课程"}).json()
                         course_id = created["course"]["id"]
@@ -119,9 +120,9 @@ def main():
                             assert node["document_evidence"] == original["evidence"]
                         assert client.get(f"/api/documents/{ident}/pages/1").json() == source_page
                         assert all(path.read_bytes() == value for path, value in snapshots.items())
-                        page.screenshot(path=str(OUTPUT / f"text-hierarchy-{'chapter' if real_chapter else 'legacy'}-course.png"))
-                        report["checks"].append("Real chapters survive text-section projection in document and course views" if real_chapter else
-                                                "Legacy text pages collapse to direct concept membership in document and course views")
+                        page.screenshot(path=str(OUTPUT / f"text-hierarchy-{page_kind}-{'chapter' if real_chapter else 'legacy'}-course.png"))
+                        report["checks"].append(f"{page_kind}: real chapters survive page projection in document and course views" if real_chapter else
+                                                f"{page_kind}: legacy pages collapse to direct concept membership in document and course views")
                     assert seed.load_graph("draft") == original_seed
                     assert not report["page_errors"], report["page_errors"]
                     report["checks"].append("Source files, saved legacy graph, page slices and imported evidence remain unchanged; seed course is preserved")

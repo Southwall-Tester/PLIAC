@@ -433,37 +433,134 @@ def document_outline(path, pages=None):
     return []
 
 
+def cached_pdf_outline(pages):
+    """Recognize conservative numbered headings, using cached text as evidence.
+
+    A chapter needs both an opening title and its first numbered section on
+    the same page. Subsequent sections need an accepted parent and increasing
+    numbering. Unconfirmed chapter openings delimit material belonging at the
+    book root rather than extending the preceding chapter's ownership.
+    """
+    chapter_pattern = re.compile(r"第\s*(\d{1,3})\s*章\s*(.*)")
+    section_pattern = re.compile(r"(\d{1,3}(?:\.\d{1,3}){1,3})(?![\d.])\s*(\S.*)")
+    records = []
+    for page in sorted(pages, key=lambda item: item["page"]):
+        lines, offset = [], 0
+        for raw in page["text"].splitlines(keepends=True):
+            value = raw.strip()
+            if value:
+                at = offset + len(raw) - len(raw.lstrip())
+                lines.append((value, at, at + len(value)))
+            offset += len(raw)
+        records.append((page, lines))
+
+    def topic(value):
+        return (2 <= len(value) <= 70
+                and bool(re.search(r"[\u4e00-\u9fff]{2}|[A-Za-z]{3}", value))
+                and not re.search(r"[。！？；，,;!?\[\]<>={}\\×≈~～]|\.{2}|…", value)
+                and not re.match(r"[\d.、（(]|节|章|题", value)
+                and not re.search(r"\s\d+\s*$", value)
+                and not re.fullmatch(r"(?:[kMG]?Hz|[munp]?s|[kMG]?B|GHz|MHz)\b.*", value, re.I))
+
+    def is_contents(lines):
+        values = [line[0] for line in lines]
+        if any(re.fullmatch(r"目\s*录|contents|table of contents", value, re.I) for value in values[:3]):
+            return True
+        leaders = sum(bool(re.search(r"[.…·]{2,}\s*\d*\s*$", value)) for value in values)
+        numbered = sum(bool((match := section_pattern.fullmatch(value)) and topic(match[2])) for value in values)
+        page_numbers = sum(bool(re.fullmatch(r"[.·…\s]*\d{1,4}", value)) for value in values)
+        return leaders >= 3 or (numbered >= 6 and page_numbers >= 3)
+
+    result, accepted, chapter, last_number, exercises = [], set(), None, (), False
+    for page, lines in records:
+        if is_contents(lines):
+            continue
+        for index, (line, start, end) in enumerate(lines):
+            opening = chapter_pattern.fullmatch(line)
+            if opening and index < 4:
+                number, title = int(opening[1]), opening[2].strip()
+                title_end = end
+                if chapter is not None and number <= chapter:
+                    continue  # Repeated chapter labels in running headers.
+                if not title:
+                    # A repeated book-title header can intervene in OCR order.
+                    for following, _, following_end in lines[index + 1:index + 4]:
+                        if len(following) > 70 and not re.search(r"[\u4e00-\u9fff]", following):
+                            continue
+                        title, title_end = following, following_end
+                        break
+                first_section = any(
+                    (match := section_pattern.fullmatch(value))
+                    and match[1] == f"{number}.1" and topic(match[2])
+                    and at >= title_end and at - start <= 1200
+                    for value, at, _ in lines[index + 1:]
+                )
+                if topic(title) and not section_pattern.fullmatch(title):
+                    chapter, last_number, exercises = number, (number,), False
+                    accepted = {(number,)} if first_section else set()
+                    entry = {"level": 1, "title": f"第{number}章 {title}",
+                             **proof(page["text"][start:title_end], page["page"], start),
+                             "number": str(number), "source": "cached_pdf_text"}
+                    if not first_section:
+                        entry["role"] = "boundary"
+                    result.append(entry)
+                continue
+            match = section_pattern.fullmatch(line)
+            if not match or chapter is None or exercises:
+                continue
+            number = tuple(int(part) for part in match[1].split("."))
+            title = match[2].strip()
+            # Once accepted, a heading remains stable as later pages arrive.
+            # Repeated numbered headers are rejected by the monotonic sequence,
+            # without using future occurrences to invalidate an earlier title.
+            if (number[0] != chapter or number[:-1] not in accepted or number <= last_number
+                    or not topic(title)):
+                continue
+            accepted.add(number)
+            last_number = number
+            result.append({"level": len(number), "title": line,
+                           **proof(page["text"][start:end], page["page"], start),
+                           "number": match[1], "source": "cached_pdf_text"})
+            exercises = bool(re.search(r"(?:练习|习题|自测题|复习题)$|^(?:exercises?|problems?)$", title, re.I))
+    return result
+
+
 def hierarchy(job, outline, concepts):
     root_id = "book_" + job["id"]
     nodes = [{"id": root_id, "title": job["title"], "parent_id": None, "kind": "book", "page": job["start_page"], "level": 0}]
     stack, sections = [(0, root_id)], []
+    boundaries = []
     for i, entry in enumerate(outline):
+        if entry.get("role") == "boundary":
+            boundaries.append((entry["page"], entry.get("start") or 0))
+            stack = [(0, root_id)]
+            continue
         if entry.get("role") == "explanation":
             continue
         while len(stack) > 1 and stack[-1][0] >= entry["level"]:
             stack.pop()
         node = {"id": "section_" + str(i), "title": entry["title"], "parent_id": stack[-1][1], "kind": "chapter", "page": entry["page"], "start": entry.get("start", 0), "level": entry["level"]}
+        node.update({key: entry[key] for key in ("end", "quote", "source", "number") if key in entry})
         nodes.append(node)
         sections.append(node)
         stack.append((entry["level"], node["id"]))
-    memberships, seen, page_nodes = [], set(), {}
+    memberships, seen = [], set()
     for concept in concepts:
         for ev in concept["evidence"]:
             occurrence = ev["start"] + max(0, ev["quote"].find(concept["title"]))
-            candidates = [s for s in sections if s["page"] < ev["page"] or (s["page"] == ev["page"] and s["start"] is not None and s["start"] <= occurrence)]
-            ambiguous = [s for s in sections if s["page"] == ev["page"] and s["start"] is None]
+            boundary = max((point for point in boundaries if point <= (ev["page"], occurrence)), default=(0, 0))
+            eligible = [s for s in sections if (s["page"], s["start"] or 0) >= boundary] if boundaries else sections
+            candidates = [s for s in eligible if s["page"] < ev["page"] or (s["page"] == ev["page"] and s["start"] is not None and s["start"] <= occurrence)]
+            ambiguous = [s for s in eligible if s["page"] == ev["page"] and s["start"] is None]
             if ambiguous:
                 owner = min(ambiguous, key=lambda s: s["level"])["parent_id"]
             elif candidates:
                 # Last heading preceding this page is the active section.
                 owner = max(enumerate(candidates), key=lambda pair: (pair[1]["page"], pair[1]["start"] or 0, pair[0]))[1]["id"]
-            elif job['page_kind'] != 'pdf':
-                # Text chunks are offsets for retrieval, not semantic chapters.
-                owner = root_id
             else:
-                owner = "page_" + str(ev["page"])
-                if owner not in page_nodes:
-                    page_nodes[owner] = {"id": owner, "title": f"第 {ev['page']} {'页' if job['page_kind'] == 'pdf' else '段'}", "parent_id": root_id, "kind": "page", "page": ev["page"], "level": 1}
+                # Physical pages and technical chunks locate evidence; neither
+                # supplies a semantic parent in the absence of a real heading.
+                owner = root_id
             key = (owner, concept["id"])
             if key not in seen:
                 memberships.append({"source": owner, "target": concept["id"]})
@@ -476,7 +573,7 @@ def hierarchy(job, outline, concepts):
         while parent:
             used.add(parent)
             parent = parents.get(parent)
-    return {"nodes": [n for n in nodes if n["id"] in used] + list(page_nodes.values()), "memberships": memberships}
+    return {"nodes": [n for n in nodes if n["id"] in used], "memberships": memberships}
 
 
 class DocumentStore:
@@ -486,6 +583,7 @@ class DocumentStore:
         self.lock = threading.RLock()
         self.cancelled = set()
         self.futures = {}
+        self.outline_cache = {}
 
     def directory(self, ident):
         if not isinstance(ident, str) or not re.fullmatch(r"[a-f0-9]{32}", ident):
@@ -613,10 +711,22 @@ class DocumentStore:
         graph = {"id": ident, "title": job["title"], "engine": job["engine"], "page_kind": job["page_kind"], "nodes": selected, "edges": selected_edges, "review_status": "draft", "source_url": f"/api/documents/{ident}/source"}
         outline_path = self.directory(ident) / "outline.json"
         outline = json.loads(outline_path.read_text(encoding="utf-8")) if outline_path.exists() else []
+        page_files = sorted((self.directory(ident) / "pages").glob("*.json"), key=lambda path: int(path.stem))
+        parsed_pages = [json.loads(path.read_text(encoding="utf-8")) for path in page_files]
+        if job["suffix"] == ".pdf" and not job.get("pdf_has_toc") and all(entry.get("source") == "cached_pdf_text" for entry in outline):
+            # The page cache is already read for statistics. No PDF reopen or
+            # OCR is needed, and unchanged snapshots reuse the outline result.
+            signature = tuple((path.name, path.stat().st_mtime_ns, path.stat().st_size) for path in page_files)
+            cached = self.outline_cache.get(ident)
+            if cached is None or cached[0] != signature:
+                cached = (signature, cached_pdf_outline(parsed_pages))
+                self.outline_cache[ident] = cached
+            if outline != cached[1]:
+                outline = cached[1]
+                atomic_json(outline_path, outline)
         graph["hierarchy"] = hierarchy(job, outline, selected)
         atomic_json(self.directory(ident) / "graph.json", graph)
-        page_files = list((self.directory(ident) / "pages").glob("*.json"))
-        ocr_count = sum(bool(json.loads(path.read_text(encoding="utf-8")).get("ocr")) for path in page_files)
+        ocr_count = sum(bool(page.get("ocr")) for page in parsed_pages)
         stats = job["stats"] | {"chunks": len(chunk_files), "parsed_pages": len(page_files), "ocr_pages": ocr_count, "nodes": len(selected), "edges": len(selected_edges), "dropped_nodes": len(nodes) - len(selected), "dropped_edges": len(edges) - len(selected_edges), "rejected": rejected}
         self.update(ident, stats=stats)
         return graph
@@ -634,6 +744,7 @@ class DocumentStore:
                         if pdf.needs_pass:
                             raise CourseGraphError("PDF 已加密，请上传解密后的文件。")
                         count = len(pdf)
+                        self.update(ident, pdf_has_toc=bool(pdf.get_toc()))
                 except CourseGraphError:
                     raise
                 except Exception as exc:
@@ -641,7 +752,14 @@ class DocumentStore:
             else:
                 pages = text_pages(source)
                 count = len(pages)
-            atomic_json(self.directory(ident) / "outline.json", document_outline(source, pages))
+            outline_path = self.directory(ident) / "outline.json"
+            previous_outline = json.loads(outline_path.read_text(encoding="utf-8")) if outline_path.exists() else []
+            # Preserve established/manual PDF outlines when continuing a job.
+            if job["suffix"] != ".pdf":
+                atomic_json(outline_path, document_outline(source, pages))
+            elif not previous_outline or all(entry.get("source") == "cached_pdf_text" for entry in previous_outline):
+                embedded_outline = document_outline(source, pages)
+                atomic_json(outline_path, embedded_outline or previous_outline)
             end = job["end_page"] or count
             if job["start_page"] > count or end > count:
                 raise CourseGraphError(f"页码超出资料范围，共 {count} 页。")

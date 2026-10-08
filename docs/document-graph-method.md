@@ -81,7 +81,7 @@ python -X utf8 scripts/verify_document_books.py "教材.pdf" --start 18 --end 19
 
 ## Molio 源码参考
 
-2026-10-08 核对 [Molio](https://github.com/zhuzhaoyun/Molio/tree/8f4c30a5478cc8b3a1306a2a7612af7216d7ddde) 的以下实现。其 [LICENSE](https://github.com/zhuzhaoyun/Molio/blob/8f4c30a5478cc8b3a1306a2a7612af7216d7ddde/LICENSE) 为附加条件的 Apache 2.0 文本，包括第三方托管/商业嵌入和前端标识条款。本项目独立实现所需流程与界面，未复制该项目源码。
+2026-10-08 核对 Molio 的文档处理实现（固定版本 [8f4c30a5](https://github.com/zhuzhaoyun/Molio/tree/8f4c30a5478cc8b3a1306a2a7612af7216d7ddde)）和图谱渲染实现（固定版本 [a4526b4e](https://github.com/zhuzhaoyun/Molio/tree/a4526b4e046486708073eb9b9500162a102f62aa)）。其 [LICENSE](https://github.com/zhuzhaoyun/Molio/blob/a4526b4e046486708073eb9b9500162a102f62aa/LICENSE) 为附加条件的 Apache 2.0 文本，包括第三方托管/商业嵌入和前端标识条款。本项目独立实现所需流程、界面和 GPU 渲染适配层。
 
 | 源码 | 可借鉴的设计与适配点 |
 | --- | --- |
@@ -89,6 +89,12 @@ python -X utf8 scripts/verify_document_books.py "教材.pdf" --start 18 --end 19
 | [verify-drafts.mjs](https://github.com/zhuzhaoyun/Molio/blob/8f4c30a5478cc8b3a1306a2a7612af7216d7ddde/apps/daemon/src/tools/skills/wiki-build/scripts/verify-drafts.mjs) | 对照计划页面与实际产物，检出缺失和空文件。长书处理需检查所有选定页/块是否完成，不能以某一批成功代表整本完成。 |
 | [alias-table.mjs](https://github.com/zhuzhaoyun/Molio/blob/8f4c30a5478cc8b3a1306a2a7612af7216d7ddde/apps/daemon/src/tools/skills/wiki-build/scripts/alias-table.mjs) | 将一对多的歧义别名移出自动映射。课程概念也应保留同名异义的复核空间。 |
 | [graph.ts](https://github.com/zhuzhaoyun/Molio/blob/8f4c30a5478cc8b3a1306a2a7612af7216d7ddde/apps/daemon/src/routes/graph.ts) | 从 Markdown 双链形成图，支持一跳邻域和目录子图。双链表示页面链接；本项目需另存包含、先修、易混淆等明确关系。 |
-| [pixiGraphEngine.ts](https://github.com/zhuzhaoyun/Molio/blob/8f4c30a5478cc8b3a1306a2a7612af7216d7ddde/apps/web/src/components/graph/engine/pixiGraphEngine.ts)、[graphUtils.ts](https://github.com/zhuzhaoyun/Molio/blob/8f4c30a5478cc8b3a1306a2a7612af7216d7ddde/apps/web/src/components/graph/engine/graphUtils.ts) | 布局计算与渲染分离；邻域聚焦、标签避碰和高度连接节点的弹簧减弱改善密图阅读。本项目沿用现有 G6 渲染技术，结合层级展开组织课程和资料。 |
+| [pixiGraphEngine.ts](https://github.com/zhuzhaoyun/Molio/blob/a4526b4e046486708073eb9b9500162a102f62aa/apps/web/src/components/graph/engine/pixiGraphEngine.ts)、[graphUtils.ts](https://github.com/zhuzhaoyun/Molio/blob/a4526b4e046486708073eb9b9500162a102f62aa/apps/web/src/components/graph/engine/graphUtils.ts) | PixiJS WebGL 将节点、边和标签分层绘制，D3 单独计算布局；视口变换作用于父图层，悬停直接渐变图元属性。普通标签按屏幕尺寸、候选预算和包围盒碰撞筛选，焦点与邻居优先。项目借鉴布局与 GPU 绘制分离的结构，独立实现 `CoursePixiGraph`。 |
+
+本项目保留 `CourseNetwork` 的静态布局、层级尺寸、家族配色和坐标记忆。GPU 渲染层复用节点与边的显示对象，平移和缩放改变父图层变换；悬停改变图元属性，静止时停止绘制调度。超过 180 个节点或 700 条边时，每个视口最多显示 150 个节点标签、60 个关系标签，并筛除重叠文字。焦点及邻居优先；全图概览显示焦点相连的关系文字，放大到 1.1 倍后显示更多关系文字。标签筛选不改变图谱数据和详情。节点点击打开详情，折叠由右键菜单控制。布局重新计算与视觉高亮分开，避免点击或悬停触发节点重新排布。
+
+Molio 的图谱边来自笔记双链，其 `dedupeEdges` 按无向端点合并重复边，主图绘制无箭头直线。本项目继续保存每条关系的标识、类型、方向和原文证据，用独立路径呈现同一对端点间的多条关系；GPU 渲染迁移保留这些数据语义。Molio 的持续力导向、按连接数分配节点大小和持续渲染循环也不作为本项目的行为约定。视口外的图元和标签暂停绘制，节点和关系数据保持完整。
+
+Molio 的渲染文件注明参考 Quartz v4；[Quartz 原版图谱](https://github.com/jackyzha0/quartz/blob/d25a6eabf96751ffca56f8a8139272def7a65041/quartz/components/scripts/graph.inline.ts)、[Quartz 的 MIT 许可](https://github.com/jackyzha0/quartz/blob/d25a6eabf96751ffca56f8a8139272def7a65041/LICENSE.txt)和 [PixiJS 8.19.0 的 MIT 许可](https://github.com/pixijs/pixijs/blob/v8.19.0/LICENSE)提供进一步的实现与许可依据。性能验收使用固定节点、关系与视口条件下的首屏、悬停、拖动、缩放和静止帧记录，并记录实际 WebGL 后端，区分显卡加速与 SwiftShader 软件渲染；源码对照本身不等于已经达到参考项目的帧率。
 
 上述为源码设计对照，不表示这些上游功能已经全部移植。本项目实际实现与验证范围以代码、测试记录和本机教材抽查结果为准。

@@ -23,6 +23,7 @@ jobs:
       - run: python -X utf8 scripts/check_assets.py
       - run: node --check static/app.js
       - run: node --check static/network-view.js
+      - run: node --check static/network-pixi.js
       - run: node --check static/theme.js
       - run: node --check static/network-layout.js
       - run: node --check static/graph-encoding.js
@@ -42,6 +43,8 @@ jobs:
       - run: python -X utf8 tests/test_ui_books.py
       - run: python -X utf8 tests/test_ui_network.py
       - run: python -X utf8 tests/test_ui_documents.py
+      - run: python -X utf8 tests/test_ui_documents_performance.py
+      - run: python -X utf8 tests/test_ui_gpu_graph.py
       - run: python -X utf8 tests/test_ui_courses.py
       - run: python -X utf8 tests/test_ui_text_hierarchy.py
       - uses: actions/upload-artifact@v4

@@ -13,7 +13,7 @@ from learning_agent.course_graph import validate_graph
 
 
 def main():
-    shared_scripts = ("network-layout", "network-view", "graph-encoding")
+    shared_scripts = ("network-layout", "network-view", "network-pixi", "graph-encoding")
     versions = {}
     for name in ("index.html", "documents.html"):
         html = (ROOT / "static" / name).read_text(encoding="utf-8")
