@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from collections import Counter
 import json
+import re
 from pathlib import Path
 import sys
 
@@ -12,6 +13,16 @@ from learning_agent.course_graph import validate_graph
 
 
 def main():
+    shared_scripts = ("network-layout", "network-view", "graph-encoding")
+    versions = {}
+    for name in ("index.html", "documents.html"):
+        html = (ROOT / "static" / name).read_text(encoding="utf-8")
+        for script in shared_scripts:
+            version = re.search(rf'{script}\.js\?v=(\d+)', html)
+            assert version, (name, script)
+            if script in versions:
+                assert versions[script] == version[1], f"Mixed shared script versions: {script} in {name}"
+            versions[script] = version[1]
     graph = json.loads((ROOT / "data/courses/ml_classification.json").read_text(encoding="utf-8"))
     assets = json.loads((ROOT / "data/training_blueprints.json").read_text(encoding="utf-8"))
     summary = validate_graph(graph)

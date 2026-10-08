@@ -9,7 +9,8 @@
     constructor(element, select, edgeSelect, contextMenu) {
       this.element=element;this.select=select;this.edgeSelect=edgeSelect;
       this.force=new CourseNetwork();this.labels=true;this.busy=false;this.dragging=false;
-      this.focus=null;this.focusDirty=false;this.visualNodes=new Map();this.visualEdges=new Map();
+      this.operations=Promise.resolve();
+      this.focus=null;this.focusDirty=false;this.frame=null;this.visualNodes=new Map();this.visualEdges=new Map();
       this.graph=new G6.Graph({container:element,width:element.clientWidth,height:element.clientHeight,
         animation:false,padding:65,zoomRange:[.08,6],
         node:{type:'circle',style:{labelText:d=>d.data.title,labelPlacement:'bottom',labelOffsetY:5,labelFontSize:11,labelFontFamily:'Microsoft YaHei, sans-serif'}},
@@ -23,29 +24,56 @@
       element.addEventListener('pointerleave',()=>{if(!this.dragging)this.setFocus(null);});
       element.addEventListener('contextmenu',event=>{const id=this.hitTest(event);if(id&&contextMenu){event.preventDefault();contextMenu(id,{x:event.clientX,y:event.clientY});}});
       this.graph.on('node:dragstart',()=>{this.dragging=true;});
-      this.graph.on('node:dragend',e=>{const p=this.graph.getElementPosition(e.target.id);this.force.move(e.target.id,p[0],p[1]);this.dragging=false;});
+      this.graph.on('node:dragend',e=>{const p=this.graph.getElementPosition(e.target.id);this.force.move(e.target.id,p[0],p[1]);this.dragging=false;this.wake();});
       new ResizeObserver(()=>{if(element.clientWidth&&element.clientHeight)this.graph.setSize(element.clientWidth,element.clientHeight);}).observe(element);
       this.tick=async()=>{
+        this.frame=null;
         const now=performance.now();
         if(!this.busy&&!this.dragging&&!document.hidden&&this.force.nodes.length&&(this.focusDirty||this.transition)){
           this.busy=true;
           try{
             if(this.focusDirty)this.startFocusTransition(now);
-            this.drawFocusTransition(now);
-            await this.graph.draw();
+            if(this.transition){this.drawFocusTransition(now);await this.graph.draw();}
           }catch(error){console.error(error);}finally{this.busy=false;}
         }
-        this.frame=requestAnimationFrame(this.tick);
+        this.wake();
       };
-      this.frame=requestAnimationFrame(this.tick);
+      document.addEventListener('visibilitychange',()=>{if(!document.hidden)this.wake();});
     }
-    async setData(data, reset=false) {
+    wake(){
+      if(this.frame===null&&!this.busy&&!this.dragging&&!document.hidden&&this.force.nodes.length&&(this.focusDirty||this.transition))this.frame=requestAnimationFrame(this.tick);
+    }
+    enqueue(work){
+      const result=this.operations.then(work);
+      this.operations=result.catch(()=>{});
+      return result;
+    }
+    clearLayout(){
+      return this.enqueue(async()=>{
+        while(this.busy)await new Promise(resolve=>setTimeout(resolve,10));
+        this.force.points.clear();
+      });
+    }
+    async layout(iterations){
+      if(typeof this.force.stepAsync==='function')return this.force.stepAsync(iterations);
+      // A previously cached layout script still supports synchronous single steps.
+      // Yield between short batches while the browser refreshes shared assets.
+      let remaining=iterations;
+      while(remaining>0){
+        const deadline=performance.now()+8;
+        do{this.force.step(1);remaining--;}while(remaining>0&&performance.now()<deadline);
+        if(remaining>0)await new Promise(resolve=>setTimeout(resolve,0));
+      }
+    }
+    setData(data, reset=false, layoutIterations=0) {
+      return this.enqueue(()=>this.drawData(data,reset,layoutIterations));
+    }
+    async drawData(data, reset=false, layoutIterations=0) {
       while(this.busy)await new Promise(r=>setTimeout(r,10));this.busy=true;
       try{
-        if(!data.nodes.length)this.force.points.clear();
         const firstLayout=this.force.points.size===0&&data.nodes.length>0;
         this.data=data;this.force.setData(data.nodes,data.edges);
-        if(firstLayout)this.force.step(320);
+        if(firstLayout||layoutIterations)await this.layout(firstLayout?320:layoutIterations);
         const positions=new Map(this.force.positions().map(p=>[p.id,p.style]));
         const dark=document.body.classList.contains('network-dark');
         const nodes=data.nodes.map(n=>({...n,style:{fill:GraphEncoding.rootFill,stroke:GraphEncoding.outline(n.style?.fill||GraphEncoding.rootFill),lineWidth:1,opacity:1,labelOpacity:1,shadowBlur:0,size:12,...n.style,...positions.get(n.id),labelFill:dark?'#e8edf6':'#303b4c',labelText:this.labels?n.data.title:''}}));
@@ -61,11 +89,12 @@
         if(reset){this.graph.setData({nodes,edges});await this.graph.render();if(firstLayout)await this.fit();}
         else{this.graph.updateNodeData(nodes);this.graph.updateEdgeData(edges);await this.graph.draw();}
         this.focusDirty=true;
-      }finally{this.busy=false;}
+      }finally{this.busy=false;this.wake();}
     }
-    async redraw(){if(this.data)await this.setData(this.data);}
+    // Resolve current data when this operation runs, after earlier filter updates.
+    redraw(){return this.enqueue(()=>this.data?this.drawData(this.data):undefined);}
     async fit(){await this.graph.fitView();if(this.graph.getZoom()>1.15)await this.graph.zoomTo(1.15);}
-    setFocus(id){if(this.focus===id)return;this.focus=id;this.focusDirty=true;}
+    setFocus(id){if(this.focus===id)return;this.focus=id;this.focusDirty=true;this.wake();}
     pointerMove(event){
       if(!this.data||this.dragging||event.pointerType==='touch')return;
       this.setFocus(this.hitTest(event));
@@ -92,7 +121,8 @@
         return {id:n.id,from:{...from},to,shadowColor:base.fill};
       });
       const edges=this.data.edges.map(e=>{const base=this.baseEdges.get(e.id),connected=e.source===id||e.target===id;return {id:e.id,from:{...(this.visualEdges.get(e.id)||{opacity:base.opacity})},to:{opacity:id?(connected?.95:.05):base.opacity}};});
-      this.transition={started:now,duration:matchMedia('(prefers-reduced-motion: reduce)').matches?0:220,nodes,edges};
+      const changed=items=>items.some(item=>Object.keys(item.to).some(key=>item.from[key]!==item.to[key]));
+      this.transition=changed(nodes)||changed(edges)?{started:now,duration:matchMedia('(prefers-reduced-motion: reduce)').matches?0:220,nodes,edges}:null;
     }
     drawFocusTransition(now){
       const transition=this.transition;if(!transition)return;
@@ -105,7 +135,7 @@
     }
     bindControls() {
       const $=id=>document.getElementById(id);
-      const arrange=async()=>{this.force.step(600);await this.redraw();await this.fit();};
+      const arrange=async()=>{if(this.arranging)return;this.arranging=true;try{await this.enqueue(async()=>{if(!this.data?.nodes.length)return;await this.drawData(this.data,false,600);await this.fit();});}finally{this.arranging=false;}};
       $('stabilizeButton').onclick=arrange;
       $('applyLayout').onclick=async()=>{$('physicsDialog').close();await arrange();};
       $('labelsButton').onclick=async()=>{this.labels=!this.labels;$('labelsButton').textContent=this.labels?'隐藏标签':'显示标签';await this.redraw();};

@@ -47,6 +47,17 @@
       }
       return movement;
     }
+    async stepAsync(iterations=1, sliceMs=8) {
+      let remaining=iterations,movement=0;
+      // Keep the exact deterministic iteration order while allowing input and paint
+      // between short batches. Positions are rendered only after the whole layout.
+      while(remaining>0){
+        const deadline=performance.now()+sliceMs;
+        do{movement=this.step(1);remaining--;}while(remaining>0&&performance.now()<deadline);
+        if(remaining>0)await new Promise(resolve=>setTimeout(resolve,0));
+      }
+      return movement;
+    }
     positions(){return this.nodes.map(p=>({id:p.id,style:{x:p.x,y:p.y}}));}
   }
   window.CourseNetwork=CourseNetwork;

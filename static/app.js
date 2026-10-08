@@ -89,11 +89,12 @@
     if(!visibleNodes().some(n=>n.id===selected))selected=visibleNodes()[0]?.id||'';
   }
   function courseHierarchy(){
-    const structure=[{id:'course_root',title:graph.title,parent_id:null,group:-1,depth:0}],memberships=[];
+    const structure=[{id:'course_root',title:graph.title,parent_id:null,group:graph.chapters.length===1?0:-1,depth:0}],memberships=[];
     for(const c of graph.chapters.filter(c=>chapter==='all'||chapter===c.id)){
       const id='chapter_'+c.id,group=graph.chapters.indexOf(c);
       structure.push({id,title:c.title,parent_id:'course_root',group,depth:1});
-      const h=c.document_hierarchy, remap=new Map((h?.nodes||[]).map(s=>[s.id,s.kind==='book'?id:`section_${c.id}_${s.id}`]));
+      const textDocument=graph.nodes.some(n=>n.chapter_id===c.id&&n.document_page_kind==='section');
+      const h=textDocument&&GraphEncoding.collapseTextSections?GraphEncoding.collapseTextSections(c.document_hierarchy):c.document_hierarchy, remap=new Map((h?.nodes||[]).map(s=>[s.id,s.kind==='book'?id:`section_${c.id}_${s.id}`]));
       for(const s of h?.nodes||[])if(s.kind!=='book')structure.push({id:remap.get(s.id),title:s.title,parent_id:remap.get(s.parent_id)||id,group,depth:Math.max(2,(s.level||1)+1)});
       for(const n of graph.nodes.filter(n=>n.chapter_id===c.id)){
         const parents=(h?.memberships||[]).filter(m=>m.target===n.id&&remap.has(m.source)).map(m=>remap.get(m.source));
@@ -152,6 +153,7 @@
   function renderStructureDetail(){
     const h=courseHierarchy(),item=h.structure.find(s=>s.id===structureSelection);
     if(!item){structureSelection=null;return false;}
+    document.querySelector('.detail-pane .drawer-head strong').textContent=item.id==='course_root'?'课程':'章节';
     const children=h.structure.filter(s=>s.parent_id===item.id),concepts=h.memberships.filter(m=>m.source===item.id).map(m=>node(m.target)).filter(Boolean);
     $('detailContent').innerHTML=`<h2>${esc(item.title)}</h2><section class="detail-section"><div class="chips">${children.map(c=>`<button class="chip" data-structure="${esc(c.id)}">${esc(c.title)}</button>`).join('')}${concepts.map(n=>`<button class="chip" data-jump="${esc(n.id)}">${esc(n.title)}</button>`).join('')}</div></section>`;
     $('detailContent').querySelectorAll('[data-structure]').forEach(b=>b.onclick=()=>selectStructure(b.dataset.structure));
@@ -163,6 +165,7 @@
   }
   function renderRelationDetail(){
     const drawn=network?.data?.edges.find(e=>e.id===relationSelection);if(!drawn){relationSelection=null;return false;}
+    document.querySelector('.detail-pane .drawer-head strong').textContent='关系';
     const edge=graph.edges.find(e=>e.id===relationSelection)||drawn;
     const kind=edge.extraction_type==='cooccurs'?'cooccurs':drawn.data.type;
     const hierarchy=courseHierarchy().structure;
@@ -204,7 +207,7 @@
       if(hierarchy){
         const structures=h.structure.filter(s=>h.visible(s.id)&&($('levelFilter').value!=='root'||!s.parent_id)),present=new Set(structures.map(s=>s.id));
         for(const s of structures){
-          data.nodes.push({id:s.id,data:{title:s.title+(collapsed.has(s.id)?' ＋':''),family_id:graph.chapters[s.group]?.id||null,depth:s.depth,kind:'chapter'},style:{fill:GraphEncoding.family(s.group,s.depth>1?'section':'chapter'),size:GraphEncoding.size(s.depth)}});
+          data.nodes.push({id:s.id,data:{title:s.title+(collapsed.has(s.id)?' ＋':''),family_id:graph.chapters[s.group]?.id||null,depth:s.depth,kind:'chapter'},style:{fill:GraphEncoding.family(s.group),size:GraphEncoding.size(s.depth)}});
           if(s.parent_id&&present.has(s.parent_id))data.edges.push({id:'hierarchy_'+s.id,source:s.parent_id,target:s.id,data:{label:'包含',type:'hierarchy'},style:{endArrow:true}});
         }
         for(const m of h.memberships)if(ids.has(m.target)&&present.has(m.source))data.edges.push({id:`member_${m.source}_${m.target}`,source:m.source,target:m.target,data:{label:'包含',type:'hierarchy'},style:{opacity:.24,endArrow:true}});
@@ -234,6 +237,7 @@
   }
   async function renderDetail(){
     const token=++detailToken,n=node(selected);
+    document.querySelector('.detail-pane .drawer-head strong').textContent='知识点';
     document.querySelectorAll('.detail-tabs button').forEach(b=>{b.classList.toggle('active',b.dataset.tab===activeTab);b.setAttribute('aria-selected',String(b.dataset.tab===activeTab));});
     document.querySelectorAll('.detail-tabs button').forEach(b=>{b.disabled=!!(structureSelection||relationSelection)&&b.dataset.tab!=='detail';});
     if(relationSelection&&renderRelationDetail())return;

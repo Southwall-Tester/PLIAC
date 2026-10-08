@@ -282,6 +282,9 @@ def main():
                         legend = {item["id"]: item["fill"] for item in color_data["legend"]}
                         assert legend[person["family"]] == person["fill"]
                         assert legend[relation["family"]] == relation["fill"]
+                        assert all(node["fill"] == legend[node["family"]] for node in color_data["nodes"] if node["family"] is not None)
+                        book_root = next(node for node in color_data["nodes"] if node["kind"] == "book")
+                        assert book_root["family"] is None and book_root["fill"] not in legend.values()
                         page.locator("#encodingLegend summary").click()
                         expect(page.locator("#colorLegend")).to_be_visible()
                         expect(page.locator("#colorLegend")).to_contain_text("实体识别")
@@ -298,7 +301,7 @@ def main():
                                 zoom:window.testGraph.getZoom(),origin:window.testGraph.getViewportByCanvas([0,0])
                             })""")
 
-                        for kind in ("book", "concept"):
+                        for kind in ("book", "chapter", "concept"):
                             click_target = page.evaluate("""kind => {
                                 const g=window.testGraph,n=g.getNodeData().find(n=>n.data.kind===kind);
                                 const p=g.getViewportByCanvas(g.getElementPosition(n.id));
@@ -309,10 +312,12 @@ def main():
                             page.mouse.click(click_target["x"], click_target["y"])
                             expect(page.locator("#sourcePanel")).to_be_visible()
                             expect(page.locator("#sourceTitle")).to_have_text(click_target["title"])
+                            expect(page.locator("#sourceContent .source-type")).to_have_text(
+                                {"book": "资料", "chapter": "章节", "concept": "知识点"}[kind])
                             assert geometry() == before_click
                             assert page.evaluate("window.testGraph.getNodeData().length") == len(data["nodes"])
                             page.locator("#closeSource").click()
-                        passed("Book and concept circle clicks open details without moving nodes or changing the viewport")
+                        passed("Book, chapter and concept clicks show their node type without moving nodes or changing the viewport")
 
                         book_target = page.evaluate("""() => {
                             const g=window.testGraph,n=g.getNodeData().find(n=>n.data.kind==='book');
@@ -346,6 +351,18 @@ def main():
                         owners = {}
                         for member in memberships:
                             owners.setdefault(member["target"],set()).add(member["source"])
+                        shared_id = next(node for node,parents in owners.items() if len(parents)>1)
+                        family = page.evaluate("id=>window.testGraph.getNodeData(id).data", shared_id)
+                        other_titles = [n["title"] for n in hierarchy_nodes
+                                        if n["id"] in owners[shared_id] and n["id"] != family["family_id"]]
+                        page.locator("#filtersButton").click()
+                        page.locator(f'#nodeList [data-node="{shared_id}"]').click()
+                        expect(page.locator("#sourceContent .source-type")).to_have_text("知识点")
+                        expect(page.locator("#sourceContent .source-family")).to_have_text("所属族群：" + family["family_title"])
+                        expect(page.locator("#sourceContent .source-occurrences")).to_have_text("出现于：" + "、".join(other_titles))
+                        page.locator("#closeSource").click()
+                        page.locator("#closeFilters").click()
+                        passed("Shared concept details identify the displayed family and other source sections")
                         candidates = []
                         for chapter_node in hierarchy_nodes:
                             if chapter_node["kind"] != "chapter":

@@ -137,6 +137,24 @@ def main():
                     assert all(edge['arrow'] for edge in parallel), parallel
                     assert page.evaluate('__network.data.edges.filter(e=>e.data.type!=="hierarchy").length') == 68
                     report['checks'].append('43 circular nodes including course and two units; 68 semantic plus hierarchy edges; full canvas')
+                    batched = page.evaluate('''async () => {
+                      const nodes=Array.from({length:48},(_,i)=>({id:String(i)}));
+                      const edges=nodes.slice(1).map((n,i)=>({source:String(i),target:n.id}));
+                      const direct=new CourseNetwork(),batched=new CourseNetwork();
+                      direct.setData(nodes,edges);batched.setData(nodes,edges);
+                      const directMovement=direct.step(32);let inputTurn=false;
+                      setTimeout(()=>{inputTurn=true},0);
+                      const batchedMovement=await batched.stepAsync(32,0);
+                      return {same:JSON.stringify(direct.positions())===JSON.stringify(batched.positions()),
+                        sameMovement:directMovement===batchedMovement,inputTurn};
+                    }''')
+                    assert all(batched.values()), batched
+                    page.wait_for_function('__network.frame===null && !__network.busy && !__network.transition && !__network.focusDirty')
+                    page.evaluate('''window.__idleTicks=0;const originalTick=__network.tick;
+                      __network.tick=async()=>{__idleTicks++;return originalTick()};void 0;''')
+                    page.wait_for_timeout(100)
+                    assert page.evaluate('__idleTicks') == 0, page.evaluate('({ticks:__idleTicks,focus:__network.focus,dirty:__network.focusDirty,transition:!!__network.transition,busy:__network.busy,frame:__network.frame})')
+                    report['checks'].append('Batched layout yields to the event loop with bit-identical positions; an idle graph schedules no animation frames')
                     zoom_before = page.evaluate('__network.graph.getZoom()')
                     graph_box = page.locator('#graph').bounding_box()
                     page.mouse.move(graph_box['x'] + graph_box['width'] * .75, graph_box['y'] + graph_box['height'] * .65)
@@ -217,6 +235,11 @@ def main():
                     family_colors = {family: {n['fill'] for n in concepts if n['family'] == family} for family in families}
                     assert all(len(colors) == 1 for colors in family_colors.values()), family_colors
                     assert family_colors['ch1'] != family_colors['ch2']
+                    for family in families:
+                        assert {n['fill'] for n in color_data['nodes'] if n['family'] == family} == family_colors[family]
+                    common_root = next(n for n in color_data['nodes'] if n['id'] == 'course_root')
+                    assert common_root['family'] is None
+                    assert common_root['fill'] not in set().union(*family_colors.values())
                     assert all(n['size'] == 12 for n in concepts)
                     assert next(n['size'] for n in color_data['nodes'] if n['id'] == 'course_root') == 42
                     assert all(n['size'] == 32 for n in color_data['nodes'] if n['id'].startswith('chapter_'))
@@ -239,6 +262,8 @@ def main():
                                     hidden=('#physicsSettings', '#stabilizeButton'))
                     page.locator('#levelFilter').select_option('concept')
                     page.wait_for_function('__network.data.nodes.length===43 && !__network.busy')
+                    before_empty = page.evaluate('''() => ({positions:__network.force.positions(),
+                      zoom:__network.graph.getZoom(),origin:__network.graph.getViewportByCanvas([0,0])})''')
                     page.locator('#relationFilter').select_option('prerequisite')
                     page.locator('#search').fill('__no_course_node_matches__')
                     page.wait_for_function('__network.data.nodes.length===0 && !__network.busy')
@@ -247,8 +272,11 @@ def main():
                     page.locator('#search').fill('')
                     page.locator('#relationFilter').select_option('all')
                     page.wait_for_function('__network.data.nodes.length===43 && !__network.busy')
+                    after_empty = page.evaluate('''() => ({positions:__network.force.positions(),
+                      zoom:__network.graph.getZoom(),origin:__network.graph.getViewportByCanvas([0,0])})''')
+                    assert before_empty == after_empty
                     expect_controls(page, visible=('#physicsSettings', '#stabilizeButton', '#labelsButton', '.zoom-buttons'))
-                    report['checks'].append('single-root and empty filtered views hide inapplicable tools; filters restore the complete graph')
+                    report['checks'].append('single-root and empty filtered views hide inapplicable tools; restoring filters preserves all positions and viewport without relayout')
                     page.locator('#closeFilters').click()
                     def position(ident):
                         return page.evaluate('id=>{const p=__network.graph.getViewportByCanvas(__network.graph.getElementPosition(id));const r=document.querySelector("#graph").getBoundingClientRect();return {x:p[0]+r.x,y:p[1]+r.y}}', ident)
@@ -354,6 +382,16 @@ def main():
                     assert abs(restored['size'] - base_size) < .05, restored
                     assert restored.get('shadowBlur',0) < .05 and restored.get('haloLineWidth',0) < .05, restored
                     report['checks'].append('rapid cross-node hover retargets correctly and restores opacity, size and glow on exit')
+                    page.wait_for_function('__network.frame===null && !__network.busy && !__network.transition')
+                    page.evaluate('''Object.defineProperty(document,'hidden',{configurable:true,value:true});
+                      __network.setFocus('ml001');document.dispatchEvent(new Event('visibilitychange'));''')
+                    assert page.evaluate('__network.frame===null && __network.focusDirty')
+                    page.evaluate("delete document.hidden;document.dispatchEvent(new Event('visibilitychange'))")
+                    page.wait_for_function('__network.graph.getNodeData("ml001").style.shadowBlur===16 && !__network.transition')
+                    page.evaluate('__network.setFocus(null)')
+                    page.wait_for_function('__network.frame===null && !__network.busy && !__network.transition')
+                    assert page.evaluate('__network.graph.getNodeData().every(n=>Math.abs((n.style.opacity??1)-1)<.001)')
+                    report['checks'].append('Hidden-page highlights defer frames, resume after visibility changes, and stop again when settled')
 
                     # A resting graph stays still before, during and after hover.
                     pos = position('ml001')
@@ -420,6 +458,85 @@ def main():
                     page.wait_for_function('__network.data.nodes.length===43 && !__network.busy')
                     expect_controls(page, visible=('#stabilizeButton', '#labelsButton', '.zoom-buttons'))
                     report['checks'].append('empty expression view keeps its recovery controls and restores graph tools on returning to course')
+                    # Keep real force iterations in flight while controls enqueue
+                    # newer topology and display changes. No rendering is mocked.
+                    raced = browser.new_page(viewport={'width':1440, 'height':900})
+                    raced.on('pageerror', lambda error: report['errors'].append('queued controls: '+str(error)))
+                    raced.add_init_script('''Object.defineProperty(window,'NetworkView',{
+                      get(){return this.__View},set(View){this.__View=class extends View{
+                        constructor(...args){super(...args);window.__network=this;}
+                      }}});''')
+                    raced.goto(url+'/author')
+                    raced.wait_for_function('window.__network?.data?.nodes.length===43 && !__network.busy')
+                    raced.locator('#filtersButton').click()
+                    raced.evaluate('''() => {
+                      window.__layoutSizes=[];window.__layoutRunning=false;
+                      const step=__network.force.stepAsync.bind(__network.force);
+                      __network.force.stepAsync=async function(iterations){
+                        __layoutRunning=true;__layoutSizes.push(this.nodes.length);
+                        try{return await step(iterations,0);}finally{__layoutRunning=false;}
+                      };
+                      window.__layoutTask=__network.setData(__network.data,false,600);
+                    }''')
+                    raced.wait_for_function('__layoutRunning && __network.busy')
+                    raced.locator('#levelFilter').select_option('chapter')
+                    raced.locator('#themeButton').click()
+                    raced.locator('#labelsButton').click()
+                    raced.locator('#stabilizeButton').click()
+                    raced.wait_for_function('!__layoutRunning && !__network.busy && !__network.arranging && __layoutSizes.length===2')
+                    raced.evaluate('async()=>{await __layoutTask;await __network.operations;}')
+                    result = raced.evaluate('''() => {
+                      const ids=items=>items.map(item=>item.id).sort();
+                      return {data:ids(__network.data.nodes),rendered:ids(__network.graph.getNodeData()),
+                        force:ids(__network.force.nodes),edges:ids(__network.data.edges),
+                        renderedEdges:ids(__network.graph.getEdgeData()),layoutSizes:__layoutSizes,
+                        dark:document.body.classList.contains('network-dark'),labels:__network.labels,
+                        styles:__network.graph.getNodeData().map(n=>({label:n.style.labelText,color:n.style.labelFill}))};
+                    }''')
+                    expected_ids = ['chapter_ch1', 'chapter_ch2', 'course_root']
+                    assert result['data'] == result['rendered'] == result['force'] == expected_ids, result
+                    assert result['edges'] == result['renderedEdges'] and len(result['edges']) == 2, result
+                    assert result['layoutSizes'] == [43, 3], result
+                    assert result['dark'] and not result['labels'], result
+                    assert all(style == {'label': '', 'color': '#e8edf6'} for style in result['styles']), result
+                    raced.close()
+                    report['checks'].append('Filtering, theme, labels and arrange queued during real asynchronous layout retain the latest topology and display state')
+                    # Simulate a browser retaining the older layout asset while the
+                    # newer view has already loaded. Keep this in an isolated page.
+                    cached = browser.new_page(viewport={'width':1440, 'height':900})
+                    cached.on('pageerror', lambda error: report['errors'].append('cached layout: '+str(error)))
+                    cached.add_init_script('''
+                      window.__cachedStepCalls=0;window.__cachedMaxIterations=0;
+                      Object.defineProperty(window,'CourseNetwork',{
+                        get(){return this.__Force},set(Force){
+                          delete Force.prototype.stepAsync;
+                          const step=Force.prototype.step;
+                          Force.prototype.step=function(iterations=1){
+                            __cachedStepCalls++;__cachedMaxIterations=Math.max(__cachedMaxIterations,iterations);
+                            return step.call(this,iterations);
+                          };
+                          this.__Force=Force;
+                        }
+                      });
+                      Object.defineProperty(window,'NetworkView',{
+                        get(){return this.__View},set(View){this.__View=class extends View{
+                          constructor(...args){super(...args);window.__network=this;}
+                        }}
+                      });
+                    ''')
+                    cached.goto(url+'/author')
+                    cached.wait_for_function('window.__network?.data?.nodes.length===43 && !__network.busy')
+                    assert cached.evaluate('typeof __network.force.stepAsync') == 'undefined'
+                    expect(cached.locator('#graphMessage')).to_be_hidden()
+                    assert cached.evaluate('__cachedStepCalls') == 320
+                    cached.locator('#stabilizeButton').click()
+                    cached.wait_for_function('!__network.busy && !__network.arranging')
+                    assert cached.evaluate('__cachedStepCalls') == 920
+                    assert cached.evaluate('__cachedMaxIterations') == 1
+                    assert cached.evaluate('__network.graph.getNodeData().every(n=>Number.isFinite(n.style.x)&&Number.isFinite(n.style.y))')
+                    cached.close()
+                    assert page.evaluate('typeof CourseNetwork.prototype.stepAsync') == 'function'
+                    report['checks'].append('Mixed cached assets without stepAsync still render and arrange in single-step batches; the normal page remains unchanged')
                     assert not report['errors'],report['errors']
                     browser.close()
             finally:

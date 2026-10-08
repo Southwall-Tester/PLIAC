@@ -5,6 +5,7 @@ import copy
 import hashlib
 import json
 import logging
+import os
 import re
 import threading
 import unicodedata
@@ -25,14 +26,46 @@ ACTIVE = {"queued", "parsing", "extracting"}
 TYPES = {"contains", "related", "confusable", "prerequisite", "cooccurs"}
 STOP = set("内容 方法 结果 过程 情况 问题 方面 部分 方式 时候 基础 作用 关系 意义 本章 本节 上述 下述 图中 表中 例如 因此 其中 这些 那些 一个 一种 可以 进行 使用 对于 通过 根据 不同 相关 对应 主要 实际 一般 需要 可能 能够 具有 得到 表示 说明 下面 这里 这个 所有 大量 形式 角度 领域 研究 工作 读者 作者 知识 任务 情况 数据 模型 系统".split())
 STOP.update("利用 充分利用 和校验 挑战性 典型 示间 马间".split())
+LOCAL_STOP = set("定义 例子 举例 通俗 理解 家族 答案 学界 正确性 注意 误区 注意误区 条件 步骤 要点 总结 部分 核心 类别 原图 读者 作者 数字 路线 包含关系 反之亦然 求解 验证 time part text".split())
 _ocr = None
-_ocr_lock = threading.Lock()
+_ocr_lock = threading.RLock()
 _terms_ready = False
 TECHNICAL_TERMS = "知识图谱 深度学习 关系抽取 实体抽取 实体对齐 实体链接 远程监督 硬对齐 软对齐 平移模型 线性模型 参数共享 神经网络 卷积神经网络 图神经网络 推荐系统 强化学习 监督学习 无监督学习 自然语言处理 机器学习 知识表示 表示学习 知识融合 关系分类 命名实体识别 协同过滤 策略梯度 贝尔曼方程 马尔可夫决策过程 状态价值 动作价值 奖励函数 智能体 奖励 惩罚 知识推理 知识获取 文本分类 支持向量机 逻辑回归 决策树 随机森林 训练集 验证集 测试集".split()
 
 
 def stamp():
     return datetime.now(timezone.utc).isoformat()
+
+
+def process_alive(pid):
+    """Probe ownership without sending signals to a Windows process."""
+    if type(pid) is not int or pid < 1:
+        return False
+    if pid == os.getpid():
+        return True
+    if os.name == "nt":
+        import ctypes
+        from ctypes import wintypes
+        kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+        kernel.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
+        kernel.OpenProcess.restype = wintypes.HANDLE
+        kernel.GetExitCodeProcess.argtypes = [wintypes.HANDLE, ctypes.POINTER(wintypes.DWORD)]
+        kernel.CloseHandle.argtypes = [wintypes.HANDLE]
+        handle = kernel.OpenProcess(0x1000, False, pid)
+        if not handle:
+            return ctypes.get_last_error() == 5  # Access denied is not a dead owner.
+        try:
+            code = wintypes.DWORD()
+            return bool(kernel.GetExitCodeProcess(handle, ctypes.byref(code))) and code.value == 259
+        finally:
+            kernel.CloseHandle(handle)
+    try:
+        os.kill(pid, 0)
+        return True
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
 
 
 def atomic_json(path, value):
@@ -79,6 +112,64 @@ def chunks(text, size=3200, overlap=240):
         start = max(start + 1, end - overlap)
 
 
+def explanation_heading(title):
+    """Recognize presentation labels, not the subject of a knowledge section."""
+    label = re.split(r"[：:]", title, maxsplit=1)[0].strip()
+    return bool(re.fullmatch(r"(?:通俗|直观|直觉|简单|形象)(?:理解|解释|说明)|(?:严格的?|具体的?|详细的?)?(?:判定条件|判断条件|定义)|例子|示例|举例(?:说明)?|注意事项|注意误区|常见误区|总结|小结", label))
+
+
+def local_named_terms(text):
+    """Prefer short author-marked terms; every returned name is a source slice."""
+    result = []
+
+    def add(title):
+        title = title.strip().strip("“”‘’\"'").strip()
+        title = re.sub(r"^(?:(?:常见|经典|典型|常用|主要)(?:的)?[ \t]*)+", "", title)
+        if (title and valid_term(title) and normalized(title) not in LOCAL_STOP and not explanation_heading(title)
+                and not re.search(r"如果|只要|所有|整个|历史上|一类|一个|它|本身|属于|内直接|内验证|容易|第[一二三四五六七八九十0-9]+部分|的关系$|[的是能会]$", title)
+                and title not in result):
+            result.append(title)
+
+    for match in re.finditer(r"\*\*((?:(?!\*\*).){1,160})\*\*", text):
+        value = match[1]
+        base = re.split(r"\s*[（(]", value, maxsplit=1)[0]
+        if not (base.endswith("效应") and re.search(r"比作|比喻|就像", text[max(0, match.start() - 180):match.start()])):
+            add(base)
+        # Chinese expansions and complete hyphenated abbreviations are terms;
+        # individual words of their English translation are not new concepts.
+        for bracket in re.finditer(r"[（(]([^()（）]+)[)）]", value):
+            for alias in re.split(r"[，,]", bracket[1]):
+                alias = alias.strip()
+                if re.search(r"[\u4e00-\u9fff]", alias) and not alias.startswith("简称"):
+                    add(alias)
+                elif re.fullmatch(r"[A-Z]{2,6}-[A-Za-z]+", alias):
+                    add(alias)
+    # Keep technical names attached to a proper name, not the surname alone.
+    for match in re.finditer(r"(?<![A-Za-z])(?:[A-Z][A-Za-z]*(?:[- ][A-Z][A-Za-z]*)*)[ \t]*(?:算法|定理|协议)", text):
+        add(match[0])
+    return result
+
+
+def local_term_locations(title, text, named):
+    """Ignore formatting commands and English gloss fragments without rewriting text."""
+    latin = bool(re.fullmatch(r"[A-Za-z][A-Za-z0-9 -]*", title))
+    pattern = re.escape(title)
+    if latin:
+        pattern = r"(?<![A-Za-z0-9_])" + pattern + r"(?![A-Za-z0-9_])"
+    ignored = []
+    if latin:
+        ignored.extend((m.start(), m.end()) for m in re.finditer(r"\\[A-Za-z]+", text))
+        if title not in named and not re.fullmatch(r"[A-Z]{1,6}", title):
+            for match in re.finditer(r"[（(]([^()（）\n]{1,180})[)）]", text):
+                if re.search(r"[\u4e00-\u9fff]", text[max(0, match.start() - 60):match.end()]):
+                    ignored.append((match.start(), match.end()))
+            for match in re.finditer(r'[“"]([^”"\n]{1,180})[”"]', text):
+                if re.fullmatch(r"[A-Za-z][A-Za-z -]*", match[1]) and re.search(r"[\u4e00-\u9fff]", text[max(0, match.start() - 60):match.start()]):
+                    ignored.append((match.start(), match.end()))
+            ignored.extend((m.start(), m.end()) for m in re.finditer(r"(?:[A-Z][a-z]+[ -]){1,2}[A-Z][a-z]+(?=\s*(?:在|于|提出|证明|发明|教授|博士))", text))
+    return [m.start() for m in re.finditer(pattern, text) if not any(start <= m.start() < end for start, end in ignored)]
+
+
 def extract_local(text, page, offset=0):
     """Noun extraction plus explicit containment; co-occurrence stays labelled."""
     global _terms_ready
@@ -87,25 +178,38 @@ def extract_local(text, page, offset=0):
         for term in TECHNICAL_TERMS:
             jieba.add_word(term, freq=2000000, tag="nz")
         _terms_ready = True
-    terms = [t for t in jieba.analyse.extract_tags(text, topK=24, allowPOS=("n", "nz", "eng")) if valid_term(t)]
+    named = local_named_terms(text)
+    # Single-letter classes require an explicit bold definition, not a formula
+    # variable or an OCR character. Their later mathematical uses remain valid.
+    initials = [m[1] for m in re.finditer(r"\*\*([A-Z])\*\*", text)
+                if re.search(r"是|指|定义|表示", text[m.end():m.end() + 120])]
+    terms = list(dict.fromkeys([*initials, *named, *jieba.analyse.extract_tags(text, topK=40, allowPOS=("n", "nz", "eng"))]))
+    terms = [t for t in terms if (valid_term(t) or t in initials) and normalized(t) not in LOCAL_STOP]
     # Preserve named compounds in definitions and short section headings.
     for m in re.finditer(r"(?:^|[。！？\n])\s*(?:\d+(?:\.\d+)*\s*)?([\u4e00-\u9fffA-Za-z][\u4e00-\u9fffA-Za-z0-9 -]{1,15}?)(?:是指|指的是|定义为|包括|包含)", text):
         title = m.group(1).strip()
         if valid_term(title) and title not in terms:
             terms.insert(0, title)
-    terms = terms[:30]
+    locations = {t: local_term_locations(t, text, named) for t in terms}
+    # Drop a fragment only when all its occurrences belong to an author-marked
+    # complete term. Independent uses still retain their own concept node.
+    terms = [t for t in terms if locations[t] and (t in named or t in initials or any(
+        not any(full != t and t in full and start <= at < start + len(full)
+                for full in named for start in locations[full])
+        for at in locations[t]))][:30]
     nodes, edges = {}, []
     for title in terms:
-        at = text.find(title)
+        at = locations[title][0]
         if at >= 0:
             nodes[title] = {"id": term_id(title), "title": title, "description": "", "evidence": [proof(title, page, offset + at)], "review_status": "draft", "origin": "local"}
     for m in re.finditer(r"[^。！？]+[。！？]?", text):
         sentence = m.group(0)
         if len(sentence) > 600:
             continue
-        found = sorted((title for title in nodes if title in sentence), key=lambda t: sentence.find(t))
+        found = sorted((title for title in nodes if any(m.start() <= at < m.end() for at in locations[title])),
+                       key=lambda t: next(at for at in locations[t] if m.start() <= at < m.end()))
         # A compound and its own substring do not form a semantic pair.
-        found = [t for t in found if not any(t != other and t in other for other in found)]
+        found = [t for t in found if re.fullmatch(r"[A-Z]{1,6}", t) or not any(t != other and t in other for other in found)]
         evidence = proof(sentence, page, offset + m.start())
         for title in found:
             if not nodes[title]["description"]:
@@ -171,16 +275,55 @@ def extract_llm(text, page, offset=0, config=None):
         raise CourseGraphError("模型结果格式或原文证据校验失败，请重试。", 502) from exc
 
 
+def ocr_threads():
+    """Bound native inference work independently of the document worker count."""
+    cpu_count = os.cpu_count() or 1
+    default = min(4, max(1, cpu_count // 4))
+    try:
+        requested = int(os.environ.get("OCR_THREADS", str(default)))
+    except ValueError:
+        requested = default
+    return min(max(1, requested), 4, cpu_count)
+
+
+def create_ocr_engine():
+    """Create three bounded ORT sessions without their idle spinning workers."""
+    import cv2
+    from rapidocr import RapidOCR
+    from rapidocr.inference_engine.onnxruntime import OrtInferSession
+
+    cv2.setNumThreads(1)
+    params = {"Global.log_level": "error", "EngineConfig.onnxruntime.intra_op_num_threads": ocr_threads(),
+              "EngineConfig.onnxruntime.inter_op_num_threads": 1}
+    # RapidOCR 3 exposes thread counts but does not forward ORT session config
+    # entries. Scope this adapter to construction under _ocr_lock, then restore
+    # the upstream factory. Existing sessions retain the configured options.
+    original = OrtInferSession._init_sess_opts
+
+    def bounded_options(config):
+        options = original(config)
+        options.add_session_config_entry("session.intra_op.allow_spinning", "0")
+        options.add_session_config_entry("session.inter_op.allow_spinning", "0")
+        return options
+
+    with _ocr_lock:
+        OrtInferSession._init_sess_opts = staticmethod(bounded_options)
+        try:
+            return RapidOCR(params=params)
+        finally:
+            OrtInferSession._init_sess_opts = staticmethod(original)
+
+
 def ocr_page(page):
     global _ocr
     try:
         import numpy as np
-        from rapidocr import RapidOCR
+        import rapidocr
     except ImportError as exc:
         raise CourseGraphError("此页需要文字识别。请安装 requirements-ocr.txt 后重试。", 503) from exc
     with _ocr_lock:
         if _ocr is None:
-            _ocr = RapidOCR(params={"Global.log_level": "error"})
+            _ocr = create_ocr_engine()
         scale = min(2.2, 2200 / max(page.rect.width, page.rect.height))
         import fitz
         pix = page.get_pixmap(matrix=fitz.Matrix(scale, scale), alpha=False)
@@ -245,8 +388,33 @@ def document_outline(path, pages=None):
             return result
     if path.suffix == ".md":
         text = "".join(pages or text_pages(path))
-        return [{"level": len(m.group(1)), "title": m.group(2).strip()[:200], "page": m.start() // 6000 + 1, "start": m.start() % 6000}
-                for m in re.finditer(r"^(#{1,6})\s+(.+)$", text, re.M)]
+        result, offset, explicit_level, fence = [], 0, 0, None
+        for raw_line in text.splitlines(keepends=True):
+            line = raw_line.rstrip("\r\n")
+            marker = re.match(r"^ {0,3}(`{3,}|~{3,})(.*)$", line)
+            if fence:
+                if marker and marker[1][0] == fence[0] and len(marker[1]) >= fence[1] and not marker[2].strip():
+                    fence = None
+            elif marker:
+                fence = (marker[1][0], len(marker[1]))
+            else:
+                heading = re.fullmatch(r" {0,3}(#{1,6})[ \t]+(.+?)[ \t]*", line)
+                # Whole-line bold is an explicit authoring convention, not a
+                # guessed concept. No indentation/list markers or inline spans.
+                bold = re.fullmatch(r"\*\*((?:(?!\*\*).){1,120})\*\*[ \t]*", line)
+                title, level = "", 0
+                if heading:
+                    explicit_level = level = len(heading[1])
+                    title = re.sub(r"[ \t]+#+[ \t]*$", "", heading[2]).strip()
+                elif bold:
+                    title, level = bold[1].strip(), explicit_level + 1
+                if title:
+                    entry = {"level": level, "title": title[:200], "page": offset // 6000 + 1, "start": offset % 6000}
+                    if explanation_heading(title):
+                        entry["role"] = "explanation"
+                    result.append(entry)
+            offset += len(raw_line)
+        return result
     if path.suffix == ".docx":
         with zipfile.ZipFile(path) as archive:
             root = ElementTree.fromstring(archive.read("word/document.xml"))
@@ -270,6 +438,8 @@ def hierarchy(job, outline, concepts):
     nodes = [{"id": root_id, "title": job["title"], "parent_id": None, "kind": "book", "page": job["start_page"], "level": 0}]
     stack, sections = [(0, root_id)], []
     for i, entry in enumerate(outline):
+        if entry.get("role") == "explanation":
+            continue
         while len(stack) > 1 and stack[-1][0] >= entry["level"]:
             stack.pop()
         node = {"id": "section_" + str(i), "title": entry["title"], "parent_id": stack[-1][1], "kind": "chapter", "page": entry["page"], "start": entry.get("start", 0), "level": entry["level"]}
@@ -287,6 +457,9 @@ def hierarchy(job, outline, concepts):
             elif candidates:
                 # Last heading preceding this page is the active section.
                 owner = max(enumerate(candidates), key=lambda pair: (pair[1]["page"], pair[1]["start"] or 0, pair[0]))[1]["id"]
+            elif job['page_kind'] != 'pdf':
+                # Text chunks are offsets for retrieval, not semantic chapters.
+                owner = root_id
             else:
                 owner = "page_" + str(ev["page"])
                 if owner not in page_nodes:
@@ -328,7 +501,8 @@ class DocumentStore:
     def status(self, ident):
         with self.lock:
             job = self._read(ident, "job.json")
-            if job["status"] in ACTIVE and ident not in self.futures:
+            active = bool(job.get("worker_active")) and process_alive(job.get("worker_pid"))
+            if job["status"] in ACTIVE and not active:
                 job["status"] = "partial"
                 job["error"] = "处理已中断，点击重试继续。"
             return job
@@ -358,7 +532,7 @@ class DocumentStore:
                "engine": engine, "start_page": start_page, "end_page": end_page, "status": "queued", "error": "", "warnings": [],
                "page_kind": "pdf" if suffix == ".pdf" else "section", "progress": {"stage": "等待处理", "current": 0, "total": 0},
                "stats": {"pages": 0, "parsed_pages": 0, "chunks": 0, "nodes": 0, "edges": 0, "ocr_pages": 0, "dropped_nodes": 0, "dropped_edges": 0, "rejected": 0},
-               "created_at": stamp(), "updated_at": stamp()}
+               "created_at": stamp(), "updated_at": stamp(), "worker_active": False}
         atomic_json(self.directory(ident) / "job.json", job)
         return job
 
@@ -370,17 +544,29 @@ class DocumentStore:
         with self.lock:
             if ident in self.futures and not self.futures[ident].done():
                 raise CourseGraphError("资料正在处理。", 409)
+            job = self._read(ident, "job.json")
+            if job.get("worker_active") and process_alive(job.get("worker_pid")):
+                raise CourseGraphError("资料正在另一处理服务中运行。", 409)
             self.cancelled.discard(ident)
-            self.update(ident, status="queued", error="")
-            self.futures[ident] = self.executor.submit(self.run, ident)
+            self.update(ident, status="queued", error="", worker_pid=os.getpid(), worker_active=True, cancel_requested=False)
+            try:
+                self.futures[ident] = self.executor.submit(self.run, ident)
+            except Exception:
+                self.update(ident, status="partial", error="处理未能启动，请重试。", worker_active=False)
+                raise
         return self._read(ident, "job.json")
 
     def cancel(self, ident):
         job = self.status(ident)
         if job["status"] in ACTIVE:
             self.cancelled.add(ident)
-            return self.update(ident, status="cancelled", error="")
+            return self.update(ident, status="cancelled", error="", cancel_requested=True)
         return job
+
+    def _is_cancelled(self, ident):
+        if ident not in self.cancelled and self._read(ident, "job.json").get("cancel_requested"):
+            self.cancelled.add(ident)
+        return ident in self.cancelled
 
     def page(self, ident, page):
         if type(page) is not int or page < 1:
@@ -438,6 +624,7 @@ class DocumentStore:
     def run(self, ident):
         try:
             job = self._read(ident, "job.json")
+            self.update(ident, worker_pid=os.getpid(), worker_active=True)
             source = self.source(ident)
             pages = None
             if job["suffix"] == ".pdf":
@@ -466,7 +653,7 @@ class DocumentStore:
             stats = job["stats"] | {"pages": total, "chunks": 0, "ocr_pages": 0}
             any_text = False
             for index, page in enumerate(range(job["start_page"], end + 1)):
-                if ident in self.cancelled:
+                if self._is_cancelled(ident):
                     return
                 self.update(ident, status="parsing", stats=stats, progress={"stage": "解析正文", "current": index, "total": total})
                 page_path = self.directory(ident) / f"pages/{page}.json"
@@ -477,13 +664,13 @@ class DocumentStore:
                     atomic_json(page_path, parsed)
                 stats["ocr_pages"] += int(parsed["ocr"])
                 stats["parsed_pages"] = index + 1
-                if ident in self.cancelled:
+                if self._is_cancelled(ident):
                     self.update(ident, stats=stats)
                     return
                 any_text = any_text or bool(parsed["text"].strip())
                 self.update(ident, status="extracting", stats=stats, progress={"stage": f"提取第 {page} 页", "current": index, "total": total})
                 for chunk_no, (offset, text) in enumerate(chunks(parsed["text"])):
-                    if ident in self.cancelled:
+                    if self._is_cancelled(ident):
                         return
                     chunk_path = self.directory(ident) / f"chunks/{page:06d}-{chunk_no:04d}.json"
                     if not chunk_path.exists():
@@ -493,6 +680,7 @@ class DocumentStore:
                 self.update(ident, stats=stats, progress={"stage": "合并概念", "current": index + 1, "total": total})
                 if index % 10 == 0:
                     self.assemble(ident)
+                    stats = self._read(ident, "job.json")["stats"]
             if not any_text:
                 raise CourseGraphError("所选页面没有识别到正文，请选择正文页或检查扫描清晰度。")
             graph = self.assemble(ident)
@@ -514,10 +702,15 @@ class DocumentStore:
             error = str(exc) if isinstance(exc, CourseGraphError) else "资料处理失败，请重试；详情见服务日志。"
             self.update(ident, status="partial" if partial else "failed", error=error)
         finally:
-            if ident in self.cancelled:
-                if any((self.directory(ident) / "pages").glob("*.json")):
-                    self.assemble(ident)
-                self.update(ident, status="cancelled", error="")
+            try:
+                if self._is_cancelled(ident):
+                    if any((self.directory(ident) / "pages").glob("*.json")):
+                        self.assemble(ident)
+                    self.update(ident, status="cancelled", error="")
+            finally:
+                # Cancellation is visible immediately; release ownership only
+                # after the current page and checkpoint finalization have exited.
+                self.update(ident, worker_active=False)
 
     def import_draft(self, ident, course_store, expected_version, node_ids=None):
         graph = self.graph(ident)

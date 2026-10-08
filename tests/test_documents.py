@@ -9,7 +9,7 @@ from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
-from learning_agent.documents import DocumentStore, chunks, extract_local, extract_llm, hierarchy, term_id
+from learning_agent.documents import DocumentStore, chunks, document_outline, extract_local, extract_llm, hierarchy, term_id
 from learning_agent.course_graph import CourseGraphStore, CourseGraphError
 
 
@@ -62,6 +62,37 @@ class DocumentsTests(unittest.TestCase):
         self.assertTrue({"知识图谱", "远程监督", "关系抽取", "实体对齐"} <= names)
         self.assertFalse({"lle1", "e211"} & names)
 
+    def test_local_terms_prefer_marked_compounds_and_reject_translation_fragments(self):
+        text = ("**卷积神经网络 (Convolutional Neural Network，简称 CNN)**处理图像。"
+                "**支持向量机**用于分类。含义是“Non-deterministic Polynomial”。"
+                "公式\\text{CNN}用于说明。家族、答案、学界只是讲解用语。"
+                "**“随机化 (randomization)”**用于计算。")
+        result = extract_local(text, 3, 80)
+        names = {n["title"] for n in result["nodes"]}
+        self.assertTrue({"卷积神经网络", "支持向量机", "随机化", "CNN"} <= names)
+        self.assertFalse({"Convolutional", "Neural", "Network", "Polynomial", "text", "家族", "答案", "学界", "“随机化"} & names)
+        for item in result["nodes"] + result["edges"]:
+            for ev in item["evidence"]:
+                self.assertEqual(text[ev["start"] - 80:ev["end"] - 80], ev["quote"])
+
+    def test_local_defined_initial_is_preserved_without_matching_larger_words(self):
+        text = "**P** 与 **NP** 是两类判定问题。公式\\text{P}与\\text{NP}用来表示类别。"
+        result = extract_local(text, 1)
+        by_id = {n["id"]: n["title"] for n in result["nodes"]}
+        self.assertTrue({"P", "NP"} <= set(by_id.values()))
+        self.assertNotIn("text", by_id.values())
+        self.assertTrue(any({by_id[e["source"]], by_id[e["target"]]} == {"P", "NP"} for e in result["edges"]))
+        self.assertNotIn("P", {n["title"] for n in extract_local("Polynomial time 和 NP 不是单字母定义。", 1)["nodes"]})
+        self.assertTrue(all(e["type"] in {"contains", "cooccurs"} for e in result["edges"]))
+
+    def test_local_cleanup_keeps_english_material_and_does_not_change_llm_filter(self):
+        names = {n["title"] for n in extract_local("Neural networks include neurons. Networks learn representations.", 1)["nodes"]}
+        self.assertTrue({"networks", "neurons"} <= names)
+        reply = {"nodes": [{"id": "x", "title": "time", "quote": "time is a quantity."}], "edges": []}
+        with patch("learning_agent.llm.call_llm_json", return_value=json.dumps(reply)):
+            result = extract_llm("time is a quantity.", 1, config={})
+        self.assertEqual([n["title"] for n in result["nodes"]], ["time"])
+
     def test_pdf_page_range_and_toc_are_real(self):
         import fitz
         job = self.store.create("book.pdf", start_page=2, end_page=2)
@@ -111,6 +142,137 @@ class DocumentsTests(unittest.TestCase):
         by_title = {n["title"]: n for n in graph["hierarchy"]["nodes"]}
         self.assertEqual(by_title["知识图谱"]["parent_id"], by_title["机器学习"]["id"])
         self.assertEqual(graph["page_kind"], "section")
+
+    def test_headingless_markdown_connects_00_root_to_every_concept(self):
+        ident = self.book("知识图谱包括实体和关系。实体对齐用于知识融合。", "00.md")
+        graph = self.store.graph(ident)
+        self.assertTrue(graph["nodes"])
+        containers = graph["hierarchy"]["nodes"]
+        self.assertEqual(len(containers), 1)
+        self.assertEqual((containers[0]["title"], containers[0]["kind"]), ("00", "book"))
+        memberships = graph["hierarchy"]["memberships"]
+        self.assertEqual({m["source"] for m in memberships}, {containers[0]["id"]})
+        self.assertEqual({m["target"] for m in memberships}, {n["id"] for n in graph["nodes"]})
+
+    def test_standalone_bold_headings_preserve_original_page_and_offset(self):
+        titles = ["P 问题 (Polynomial time，多项式时间)", "NP 问题 (Nondeterministic Polynomial time)", "P 与 NP 的关系"]
+        text = "原文介绍。\r\n" + " " * 6000 + "\r\n" + "\r\n正文。\r\n".join(f"**{title}**" for title in titles)
+        source = Path(self.tmp.name) / "00.md"
+        source.write_bytes(text.encode("utf-8"))
+        outline = document_outline(source)
+        self.assertEqual([h["title"] for h in outline], titles)
+        self.assertEqual([h["level"] for h in outline], [1, 1, 1])
+        self.assertTrue(all(h["page"] > 1 for h in outline))
+        for heading, title in zip(outline, titles):
+            at = (heading["page"] - 1) * 6000 + heading["start"]
+            self.assertEqual(at, text.index(f"**{title}**"))
+            self.assertTrue(text[at:].startswith(f"**{title}**"))
+
+    def test_markdown_bold_peers_follow_explicit_heading_and_exclude_body_or_code(self):
+        text = "\n".join([
+            "# 复杂度 ###", "**P 问题**", "正文内容。", "**NP 问题**", "## 判定条件", "**验证过程**",
+            "```markdown", "# 代码中的标题", "**代码中的粗体**", "````", "~~~", "### 另一围栏标题", "**另一段代码**", "~~~",
+            "- **列表中的粗体**", "1. **有序列表粗体**", "  **列表缩进粗体**", "    **缩进代码**", "> **引用中的粗体**",
+            "正文里有**粗体词**。", "**P** 与 **NP**", "**NP 完全问题**，是指一类正文内容。",
+            "**" + "这是加粗的长正文段落。" * 20 + "**", "# 总结", "**关键关系**",
+        ])
+        source = Path(self.tmp.name) / "mixed.md"
+        source.write_bytes(text.encode("utf-8"))
+        outline = document_outline(source)
+        self.assertEqual([(h["level"], h["title"]) for h in outline], [
+            (1, "复杂度"), (2, "P 问题"), (2, "NP 问题"), (2, "判定条件"), (3, "验证过程"), (1, "总结"), (2, "关键关系"),
+        ])
+
+    def test_bold_section_hierarchy_survives_extraction_and_course_import(self):
+        ident = self.book("**P 问题**\n知识图谱包括实体。\n**NP 问题**\n神经网络使用训练集。", "00.md")
+        graph = self.store.graph(ident)
+        containers = {n["id"]: n for n in graph["hierarchy"]["nodes"]}
+        owners = {m["target"]: containers[m["source"]]["title"] for m in graph["hierarchy"]["memberships"]}
+        self.assertEqual(owners[term_id("知识图谱")], "P 问题")
+        self.assertEqual(owners[term_id("神经网络")], "NP 问题")
+        self.assertEqual({n["kind"] for n in containers.values()}, {"book", "chapter"})
+        for node in graph["nodes"]:
+            for ev in node["evidence"]:
+                self.assertEqual(self.store.page(ident, ev["page"])["text"][ev["start"]:ev["end"]], ev["quote"])
+        imported = self.store.import_draft(ident, self.course, self.course.load_graph("draft")["version"])["graph"]
+        chapter = next(c for c in imported["chapters"] if c["id"] == "doc_" + ident)
+        mapped = chapter["document_hierarchy"]
+        self.assertEqual(mapped["nodes"], graph["hierarchy"]["nodes"])
+        targets = {n["id"]: n for n in imported["nodes"] if n.get("document_id") == ident}
+        imported_owners = {targets[m["target"]]["title"]: containers[m["source"]]["title"] for m in mapped["memberships"]}
+        self.assertEqual(imported_owners["知识图谱"], "P 问题")
+        self.assertEqual(imported_owners["神经网络"], "NP 问题")
+
+    def test_explanation_titles_stay_in_outline_but_are_not_graph_parents(self):
+        text = ("**模型训练**\n训练集用于拟合。\n**通俗理解：从例子理解**\n知识图谱包括实体。\n"
+                "**严格的判定条件**\n实体对齐用于知识融合。\n**模型评估**\n神经网络使用测试集。")
+        ident = self.book(text, "概念说明.md")
+        outline = document_outline(self.store.source(ident))
+        self.assertEqual(len(outline), 4)
+        explanations = [h for h in outline if h.get("role") == "explanation"]
+        self.assertEqual([h["title"] for h in explanations], ["通俗理解：从例子理解", "严格的判定条件"])
+        original = self.store.page(ident, 1)["text"]
+        self.assertTrue(all(original[h["start"]:].startswith(f"**{h['title']}**") for h in explanations))
+        graph = self.store.graph(ident)
+        containers = {n["id"]: n for n in graph["hierarchy"]["nodes"]}
+        self.assertFalse({"通俗理解：从例子理解", "严格的判定条件"} & {n["title"] for n in containers.values()})
+        owners = {m["target"]: containers[m["source"]]["title"] for m in graph["hierarchy"]["memberships"]}
+        self.assertEqual(owners[term_id("知识图谱")], "模型训练")
+        self.assertEqual(owners[term_id("实体对齐")], "模型训练")
+        self.assertEqual(owners[term_id("神经网络")], "模型评估")
+
+    def test_text_chunk_boundaries_preserve_proofs_without_creating_chapters(self):
+        text = "知识图谱包括实体。".ljust(6050, " ") + "神经网络使用训练集。知识图谱支持关系抽取。"
+        ident = self.book(text, "分段材料.txt")
+        graph = self.store.graph(ident)
+        stats = self.store.status(ident)["stats"]
+        self.assertGreater(stats["pages"], 1)
+        self.assertGreater(stats["chunks"], stats["pages"])
+        self.assertEqual([n["kind"] for n in graph["hierarchy"]["nodes"]], ["book"])
+        root = graph["hierarchy"]["nodes"][0]["id"]
+        self.assertTrue(all(m["source"] == root for m in graph["hierarchy"]["memberships"]))
+        concept = next(n for n in graph["nodes"] if n["title"] == "知识图谱")
+        self.assertEqual({ev["page"] for ev in concept["evidence"]}, {1, 2})
+        for item in graph["nodes"] + graph["edges"]:
+            for ev in item["evidence"]:
+                page = self.store.page(ident, ev["page"])
+                self.assertEqual(page["text"][ev["start"]:ev["end"]], ev["quote"])
+        imported = self.store.import_draft(ident, self.course, self.course.load_graph("draft")["version"])["graph"]
+        chapter = next(c for c in imported["chapters"] if c["id"] == "doc_" + ident)
+        self.assertEqual(chapter["document_hierarchy"]["nodes"], graph["hierarchy"]["nodes"])
+        additions = [n for n in imported["nodes"] if n.get("document_id") == ident]
+        self.assertEqual({m["source"] for m in chapter["document_hierarchy"]["memberships"]}, {root})
+        self.assertEqual({m["target"] for m in chapter["document_hierarchy"]["memberships"]}, {n["id"] for n in additions})
+        originals = {n["title"]: n for n in graph["nodes"]}
+        self.assertTrue(all(n["document_evidence"] == originals[n["title"]]["evidence"] for n in additions))
+
+    def test_pdf_without_outline_keeps_physical_pages_and_imported_hierarchy(self):
+        import fitz
+        job = self.store.create("无目录.pdf")
+        ident = job["id"]
+        with fitz.open() as doc:
+            for text in ("Neural networks include neurons. Neural networks learn representations.",
+                         "Knowledge graphs link entities. Entity alignment connects knowledge graphs."):
+                page = doc.new_page()
+                page.insert_text((40, 60), text)
+            doc.save(self.store.source(ident))
+        self.store.run(ident)
+        graph = self.store.graph(ident)
+        self.assertTrue(graph["nodes"])
+        containers = {n["id"]: n for n in graph["hierarchy"]["nodes"]}
+        pages = [n for n in containers.values() if n["kind"] == "page"]
+        self.assertEqual({n["page"] for n in pages}, {1, 2})
+        self.assertEqual({n["title"] for n in pages}, {"第 1 页", "第 2 页"})
+        memberships = graph["hierarchy"]["memberships"]
+        self.assertEqual({containers[m["source"]]["kind"] for m in memberships}, {"page"})
+        for item in graph["nodes"] + graph["edges"]:
+            for ev in item["evidence"]:
+                self.assertEqual(self.store.page(ident, ev["page"])["text"][ev["start"]:ev["end"]], ev["quote"])
+        imported = self.store.import_draft(ident, self.course, self.course.load_graph("draft")["version"])["graph"]
+        chapter = next(c for c in imported["chapters"] if c["id"] == "doc_" + ident)
+        self.assertEqual(chapter["document_hierarchy"]["nodes"], graph["hierarchy"]["nodes"])
+        targets = {n["id"] for n in imported["nodes"] if n.get("document_id") == ident}
+        self.assertEqual({m["target"] for m in chapter["document_hierarchy"]["memberships"]}, targets)
 
     def test_names_merge_with_multiple_page_proofs(self):
         ident = self.book("知识图谱包括实体。" + " " * 6000 + "知识图谱支持关系抽取。")
