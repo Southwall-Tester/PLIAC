@@ -57,7 +57,7 @@ def assert_dark_surfaces(page, selectors):
 
 
 def assert_left_controls(page):
-    controls = page.locator('.topbar button:visible, .topbar a:visible').evaluate_all('''elements => elements.map(element => {
+    controls = page.locator('.topbar button:visible, .topbar a:visible, .topbar .active-course-title:visible').evaluate_all('''elements => elements.map(element => {
       const r=element.getBoundingClientRect();return {x:r.x,right:r.right,center:r.y+r.height/2};
     })''')
     rows = []
@@ -128,9 +128,41 @@ def main():
                     expect(page.locator('.sidebar')).to_be_hidden()
                     expect(page.locator('.detail-pane')).to_be_hidden()
                     assert page.evaluate('__network.graph.getOptions().node.type') == 'circle'
-                    assert page.evaluate('__network.graph.getOptions().edge.type') == 'line'
+                    # Parallel relations remain separate paths, rather than overlapping labels.
+                    parallel = page.evaluate('''() => ['edge005','edge053'].map(id=>{
+                      const edge=__network.graph.context.element.getElement(id);
+                      return {path:edge.getShape('key').attributes.d,arrow:edge.attributes.endArrow};
+                    })''')
+                    assert parallel[0]['path'] != parallel[1]['path'], parallel
+                    assert all(edge['arrow'] for edge in parallel), parallel
                     assert page.evaluate('__network.data.edges.filter(e=>e.data.type!=="hierarchy").length') == 68
                     report['checks'].append('43 circular nodes including course and two units; 68 semantic plus hierarchy edges; full canvas')
+                    zoom_before = page.evaluate('__network.graph.getZoom()')
+                    graph_box = page.locator('#graph').bounding_box()
+                    page.mouse.move(graph_box['x'] + graph_box['width'] * .75, graph_box['y'] + graph_box['height'] * .65)
+                    anchor_before = page.evaluate('__network.graph.getCanvasByViewport([__network.element.clientWidth*.75,__network.element.clientHeight*.65])')
+                    page.mouse.wheel(0, -100)
+                    page.wait_for_timeout(250)
+                    zoom_after = page.evaluate('__network.graph.getZoom()')
+                    assert 1 < zoom_after / zoom_before <= 1.105, (zoom_before, zoom_after)
+                    anchor_after = page.evaluate('__network.graph.getCanvasByViewport([__network.element.clientWidth*.75,__network.element.clientHeight*.65])')
+                    assert max(abs(a-b) for a,b in zip(anchor_before,anchor_after)) < 2
+                    page.mouse.wheel(0, 100)
+                    page.wait_for_timeout(250)
+                    zoom_out = page.evaluate('__network.graph.getZoom()')
+                    assert .895 <= zoom_out / zoom_after < 1, (zoom_after,zoom_out)
+                    page.mouse.wheel(0, -4)
+                    page.wait_for_timeout(250)
+                    zoom_small = page.evaluate('__network.graph.getZoom()')
+                    assert 1 < zoom_small / zoom_out < 1.015
+                    positions_before_zoom = page.evaluate('__network.force.positions()')
+                    page.locator('#zoomIn').click()
+                    page.wait_for_timeout(180)
+                    assert abs(page.evaluate('__network.graph.getZoom()') / zoom_small - 1.1) < .005
+                    assert positions_before_zoom == page.evaluate('__network.force.positions()')
+                    page.locator('#fitButton').click()
+                    page.wait_for_timeout(250)
+                    report['checks'].append('Wheel step is capped at 10 percent with cursor anchor preserved; small trackpad inputs stay finer; zoom buttons change 10 percent without moving nodes')
                     page.wait_for_function('!__network.busy')
                     positions = page.evaluate('__network.force.positions()')
                     page.wait_for_timeout(350)

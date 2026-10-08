@@ -82,4 +82,5 @@ def retry(ident: str):
 @router.post("/{ident}/import")
 async def import_draft(ident: str, request: Request):
     body = await _body(request)
-    return await run_in_threadpool(document_store.import_draft, ident, api.store, body.get("expected_version"), body.get("node_ids"))
+    course_store = api.resolve_course_store(body.get("course_id", ""))
+    return await run_in_threadpool(document_store.import_draft, ident, course_store, body.get("expected_version"), body.get("node_ids"))

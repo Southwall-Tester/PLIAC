@@ -13,8 +13,9 @@
       this.graph=new G6.Graph({container:element,width:element.clientWidth,height:element.clientHeight,
         animation:false,padding:65,zoomRange:[.08,6],
         node:{type:'circle',style:{labelText:d=>d.data.title,labelPlacement:'bottom',labelOffsetY:5,labelFontSize:11,labelFontFamily:'Microsoft YaHei, sans-serif'}},
-        edge:{type:'line',style:{lineWidth:1,endArrowSize:5,labelFontSize:8,labelAutoRotate:true,labelBackground:true,labelBackgroundFill:'#ffffff',labelBackgroundOpacity:.78}},
-        behaviors:['drag-canvas','zoom-canvas',{type:'drag-element',animation:false,dropEffect:'none'}]});
+        edge:{style:{lineWidth:1,endArrowSize:5,labelFontSize:8,labelAutoRotate:true}},
+        transforms:[{type:'process-parallel-edges',mode:'bundle',distance:24}],
+        behaviors:['drag-canvas',{type:'zoom-canvas',sensitivity:.2,animation:{duration:120}},{type:'drag-element',animation:false,dropEffect:'none'}]});
       this.graph.on('node:click',e=>select?.(e.target.id));
       this.graph.on('edge:click',e=>edgeSelect?.(e.target.id));
       // G6 node events include the text label. Hit-test the circular key shape only.
@@ -50,7 +51,8 @@
         const nodes=data.nodes.map(n=>({...n,style:{fill:GraphEncoding.rootFill,stroke:GraphEncoding.outline(n.style?.fill||GraphEncoding.rootFill),lineWidth:1,opacity:1,labelOpacity:1,shadowBlur:0,size:12,...n.style,...positions.get(n.id),labelFill:dark?'#e8edf6':'#303b4c',labelText:this.labels?n.data.title:''}}));
         const fills=new Map(nodes.map(n=>[n.id,n.style.fill]));
         // Relations follow the source node's family; line style still encodes relation type.
-        const edges=data.edges.map(e=>({...e,style:{stroke:fills.get(e.source)||GraphEncoding.rootFill,opacity:.35,...e.style,labelText:this.labels?(e.data?.label||''):'',labelFill:dark?'#c9d0df':'#5c6778',labelBackgroundFill:dark?'#111820':'#fcfbf9'}}));
+        // G6's graph-level styles override data styles, so theme-dependent labels live here.
+        const edges=data.edges.map(e=>({...e,style:{stroke:fills.get(e.source)||GraphEncoding.rootFill,opacity:.35,...e.style,labelText:this.labels?(e.data?.label||''):'',labelFill:dark?'#a6b2c2':'#5c6778',labelBackground:!dark,labelBackgroundFill:'#fcfbf9',labelBackgroundOpacity:.78}}));
         this.baseNodes=new Map(nodes.map(n=>[n.id,{...n.style}]));this.baseEdges=new Map(edges.map(e=>[e.id,{...e.style}]));
         // Preserve an in-flight highlight when node selection redraws the same topology.
         if(!reset){for(const n of nodes)if(this.visualNodes.has(n.id))Object.assign(n.style,this.visualNodes.get(n.id));for(const e of edges)if(this.visualEdges.has(e.id))Object.assign(e.style,this.visualEdges.get(e.id));}
@@ -113,8 +115,8 @@
       $('distance').oninput=e=>{this.force.distance=+e.target.value;};
       $('repulsion').value=this.force.repulsion;$('distance').value=this.force.distance;
       $('fitButton').onclick=()=>this.fit();
-      $('zoomIn').onclick=()=>this.graph.zoomTo(Math.min(6,this.graph.getZoom()*1.2));
-      $('zoomOut').onclick=()=>this.graph.zoomTo(Math.max(.08,this.graph.getZoom()/1.2));
+      $('zoomIn').onclick=()=>this.graph.zoomTo(Math.min(6,this.graph.getZoom()*1.1),{duration:120});
+      $('zoomOut').onclick=()=>this.graph.zoomTo(Math.max(.08,this.graph.getZoom()/1.1),{duration:120});
     }
   }
   window.NetworkView=NetworkView;

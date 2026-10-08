@@ -3,31 +3,34 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>课程知识与诊断 · 个性化学习智能体</title>
+  <title>课程图谱</title>
   <script src="/static/theme.js?v=16"></script>
   <link rel="stylesheet" href="/static/app.css?v=9"/>
-  <link rel="stylesheet" href="/static/network.css?v=16"/>
+  <link rel="stylesheet" href="/static/network.css?v=18"/>
   <link rel="stylesheet" href="/static/graph-menu.css?v=10"/>
   <script defer src="/static/vendor/g6-5.1.1.min.js"></script>
   <script defer src="/static/network-layout.js?v=9"></script>
   <script defer src="/static/graph-encoding.js?v=13"></script>
-  <script defer src="/static/network-view.js?v=16"></script>
-  <script defer src="/static/app.js?v=16"></script>
+  <script defer src="/static/network-view.js?v=19"></script>
+  <script defer src="/static/app.js?v=19"></script>
 </head>
 <body>
   <header class="topbar">
+    <a id="coursesLink" class="button toolbar-link" href="/courses">课程列表</a>
+    <span id="activeCourseTitle" class="active-course-title"></span>
+    <button id="manageButton" hidden class="button">编辑图谱</button>
+    <button id="addNodeButton" hidden class="button">添加知识点</button><button id="addEdgeButton" hidden class="button">添加关系</button>
+    <a id="importDocuments" class="button" href="/documents" hidden>导入书籍</a>
+    <nav><a id="studentView" class="button toolbar-link" href="/knowledge" hidden>查看发布版</a><a id="authorView" class="button toolbar-link" href="/author" hidden>编辑图谱</a></nav>
     <div class="network-controls"><button id="physicsSettings" hidden>布局设置</button><button id="stabilizeButton" hidden>整理</button><button id="themeButton">深色</button><button id="filtersButton" hidden aria-expanded="false">筛选</button><button id="labelsButton" hidden>隐藏标签</button><button id="statsButton" hidden>统计</button></div>
-    <a id="importDocuments" class="button" href="/documents" hidden>导入资料</a>
-    <nav><a id="studentView" href="/">正式课程</a><a id="authorView" href="/author">编写与审核</a></nav>
     <button id="profileButton" hidden class="button subtle">学习画像</button>
-    <button id="manageButton" hidden class="button primary">管理课程</button>
   </header>
   <main>
     <dialog id="statsDialog"><div class="modal-head"><h2>统计</h2><button class="icon-button" onclick="this.closest('dialog').close()" aria-label="关闭统计">×</button></div><section class="course-heading">
       <div><h1 id="courseTitle">监督学习（分类）</h1></div>
       <div class="stats"><div><strong id="nodeCount">—</strong><span>知识点</span></div><div><strong id="edgeCount">—</strong><span>知识关系</span></div><div><strong id="masteredCount">—</strong><span>已掌握</span></div><div><strong id="dueCount">—</strong><span>到期复测</span></div></div>
     </section></dialog>
-    <section id="unpublished" class="unpublished" hidden><h2>待发布</h2><a class="button primary" href="/author">管理课程</a></section>
+    <section id="unpublished" class="unpublished" hidden><h2>待发布</h2><a id="unpublishedEdit" class="button subtle" href="/author">编辑图谱</a></section>
     <section id="workbench" class="workbench">
       <aside class="sidebar">
         <div class="drawer-head"><strong>筛选</strong><button id="closeFilters" class="icon-button" aria-label="关闭筛选">×</button></div>
@@ -42,14 +45,14 @@
       </aside>
       <section class="graph-pane" aria-label="课程知识图谱">
         <div class="graph-toolbar"><div><strong id="viewTitle"></strong><span id="viewCount"></span></div><div class="graph-actions"><select id="structureView" aria-label="知识结构视图"><option value="course">课程参考结构</option><option value="expressions">对话表达结构</option></select><select id="relationFilter" aria-label="关系类型"><option value="all">全部关系</option><option value="prerequisite">前置关系</option><option value="contains">包含关系</option><option value="related">关联关系</option><option value="confusable">易混淆关系</option></select></div></div>
-        <div class="graph-stage"><div id="graph" role="img" aria-label="交互知识图谱"></div><div id="graphMessage" class="graph-message">正在加载…</div><div class="zoom-buttons" hidden><button id="fitButton" aria-label="适应画布">⛶</button><button id="zoomOut" aria-label="缩小">−</button><button id="zoomIn" aria-label="放大">＋</button></div></div>
+        <div class="graph-stage"><div id="graph" role="img" aria-label="交互知识图谱"></div><div id="graphMessage" class="graph-message">正在加载…</div><section id="emptyCourse" class="empty-course" hidden><h2>新建知识图谱</h2><div><button id="emptyAddNode" class="button subtle">添加知识点</button><a id="emptyImportBook" class="button subtle" href="/documents">导入书籍</a></div></section><div class="zoom-buttons" hidden><button id="fitButton" aria-label="适应画布">⛶</button><button id="zoomOut" aria-label="缩小">−</button><button id="zoomIn" aria-label="放大">＋</button></div></div>
         <div class="graph-footer"><div id="colorLegend" class="encoding-legend"></div><div class="size-legend" aria-label="节点大小按层级"><span><i style="width:18px;height:18px"></i>课程</span><span><i style="width:13px;height:13px"></i>单元</span><span><i style="width:7px;height:7px"></i>概念</span></div><span id="reviewBadge" class="draft-badge"></span></div>
       </section>
       <aside class="detail-pane"><div class="drawer-head"><strong>知识点</strong><button id="closeDetail" class="icon-button" aria-label="关闭详情">×</button></div><div class="detail-tabs" role="tablist"><button data-tab="detail" class="active" role="tab">内容与资料</button><button data-tab="evidence" role="tab">证据与判断</button><button data-tab="path" role="tab">下一步</button></div><div id="detailContent" class="detail-content"></div></aside>
     </section>
   </main>
   <dialog id="physicsDialog"><div class="modal-head"><h2>布局设置</h2><button class="icon-button" onclick="this.closest('dialog').close()" aria-label="关闭布局设置">×</button></div><div class="form-stack"><label>排斥强度<input id="repulsion" type="range" min="500" max="15000" step="100" value="3200"/></label><label>连线距离<input id="distance" type="range" min="40" max="260" value="115"/></label></div><button id="applyLayout" class="button">应用布局</button></dialog>
-  <dialog id="manager" class="manager-dialog"><div class="modal-head"><div><h2>管理课程</h2></div><button class="icon-button close-dialog" aria-label="关闭">×</button></div><div class="manager-nav"><button data-mode="node">知识点</button><button data-mode="edge">关系</button><button data-mode="resource">资源</button><button data-mode="audit">图谱核查</button><button data-mode="blueprints">实训骨架</button><button data-mode="publish">发布与版本</button><button data-mode="import">导入导出</button><button data-mode="extract">候选抽取</button></div><div id="managerBody"></div></dialog>
+  <dialog id="manager" class="manager-dialog"><div class="modal-head"><div><h2>编辑图谱</h2></div><button class="icon-button close-dialog" aria-label="关闭">×</button></div><div class="manager-nav"><button data-mode="node">知识点</button><button data-mode="edge">关系</button><button data-mode="course">课程与章节</button><button data-mode="resource">资源</button><button data-mode="audit">图谱核查</button><button data-mode="blueprints">实训骨架</button><button data-mode="publish">发布与版本</button><button data-mode="import">导入导出</button><button data-mode="extract">候选抽取</button></div><div id="managerBody"></div></dialog>
   <dialog id="profileDialog" class="manager-dialog"><div class="modal-head"><div><h2>学习画像</h2></div><button class="icon-button" id="closeProfile" aria-label="关闭画像">×</button></div><div id="profileBody" class="profile-body"></div></dialog>
   <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 </body>

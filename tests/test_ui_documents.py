@@ -86,7 +86,7 @@ def assert_surface_theme(page, selectors, *, dark):
 
 
 def assert_left_toolbar(page):
-    controls = page.locator(".toolbar button:visible, .toolbar a:visible, .toolbar select:visible").evaluate_all("""elements => elements.map(element => {
+    controls = page.locator(".toolbar button:visible, .toolbar a:visible, .toolbar select:visible, .toolbar .active-course-title:visible").evaluate_all("""elements => elements.map(element => {
         const r=element.getBoundingClientRect(); return {x:r.x,right:r.right,center:r.y+r.height/2};
     })""")
     rows = []
@@ -162,7 +162,7 @@ def main():
                         page.on("pageerror", lambda error: report["page_errors"].append(str(error)))
                         page.goto(base + "/documents")
                         expect(page.locator("#libraryPanel")).to_be_visible()
-                        expect_controls(page, visible=("#themeButton", '.toolbar a[href="/author"]'), hidden=(
+                        expect_controls(page, visible=("#themeButton", '#coursesLink'), hidden=(
                             "#physicsSettings", "#stabilizeButton", "#filtersButton", "#labelsButton",
                             "#statsButton", "#hierarchyLevel", "#importButton", "#exportButton", "#canvasControls"))
                         assert_left_toolbar(page)
@@ -186,7 +186,10 @@ def main():
                         expect(page.locator("html")).to_have_class(re.compile(r"network-dark"))
                         expect(page.locator("body")).to_have_class(re.compile(r"network-dark"))
                         assert_surface_theme(page, ("html", "body", "main", "#libraryPanel", "#dropZone"), dark=True)
-                        page.locator('.toolbar a[href="/author"]').click()
+                        page.locator('#coursesLink').click()
+                        expect(page.locator('#courseList')).to_be_visible()
+                        expect(page.locator('body')).to_have_class(re.compile(r'network-dark'))
+                        page.locator('.edit-course').first.click()
                         expect(page.locator("#importDocuments")).to_be_visible()
                         expect(page.locator("html")).to_have_class(re.compile(r"network-dark"))
                         expect(page.locator("body")).to_have_class(re.compile(r"network-dark"))

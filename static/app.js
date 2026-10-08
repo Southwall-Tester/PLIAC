@@ -5,26 +5,41 @@
   const clone = value => structuredClone(value);
   const labels = {unknown:'尚未涉及', uncertain:'待核验', needs_review:'需要补学', mastered:'已掌握'};
   const relations = {prerequisite:'前置', contains:'包含', related:'关联', confusable:'易混淆'};
+  const relationLabel = edge => edge.extraction_type==='cooccurs'?'共现':relations[edge.type];
   const origins = {learner_expression:'学习者实际表达',system_completion:'系统补全',model_inference:'模型推断'};
   const sourceTypes = {manual:'人工采录',dialog:'对话原话',quiz:'题目作答',practice:'实训操作',annotation:'疑问标记',self_assessment:'学习者自评',technical:'技术异常'};
   const formats = {video:'讲解视频',lesson:'解读教案',case:'案例资料',practice:'情境式实训',course:'补充课程'};
   const colors = {unknown:['#f7f0ff','#b09adb','#7650a3'],uncertain:['#fff8db','#e9ca76','#95700d'],needs_review:['#fff0f6','#e99bb6','#b43c69'],mastered:['#eafff3','#6bcaa4','#237851']};
   const view = ['/author','/admin'].includes(location.pathname) ? 'draft' : 'published';
+  const courseId = new URL(location.href).searchParams.get('course_id')||'';
+  const courseURL = (path,extra={}) => {const params=new URLSearchParams({...extra,...(courseId?{course_id:courseId}:{})});return path+(params.size?'?'+params:'');};
   let graph = null, learner = {}, summary = {}, publication = {}, student = '', selected = '', chapter = 'all', activeTab = 'detail', mode = 'node';
   let renderer, network, topology='', renderBusy=false, renderAgain=false, loadToken=0, detailToken=0, toastTimer, pathResult=null, extracted=null;
   const collapsed=new Set();
-  let structureSelection=null;
+  let structureSelection=null,relationSelection=null;
   let writeQueue = Promise.resolve();
   new ResizeObserver(()=>document.documentElement.style.setProperty('--toolbar-height',`${document.querySelector('.topbar').offsetHeight}px`)).observe(document.querySelector('.topbar'));
   function updateToolbar(){
     const ready=!!graph,count=ready?(network?.data?.nodes.length||0):0;
     $('physicsSettings').hidden=count<2;$('stabilizeButton').hidden=count<2;
-    $('labelsButton').hidden=!count;$('filtersButton').hidden=!ready;$('statsButton').hidden=!ready;
+    $('labelsButton').hidden=!count;$('filtersButton').hidden=!ready||!graph.nodes.length;$('statsButton').hidden=!ready;
     document.querySelector('.zoom-buttons').hidden=!count;
     $('manageButton').hidden=view!=='draft'||!ready;$('importDocuments').hidden=view!=='draft';
+    $('addNodeButton').hidden=view!=='draft'||!ready||!graph.nodes.length;$('addEdgeButton').hidden=view!=='draft'||!ready||graph.nodes.length<2;
+    $('studentView').hidden=view!=='draft'||!publication.published_version;$('authorView').hidden=view==='draft';
+    $('authorView').href=courseURL('/author');$('studentView').href=courseURL('/knowledge');$('unpublishedEdit').href=courseURL('/author');
+    $('importDocuments').href=courseURL('/documents',{new:'1'});$('emptyImportBook').href=$('importDocuments').href;
     $('profileButton').hidden=view!=='published'||!ready||!student;
     $('profileInlineButton').hidden=$('profileButton').hidden;
     $('structureView').hidden=view==='draft';
+    document.querySelector('.graph-toolbar').hidden=!ready||!graph.nodes.length;
+    document.querySelector('.graph-footer').hidden=!ready||!graph.nodes.length;
+    $('emptyCourse').hidden=view!=='draft'||!ready||!!graph.nodes.length;
+    document.querySelector('[data-mode="edge"]').hidden=!ready||graph.nodes.length<2;
+    document.querySelector('[data-mode="resource"]').hidden=!ready||!graph.nodes.length;
+    document.querySelector('[data-mode="audit"]').hidden=!ready||!graph.nodes.length;
+    document.querySelector('[data-mode="publish"]').hidden=!ready||!graph.nodes.length;
+    document.querySelector('[data-mode="blueprints"]').hidden=!ready||!graph.nodes.some(n=>n.blueprint_ids?.length);
   }
   const node = id => graph?.nodes.find(n=>n.id===id);
   const state = id => view==='draft' ? 'unknown' : learner.states?.[id]?.status || 'unknown';
@@ -39,7 +54,8 @@
   }
   async function api(path='',options={}) {
     let response;
-    try { response=await fetch(`/api/course-graph${path}`,{...options,headers:{'Content-Type':'application/json',...options.headers}}); }
+    const url=new URL(`/api/course-graph${path}`,location.origin);if(courseId)url.searchParams.set('course_id',courseId);
+    try { response=await fetch(url,{...options,headers:{'Content-Type':'application/json',...options.headers}}); }
     catch { throw new Error('无法连接本地服务，请检查启动窗口。'); }
     let value; try{value=await response.json();}catch{throw new Error('服务返回了无法读取的数据。');}
     if(!response.ok)throw new Error(typeof value.detail==='string'?value.detail:JSON.stringify(value.detail||value));
@@ -95,13 +111,13 @@
   }
   function updateStats() {
     document.body.classList.toggle('author-mode',view==='draft');
-    $('authorView').classList.toggle('current',view==='draft');$('studentView').classList.toggle('current',view==='published');
     updateToolbar();
     $('structureView').disabled=view==='draft';
-    $('nodeCount').textContent=graph?.nodes.length||'—';$('edgeCount').textContent=graph?.edges.length||'—';
+    $('nodeCount').textContent=graph?.nodes.length??'—';$('edgeCount').textContent=graph?.edges.length??'—';
     $('masteredCount').textContent=graph?graph.nodes.filter(n=>state(n.id)==='mastered').length:'—';
     $('dueCount').textContent=graph&&view==='published'?graph.nodes.filter(n=>nodeState(n.id).due).length:0;
-    $('courseTitle').textContent=graph?.title||'监督学习（分类）';
+    $('courseTitle').textContent=graph?.title||'课程';
+    if(graph){$('activeCourseTitle').textContent=graph.title;document.title=graph.title+' · '+(view==='draft'?'编辑图谱':'发布版');}
     $('reviewBadge').textContent=view==='draft'?`草稿 v${graph?.version||''}`:`v${graph?.version||''}`;
     document.querySelector('.learner-box').hidden=view==='draft';
     $('masteredCount').parentElement.hidden=view==='draft';$('dueCount').parentElement.hidden=view==='draft';
@@ -120,16 +136,16 @@
     $('viewTitle').textContent=chapter==='all'?'知识图谱':graph.chapters.find(c=>c.id===chapter)?.title||'';
     $('viewCount').textContent=`${nodes.length} 个知识点`;
   }
-  function changeFilter(){pathResult=null;syncSelection();renderSidebar();renderDetail();renderGraph();}
+  function changeFilter(){pathResult=null;relationSelection=null;syncSelection();renderSidebar();renderDetail();renderGraph();}
   function selectNode(id,reveal=false,remember=true){
-    if(!node(id))return;selected=id;pathResult=null;structureSelection=null;
+    if(!node(id))return;selected=id;pathResult=null;structureSelection=null;relationSelection=null;
     document.body.classList.add('details-open');if(innerWidth<760)document.body.classList.remove('filters-open');
     if(reveal){chapter=node(id).chapter_id;$('search').value='';$('statusFilter').value='all';}
     renderSidebar();renderDetail();renderGraph();
     if(remember&&student&&view==='published')savePosition().catch(error=>toast(`位置未保存：${error.message}`,true));
   }
   function selectStructure(id){
-    structureSelection=id;activeTab='detail';document.body.classList.add('details-open');
+    structureSelection=id;relationSelection=null;activeTab='detail';document.body.classList.add('details-open');
     if(innerWidth<760)document.body.classList.remove('filters-open');
     renderDetail();
   }
@@ -140,6 +156,21 @@
     $('detailContent').innerHTML=`<h2>${esc(item.title)}</h2><section class="detail-section"><div class="chips">${children.map(c=>`<button class="chip" data-structure="${esc(c.id)}">${esc(c.title)}</button>`).join('')}${concepts.map(n=>`<button class="chip" data-jump="${esc(n.id)}">${esc(n.title)}</button>`).join('')}</div></section>`;
     $('detailContent').querySelectorAll('[data-structure]').forEach(b=>b.onclick=()=>selectStructure(b.dataset.structure));
     bindJumps();return true;
+  }
+  function selectRelation(id){
+    relationSelection=id;structureSelection=null;activeTab='detail';document.body.classList.add('details-open');
+    if(innerWidth<760)document.body.classList.remove('filters-open');renderDetail();
+  }
+  function renderRelationDetail(){
+    const drawn=network?.data?.edges.find(e=>e.id===relationSelection);if(!drawn){relationSelection=null;return false;}
+    const edge=graph.edges.find(e=>e.id===relationSelection)||drawn;
+    const kind=edge.extraction_type==='cooccurs'?'cooccurs':drawn.data.type;
+    const hierarchy=courseHierarchy().structure;
+    const title=id=>node(id)?.title||hierarchy.find(n=>n.id===id)?.title||id;
+    const from=title(drawn.source),to=title(drawn.target),directed=['prerequisite','contains','hierarchy'].includes(kind);
+    const meaning=kind==='prerequisite'?`${from} 是 ${to} 的前置知识。`:['contains','hierarchy'].includes(kind)?`${from} 包含 ${to}。`:kind==='confusable'?`${from} 与 ${to} 容易混淆。`:kind==='cooccurs'?`${from} 与 ${to} 在原文中共同出现。`:kind==='expressed'?`${origins[drawn.data.origin]} · ${drawn.data.relation}`:`${from} 与 ${to} 相关。`;
+    $('detailContent').innerHTML=`<h2>${esc(from)} ${directed?'→':'—'} ${esc(to)}</h2><p class="description">${esc(meaning)}</p>${(edge.reason||drawn.data.reason)?`<p class="description">${esc(edge.reason||drawn.data.reason)}</p>`:''}${kind==='expressed'?`<p class="evidence-ref">证据 ${esc(drawn.data.evidence_id)}</p>`:''}${documentProof(edge)}`;
+    return true;
   }
   function courseMenu(id,point){
     const concept=node(id),h=courseHierarchy(),item=concept||h.structure.find(s=>s.id===id);if(!item)return;
@@ -161,7 +192,7 @@
       if(!window.G6?.Graph)throw new Error('图谱加载失败，请刷新');
       let nodes=visibleNodes();const filter=$('relationFilter').value;
       const isExpression=$('structureView').value==='expressions';
-      const hierarchy=!isExpression&&filter==='all';
+      const hierarchy=!isExpression&&filter==='all'&&graph.nodes.length>0;
       const h=courseHierarchy();
       if(hierarchy)nodes=nodes.filter(n=>$('levelFilter').value==='concept'&&h.memberships.some(m=>m.target===n.id&&h.visible(m.source,true)));
       const ids=new Set(nodes.map(n=>n.id));
@@ -169,7 +200,7 @@
       const edges=isExpression?expressionRecords().flatMap(e=>(e.expressed_relations||[]).map((r,i)=>({id:`expressed_${e.id}_${i}`,source:r.source,target:r.target,type:'expressed',relation:r.relation,reason:r.quote,origin:e.origin,evidence_id:e.id}))).filter(e=>ids.has(e.source)&&ids.has(e.target)):graph.edges.filter(e=>ids.has(e.source)&&ids.has(e.target)&&(filter==='all'||e.type===filter));
       const pathIds=new Set(pathResult?.steps?.map(s=>s.node_id)||[]);
       renderColorLegend();
-      const data={nodes:nodes.map(n=>{const inferred=isExpression&&mapped.get(n.id)!=='learner_expression';return{id:n.id,data:{title:n.title+(inferred?`（${mapped.get(n.id)==='system_completion'?'补全':'推断'}）`:''),family_id:n.chapter_id,kind:'concept'},style:{fill:conceptFill(n),size:GraphEncoding.size(0,'concept'),stroke:n.id===selected?'#526580':GraphEncoding.outline(conceptFill(n)),lineWidth:n.id===selected?2:1,lineDash:inferred?[4,3]:undefined,opacity:(pathIds.size && !pathIds.has(n.id)) ? 0.3 : 1}};}),edges:edges.map(e=>({id:e.id,source:e.source,target:e.target,data:{label:e.type==='expressed'?e.relation:relations[e.type],reason:e.reason,origin:e.origin,relation:e.relation,evidence_id:e.evidence_id,type:e.type},style:{lineDash:['related','confusable'].includes(e.type)||(e.type==='expressed'&&e.origin!=='learner_expression')?[5,4]:undefined,endArrow:['prerequisite','contains','expressed'].includes(e.type),opacity:.35}}))};
+      const data={nodes:nodes.map(n=>{const inferred=isExpression&&mapped.get(n.id)!=='learner_expression';return{id:n.id,data:{title:n.title+(inferred?`（${mapped.get(n.id)==='system_completion'?'补全':'推断'}）`:''),family_id:n.chapter_id,kind:'concept'},style:{fill:conceptFill(n),size:GraphEncoding.size(0,'concept'),stroke:n.id===selected?'#526580':GraphEncoding.outline(conceptFill(n)),lineWidth:n.id===selected?2:1,lineDash:inferred?[4,3]:undefined,opacity:(pathIds.size && !pathIds.has(n.id)) ? 0.3 : 1}};}),edges:edges.map(e=>({id:e.id,source:e.source,target:e.target,data:{label:e.type==='expressed'?e.relation:relationLabel(e),reason:e.reason,origin:e.origin,relation:e.relation,evidence_id:e.evidence_id,type:e.extraction_type==='cooccurs'?'cooccurs':e.type},style:{lineDash:['related','confusable'].includes(e.type)||(e.type==='expressed'&&e.origin!=='learner_expression')?[5,4]:undefined,endArrow:['prerequisite','contains'].includes(e.type),opacity:.35}}))};
       if(hierarchy){
         const structures=h.structure.filter(s=>h.visible(s.id)&&($('levelFilter').value!=='root'||!s.parent_id)),present=new Set(structures.map(s=>s.id));
         for(const s of structures){
@@ -181,29 +212,19 @@
       const nextTopology=JSON.stringify([data.nodes.map(n=>n.id),data.edges.map(e=>[e.id,e.source,e.target])]);
       const el=$('graph');
       if(!renderer){
-        network=new NetworkView(el,id=>{if(!node(id))selectStructure(id);else selectNode(id);},id=>{
-          const e=renderer.getEdgeData(id);if(!e?.data||e.data.type==='hierarchy')return;
-          if(e.data.type==='expressed'){
-            const raw=learner.evidence.find(p=>p.id===e.data.evidence_id);if(raw){activeTab='evidence';selectNode(raw.node_id,false,false);}
-            toast(`${origins[e.data.origin]} · ${e.data.relation}：${e.data.reason}（证据 ${e.data.evidence_id}）`);
-          }else {
-            const relation=graph.edges.find(edge=>edge.id===id);
-            if(relation?.document_evidence?.length){$('detailContent').innerHTML=`<h2>${esc(node(relation.source)?.title)} → ${esc(node(relation.target)?.title)}</h2><p>${esc(relations[relation.type])} · ${esc(relation.reason)}</p>${documentProof(relation)}`;document.body.classList.add('details-open');}
-            else toast(`${relations[e.data.type]}：${e.data.reason}`);
-          }
-        },courseMenu);
+        network=new NetworkView(el,id=>{if(!node(id))selectStructure(id);else selectNode(id);},selectRelation,courseMenu);
         renderer=network.graph;network.bindControls();
       }
       await network.setData(data,topology!==nextTopology);topology=nextTopology;
       updateToolbar();
-      $('graphMessage').hidden=data.nodes.length>0;$('graphMessage').textContent=isExpression?'暂无表达记录':'暂无匹配';
+      $('graphMessage').hidden=data.nodes.length>0||!$('emptyCourse').hidden;$('graphMessage').textContent=isExpression?'暂无表达记录':'暂无匹配';
     }catch(error){$('graphMessage').hidden=false;$('graphMessage').textContent=error.message;console.error(error);}
     finally{renderBusy=false;if(renderAgain){renderAgain=false;renderGraph();}}
   }
   function heading(n){return `<h2>${esc(n.title)}</h2>${view==='draft'?'':badge(state(n.id))}${n.scope==='extension'?' <span class="notice-label">拓展</span>':''}`;}
   function documentProof(item){
     if(!item.document_id||!item.document_evidence?.length)return '';
-    return `<section class="detail-section document-proof"><h3>书籍原文</h3>${item.document_evidence.map(e=>`<blockquote>${esc(e.quote)}</blockquote><a href="/api/documents/${encodeURIComponent(item.document_id)}/source#page=${Number(e.page)}" target="_blank" rel="noopener noreferrer">${item.document_page_kind==='section'?'正文段':'PDF 页'} ${Number(e.page)} ↗</a>`).join('')}<p><a href="/documents?id=${encodeURIComponent(item.document_id)}">查看资料图谱 ↗</a></p></section>`;
+    return `<section class="detail-section document-proof"><h3>书籍原文</h3>${item.document_evidence.map(e=>`<blockquote>${esc(e.quote)}</blockquote><a href="/api/documents/${encodeURIComponent(item.document_id)}/source#page=${Number(e.page)}" target="_blank" rel="noopener noreferrer">${item.document_page_kind==='section'?'正文段':'PDF 页'} ${Number(e.page)} ↗</a>`).join('')}<p><a href="${esc(courseURL('/documents',{id:item.document_id}))}">查看资料图谱 ↗</a></p></section>`;
   }
   function bindJumps(){ $('detailContent').querySelectorAll('[data-jump]').forEach(b=>b.onclick=()=>selectNode(b.dataset.jump,true)); }
   function chips(ids,kind=''){return ids.map(id=>`<button class="chip ${kind}" data-jump="${esc(id)}">${esc(node(id)?.title||id)}</button>`).join('');}
@@ -214,7 +235,8 @@
   async function renderDetail(){
     const token=++detailToken,n=node(selected);
     document.querySelectorAll('.detail-tabs button').forEach(b=>{b.classList.toggle('active',b.dataset.tab===activeTab);b.setAttribute('aria-selected',String(b.dataset.tab===activeTab));});
-    document.querySelectorAll('.detail-tabs button').forEach(b=>{b.disabled=!!structureSelection&&b.dataset.tab!=='detail';});
+    document.querySelectorAll('.detail-tabs button').forEach(b=>{b.disabled=!!(structureSelection||relationSelection)&&b.dataset.tab!=='detail';});
+    if(relationSelection&&renderRelationDetail())return;
     if(structureSelection&&renderStructureDetail())return;
     if(!n){$('detailContent').innerHTML='<p class="empty">选择知识点查看内容、证据与建议。</p>';return;}
     if(activeTab==='evidence'){renderEvidence(n);return;}if(activeTab==='path'){renderPath(n,token);return;}
@@ -254,10 +276,13 @@
   async function loadStudent(id,restore=false){
     const token=++loadToken,result=await api(`?${new URLSearchParams({student_id:view==='draft'?'':id,view})}`);
     if(token!==loadToken)return;
-    graph=result.graph;learner=result.learner||{};summary=result.summary||{};publication=result.publication||{};student=view==='draft'?'':id;pathResult=null;
+    graph=result.graph;learner=result.learner||{};summary=result.summary||{};publication=result.publication||{};student=view==='draft'?'':id;pathResult=null;relationSelection=null;structureSelection=null;
     if(view==='published')try{localStorage.setItem('learningAgent.student',id);}catch{}
     $('workbench').hidden=!graph;$('unpublished').hidden=!!graph;updateStats();
-    if(!graph)return;
+    if(!graph){
+      try{const response=await fetch('/api/courses'),data=await response.json(),course=data.courses?.find(c=>c.id===courseId||(!courseId&&c.is_default));if(course){$('activeCourseTitle').textContent=course.title;document.title=course.title+' · 待发布';}}catch{}
+      return;
+    }
     if(!selected){chapter='all';selected=graph.nodes[0]?.id;}
     if(restore&&learner.profile?.current_position?.node_id&&node(learner.profile.current_position.node_id)){selected=learner.profile.current_position.node_id;chapter=node(selected).chapter_id;}
     syncSelection();renderSidebar();renderDetail();await renderGraph();
@@ -265,7 +290,7 @@
 
   function renderEvidence(n){
     const ns=nodeState(n.id), proofs=(learner.evidence||[]).filter(e=>e.node_id===n.id).slice().reverse(), diagnoses=(learner.diagnoses||[]).filter(d=>d.node_id===n.id).slice().reverse();
-    if(view==='draft'){$('detailContent').innerHTML=`${heading(n)}<a class="button subtle" href="/">进入课程</a>`;return;}
+    if(view==='draft'){$('detailContent').innerHTML=`${heading(n)}${publication.published_version?`<a class="button subtle" href="${esc(courseURL('/knowledge'))}">查看发布版</a>`:''}`;return;}
     $('detailContent').innerHTML=`${heading(n)}<p class="muted">掌握时间：${date(ns.last_mastered_at)}<br/>下次复测：${date(ns.due_at)}</p>${!student?'<div class="path-note">请加载学习编号</div>':`
       <h3 class="mini-title">1. 保存原始证据</h3><form id="evidenceForm" class="form-stack">
       <label>来源身份<select id="evidenceOrigin">${Object.entries(origins).map(([k,v])=>`<option value="${k}">${v}</option>`).join('')}</select></label>
@@ -354,8 +379,19 @@
     graph=result.graph;summary=result.summary||summary;syncSelection();updateStats();renderSidebar();renderDetail();renderGraph();toast(`工作草稿已保存 · v${graph.version}`);
   }
   function renderManager(){
+    updateToolbar();
+    if(document.querySelector(`[data-mode="${mode}"]`)?.hidden)mode='node';
     document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('active',b.dataset.mode===mode));
-    if(mode==='node')renderNodeEditor(selected);if(mode==='edge')renderEdgeEditor();if(mode==='resource')renderResourceEditor();if(mode==='audit')renderAudit();if(mode==='blueprints')renderBlueprints();if(mode==='publish')renderPublish();if(mode==='import')renderImport();if(mode==='extract')renderExtract();
+    if(mode==='node')renderNodeEditor(selected);if(mode==='edge')renderEdgeEditor();if(mode==='course')renderCourseEditor();if(mode==='resource')renderResourceEditor();if(mode==='audit')renderAudit();if(mode==='blueprints')renderBlueprints();if(mode==='publish')renderPublish();if(mode==='import')renderImport();if(mode==='extract')renderExtract();
+  }
+  function renderCourseEditor(){
+    const chapterField=c=>`<label>章节名称<input id="chapterTitle_${esc(c.id)}" data-chapter-title="${esc(c.id)}" value="${esc(c.title)}" required maxlength="200"/></label>`;
+    $('managerBody').innerHTML=`<form id="courseEditor" class="form-stack">${field('editCourseTitle','课程名称',graph.title,'required maxlength="200"')}<div id="chapterTitles" class="form-stack">${graph.chapters.map(chapterField).join('')}</div><div class="form-actions"><button id="addChapter" class="button subtle" type="button">添加章节</button><button class="button subtle" type="submit">保存</button></div></form>`;
+    $('addChapter').onclick=()=>{const id='chapter_'+crypto.randomUUID().replaceAll('-','').slice(0,12);$('chapterTitles').insertAdjacentHTML('beforeend',chapterField({id,title:''}));$(`chapterTitle_${id}`).focus();};
+    $('courseEditor').onsubmit=event=>{event.preventDefault();busy(event.submitter,async()=>{
+      const next=clone(graph);next.title=$('editCourseTitle').value.trim();next.chapters=[...$('chapterTitles').querySelectorAll('[data-chapter-title]')].map(input=>({...clone(graph.chapters.find(c=>c.id===input.dataset.chapterTitle)||{id:input.dataset.chapterTitle,description:''}),title:input.value.trim()}));
+      await saveGraph(next);renderCourseEditor();
+    });};
   }
   async function renderAudit(){
     $('managerBody').innerHTML='<p class="empty">正在核查图谱与参考依据…</p>';
@@ -367,9 +403,9 @@
     }catch(error){if(mode==='audit')$('managerBody').innerHTML=`<p class="empty error-detail">${esc(error.message)}</p>`;}
   }
   function renderNodeEditor(id){
-    const current=node(id),n=current||{id:'',title:'',description:'',chapter_id:graph.chapters[0].id,objectives:[],aliases:[],misconception:'',source_ids:[],review_status:'draft'};
-    $('managerBody').innerHTML=`<form id="nodeEditor" class="form-stack"><label>知识点<select id="editPick"><option value="">新建知识点</option>${options(graph.nodes,n.id)}</select></label><div class="manager-grid">${field('editId','稳定编号',n.id,`required maxlength="64" ${n.id?'readonly':''}`)}${field('editTitle','名称',n.title,'required maxlength="200"')}<label>学习单元<select id="editChapter">${options(graph.chapters,n.chapter_id)}</select></label>${field('editAliases','别名（逗号分隔）',n.aliases.join('，'))}<label class="span-2">定义与概念边界<textarea id="editDescription" rows="3" maxlength="4000" required>${esc(n.description)}</textarea></label><label>可观察学习目标（每行一条）<textarea id="editObjectives" rows="3">${esc(n.objectives.join('\n'))}</textarea></label><label>典型误解<textarea id="editMisconception" rows="3" maxlength="2000">${esc(n.misconception)}</textarea></label><label>诊断问题<textarea id="editQuestion" rows="3" maxlength="4000">${esc(n.check_question||'')}</textarea></label><label>教师参考判据<textarea id="editAnswer" rows="3" maxlength="4000">${esc(n.expected_answer||'')}</textarea></label>${field('editSources','概念出处 ID（逗号分隔）',n.source_ids.join(','))}<p class="muted">可用出处：${graph.sources.map(s=>`${esc(s.id)}：${esc(s.title)}`).join('<br/>')}</p></div>${reviewFields(n)}${current?'<button type="button" id="deleteNode" class="button danger node-delete">删除草稿节点</button>':''}</form>`;
-    $('editPick').value=n.id;$('editPick').onchange=e=>renderNodeEditor(e.target.value);
+    const current=node(id),n=current||{id:'node_'+crypto.randomUUID().replaceAll('-','').slice(0,12),title:'',description:'',chapter_id:graph.chapters[0].id,objectives:[],aliases:[],misconception:'',source_ids:[],review_status:'draft'};
+    $('managerBody').innerHTML=`<form id="nodeEditor" class="form-stack"><label>知识点<select id="editPick"><option value="">新建知识点</option>${options(graph.nodes,n.id)}</select></label><div class="manager-grid">${field('editId','稳定编号',n.id,`required maxlength="64" ${current?'readonly':''}`)}${field('editTitle','名称',n.title,'required maxlength="200"')}<label>学习单元<select id="editChapter">${options(graph.chapters,n.chapter_id)}</select></label>${field('editAliases','别名（逗号分隔）',n.aliases.join('，'))}<label class="span-2">定义与概念边界<textarea id="editDescription" rows="3" maxlength="4000">${esc(n.description)}</textarea></label><label>可观察学习目标（每行一条）<textarea id="editObjectives" rows="3">${esc(n.objectives.join('\n'))}</textarea></label><label>典型误解<textarea id="editMisconception" rows="3" maxlength="2000">${esc(n.misconception)}</textarea></label><label>诊断问题<textarea id="editQuestion" rows="3" maxlength="4000">${esc(n.check_question||'')}</textarea></label><label>教师参考判据<textarea id="editAnswer" rows="3" maxlength="4000">${esc(n.expected_answer||'')}</textarea></label>${field('editSources','概念出处 ID（逗号分隔）',n.source_ids.join(','))}<p class="muted">可用出处：${graph.sources.map(s=>`${esc(s.id)}：${esc(s.title)}`).join('<br/>')}</p></div>${reviewFields(n)}${current?'<button type="button" id="deleteNode" class="button danger node-delete">删除草稿节点</button>':''}</form>`;
+    $('editPick').value=current?n.id:'';$('editPick').onchange=e=>renderNodeEditor(e.target.value);
     $('nodeEditor').onsubmit=event=>{event.preventDefault();busy(event.submitter,async()=>{
       const value={...clone(n),id:$('editId').value.trim(),title:$('editTitle').value.trim(),chapter_id:$('editChapter').value,description:$('editDescription').value,objectives:$('editObjectives').value.split('\n').map(x=>x.trim()).filter(Boolean),misconception:$('editMisconception').value,aliases:splitIds($('editAliases').value),source_ids:splitIds($('editSources').value),check_question:$('editQuestion').value,expected_answer:$('editAnswer').value};
       applyReview(value,event.submitter.value);
@@ -386,6 +422,7 @@
     });
   }
   function renderEdgeEditor(id=''){
+    if(graph.nodes.length<2){mode='node';renderManager();return;}
     const existing=graph.edges.find(e=>e.id===id),e=existing||{id:'',source:selected||graph.nodes[0].id,target:graph.nodes.find(n=>n.id!==selected)?.id||graph.nodes[0].id,type:'prerequisite',reason:'',source_ids:[],review_status:'draft'};
     $('managerBody').innerHTML=`<form id="edgeEditor" class="form-stack"><label>选择关系<select id="edgePick"><option value="">新建关系</option>${options(graph.edges,e.id,x=>`${node(x.source)?.title} / ${relations[x.type]} / ${node(x.target)?.title}`)}</select></label><div class="manager-grid"><label>节点 A<select id="edgeSource">${options(graph.nodes,e.source)}</select></label><label>节点 B<select id="edgeTarget">${options(graph.nodes,e.target)}</select></label><label>关系类型<select id="edgeType">${Object.entries(relations).map(([k,v])=>`<option value="${k}" ${k===e.type?'selected':''}>${v}</option>`).join('')}</select></label>${field('edgeSources','依据出处 ID（逗号分隔）',e.source_ids.join(','))}<label class="span-2">具体关系依据<textarea id="edgeReason" rows="3" maxlength="2000" required>${esc(e.reason)}</textarea></label></div>${reviewFields(e)}${existing?'<button id="deleteEdge" class="button danger node-delete" type="button">删除草稿关系</button>':''}</form>`;
     $('edgePick').value=e.id;$('edgePick').onchange=event=>renderEdgeEditor(event.target.value);
@@ -453,10 +490,13 @@
   document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{activeTab=b.dataset.tab;renderDetail();});
   document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>{mode=b.dataset.mode;renderManager();});
   $('manageButton').onclick=()=>{if(graph){renderManager();$('manager').showModal();}};document.querySelector('.close-dialog').onclick=()=>$('manager').close();
+  const addNode=()=>{if(!graph)return;mode='node';renderManager();renderNodeEditor('');$('manager').showModal();$('editTitle').focus();};
+  $('addNodeButton').onclick=addNode;$('emptyAddNode').onclick=addNode;
+  $('addEdgeButton').onclick=()=>{if(!graph||graph.nodes.length<2)return;mode='edge';renderManager();renderEdgeEditor();$('manager').showModal();};
   $('profileButton').onclick=()=>{renderProfile();$('profileDialog').showModal();};$('closeProfile').onclick=()=>$('profileDialog').close();
   $('profileInlineButton').onclick=()=>{renderProfile();$('profileDialog').showModal();};
   $('resumeButton').onclick=()=>{const id=learner.profile?.current_position?.node_id;if(node(id)){activeTab='detail';selectNode(id,true,false);toast('已恢复上次知识节点。');}else toast('上次节点不在当前发布版本中，请重新选择。',true);};
-  $('reportButton').onclick=event=>{if(!student){toast('请从正式课程加载匿名编号。',true);return;}busy(event.target,async()=>download(await api(`/learner/export?student_id=${encodeURIComponent(student)}`),`${student}-画像与原始证据.json`));};
+  $('reportButton').onclick=event=>{if(!student){toast('请先加载学习编号。',true);return;}busy(event.target,async()=>download(await api(`/learner/export?student_id=${encodeURIComponent(student)}`),`${student}-画像与原始证据.json`));};
   let initial='';if(view==='published')try{initial=localStorage.getItem('learningAgent.student')||'';}catch{}
   $('studentId').value=initial;
   NetworkView.bindTheme(()=>network?.redraw());updateToolbar();

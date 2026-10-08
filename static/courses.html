@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>课程</title>
+  <script src="/static/theme.js?v=16"></script>
+  <link rel="stylesheet" href="/static/courses.css?v=18"/>
+  <script defer src="/static/courses.js?v=18"></script>
+</head>
+<body>
+  <header class="toolbar"><button id="newCourseButton">新建课程</button><a href="/documents">资料库</a><button id="themeButton">深色</button></header>
+  <main>
+    <h1>课程</h1>
+    <p id="courseError" class="error" role="alert" hidden></p>
+    <div id="courseList" class="course-list" aria-live="polite"><p class="muted">正在加载…</p></div>
+  </main>
+  <dialog id="createCourseDialog">
+    <div class="dialog-head"><h2>新建课程</h2><button id="closeCreateCourse" class="close" aria-label="关闭">×</button></div>
+    <form id="createCourseForm">
+      <label>课程名称<input id="newCourseTitle" required maxlength="200" autocomplete="off" autofocus/></label>
+      <fieldset><legend>创建方式</legend><label><input type="radio" name="createMethod" value="manual" checked/>手动建图</label><label><input type="radio" name="createMethod" value="book"/>导入书籍</label></fieldset>
+      <p id="createCourseError" class="error" role="alert" hidden></p>
+      <div class="dialog-actions"><button id="createCourseSubmit" type="submit">创建课程</button></div>
+    </form>
+  </dialog>
+</body>
+</html>

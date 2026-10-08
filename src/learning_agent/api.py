@@ -4,13 +4,14 @@ from __future__ import annotations
 import json
 import logging
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Depends, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.routing import APIRoute
 from starlette.concurrency import run_in_threadpool
 
 from .course_graph import MAX_JSON_BYTES, CourseGraphError, store, student_graph, validate_graph
+from .course_catalog import create_course, list_courses, resolve_course
 
 logger = logging.getLogger("learning_agent")
 
@@ -34,6 +35,12 @@ class ChineseRoute(APIRoute):
 
 
 router = APIRouter(prefix="/api/course-graph", tags=["课程图谱"], route_class=ChineseRoute)
+courses_router = APIRouter(prefix="/api/courses", tags=["课程"], route_class=ChineseRoute)
+
+
+def resolve_course_store(course_id: str = ""):
+    # Read the module variable at request time so isolated stores stay isolated.
+    return resolve_course(store, course_id)
 
 
 async def _body(request):
@@ -52,87 +59,98 @@ async def _body(request):
     return body
 
 
+@courses_router.get("")
+def courses():
+    return {"courses": list_courses(store)}
+
+
+@courses_router.post("")
+async def new_course(request: Request):
+    body = await _body(request)
+    return await run_in_threadpool(create_course, store, body.get("title"), body.get("chapter_title", "第一章"))
+
+
 @router.get("")
-def view(student_id: str = "", view: str = "published"):
-    return store.view(student_id, view)
+def view(student_id: str = "", view: str = "published", course_store=Depends(resolve_course_store)):
+    return course_store.view(student_id, view)
 
 
 @router.put("")
-async def save_graph(request: Request):
+async def save_graph(request: Request, course_store=Depends(resolve_course_store)):
     body = await _body(request)
-    return await run_in_threadpool(store.save_graph, body.get("graph"), body.get("expected_version"))
+    return await run_in_threadpool(course_store.save_graph, body.get("graph"), body.get("expected_version"))
 
 
 @router.post("/publish")
-async def publish(request: Request):
+async def publish(request: Request, course_store=Depends(resolve_course_store)):
     body = await _body(request)
-    return await run_in_threadpool(store.publish, body.get("expected_version"), body.get("published_by"), body.get("note"))
+    return await run_in_threadpool(course_store.publish, body.get("expected_version"), body.get("published_by"), body.get("note"))
 
 
 @router.get("/export")
-def export_graph(view: str = "published"):
-    graph = store.load_graph(view)
+def export_graph(view: str = "published", course_store=Depends(resolve_course_store)):
+    graph = course_store.load_graph(view)
     if view == "published":
         graph = student_graph(graph)
     return JSONResponse(graph, headers={"Content-Disposition": 'attachment; filename="course-graph.json"'})
 
 
 @router.get("/teacher/export")
-def export_teacher_graph(view: str = "published"):
-    return JSONResponse(store.load_graph(view), headers={"Content-Disposition": 'attachment; filename="teacher-course-graph.json"'})
+def export_teacher_graph(view: str = "published", course_store=Depends(resolve_course_store)):
+    return JSONResponse(course_store.load_graph(view), headers={"Content-Disposition": 'attachment; filename="teacher-course-graph.json"'})
 
 
 @router.post("/validate")
-async def validate(request: Request):
+async def validate(request: Request, course_store=Depends(resolve_course_store)):
     body = await _body(request)
-    return {"valid": True, "summary": validate_graph(body.get("graph"))}
+    return {"valid": True, "summary": validate_graph(body.get("graph"), allow_empty=True)}
 
 
 @router.get("/teacher/audit")
-def audit(view: str = "draft"):
+def audit(view: str = "draft", course_store=Depends(resolve_course_store)):
     from .graph_audit import audit_graph
-    graph = store.load_graph(view)
+    graph = course_store.load_graph(view)
     if graph is None:
         raise CourseGraphError("课程尚未发布，请在草稿工作台核查。", 404)
     return audit_graph(graph)
 
 
 @router.get("/learner/export")
-def export_learner(student_id: str):
-    return JSONResponse(store.load_learner(student_id), headers={"Content-Disposition": 'attachment; filename="learner-evidence.json"'})
+def export_learner(student_id: str, course_store=Depends(resolve_course_store)):
+    return JSONResponse(course_store.load_learner(student_id), headers={"Content-Disposition": 'attachment; filename="learner-evidence.json"'})
 
 
 @router.post("/evidence")
-async def evidence(request: Request):
-    return await run_in_threadpool(store.add_evidence, await _body(request))
+async def evidence(request: Request, course_store=Depends(resolve_course_store)):
+    return await run_in_threadpool(course_store.add_evidence, await _body(request))
 
 
 @router.post("/diagnoses")
-async def diagnosis(request: Request):
-    return await run_in_threadpool(store.add_diagnosis, await _body(request))
+async def diagnosis(request: Request, course_store=Depends(resolve_course_store)):
+    return await run_in_threadpool(course_store.add_diagnosis, await _body(request))
 
 
 @router.put("/profile")
-async def profile(request: Request):
-    return await run_in_threadpool(store.save_profile, await _body(request))
+async def profile(request: Request, course_store=Depends(resolve_course_store)):
+    return await run_in_threadpool(course_store.save_profile, await _body(request))
 
 
 @router.get("/path")
-def learning_path(target_id: str, student_id: str = "", view: str = "published"):
-    return store.learning_path(target_id, student_id, view)
+def learning_path(target_id: str, student_id: str = "", view: str = "published", course_store=Depends(resolve_course_store)):
+    return course_store.learning_path(target_id, student_id, view)
 
 
 @router.get("/recommendations")
-def recommendations(node_id: str, student_id: str = "", view: str = "published"):
-    return store.recommendations(node_id, student_id, view)
+def recommendations(node_id: str, student_id: str = "", view: str = "published", course_store=Depends(resolve_course_store)):
+    return course_store.recommendations(node_id, student_id, view)
 
 
 @router.post("/resource-use")
-async def resource_use(request: Request):
-    return await run_in_threadpool(store.record_resource_use, await _body(request))
+async def resource_use(request: Request, course_store=Depends(resolve_course_store)):
+    return await run_in_threadpool(course_store.record_resource_use, await _body(request))
 
 
 @router.post("/extract")
-async def extract(request: Request):
+async def extract(request: Request, course_store=Depends(resolve_course_store)):
     from .llm import extract_candidates
     return await run_in_threadpool(extract_candidates, await _body(request))

@@ -81,3 +81,16 @@ html.network-dark body,body.network-dark{background:var(--bg);color:var(--ink)}
 .network-dark :is(button,a,input,select,textarea):focus-visible{outline-color:#94b8d0}
 
 .network-dark .topbar :is(button,a,select):focus-visible{outline-color:var(--control-focus)}
+
+/* Course navigation has the same neutral button treatment as canvas controls. */
+.topbar .toolbar-link,.topbar nav .toolbar-link{display:inline-flex;align-items:center;border:1px solid var(--control-border);border-radius:4px;padding:7px 11px;background:var(--control-bg);color:var(--control-text);font-size:13px;font-weight:400;text-decoration:none;min-height:32px}
+.topbar .toolbar-link:hover,.topbar nav .toolbar-link:hover{background:var(--control-hover);border-color:var(--control-focus)}
+.topbar nav{gap:6px;height:auto}.topbar nav:has(>a[hidden]):not(:has(>a:not([hidden]))){display:none}
+.active-course-title{font-size:13px;max-width:240px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0 5px;color:var(--control-text)}
+.active-course-title:empty{display:none}
+.empty-course{position:absolute;z-index:3;left:50%;top:44%;transform:translate(-50%,-50%);text-align:center;width:min(420px,calc(100% - 36px));padding:28px}
+.empty-course h2{font-size:20px;font-weight:500;margin:0 0 24px;color:var(--ink)}
+.empty-course>div{display:flex;flex-wrap:wrap;justify-content:center;gap:12px}
+.empty-course .button{font-size:13px;white-space:nowrap}
+#chapterTitles{padding-top:10px}
+@media(max-width:600px){.active-course-title{max-width:min(220px,calc(100vw - 130px))}.topbar nav .toolbar-link{font-size:13px}.empty-course{padding:18px}.empty-course h2{font-size:18px}}

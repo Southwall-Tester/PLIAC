@@ -5,20 +5,21 @@
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>资料图谱</title>
   <script src="/static/theme.js?v=16"></script>
-  <link rel="stylesheet" href="/static/documents.css?v=16"/>
+  <link rel="stylesheet" href="/static/documents.css?v=19"/>
   <link rel="stylesheet" href="/static/graph-menu.css?v=10"/>
   <script defer src="/static/vendor/g6-5.1.1.min.js"></script>
   <script defer src="/static/network-layout.js?v=1"></script>
   <script defer src="/static/graph-encoding.js?v=13"></script>
-  <script defer src="/static/network-view.js?v=16"></script>
-  <script defer src="/static/documents.js?v=15"></script>
+  <script defer src="/static/network-view.js?v=19"></script>
+  <script defer src="/static/documents.js?v=19"></script>
 </head>
 <body>
   <header class="toolbar">
+      <a id="coursesLink" class="toolbar-link" href="/courses">课程列表</a><span id="activeCourseTitle" class="active-course-title"></span><a id="editCourseLink" class="toolbar-link" href="/author" hidden>编辑图谱</a>
       <div class="network-actions">
       <button id="physicsSettings" hidden>布局设置</button><button id="stabilizeButton" hidden>整理</button><button id="themeButton">深色</button><button id="filtersButton" hidden aria-expanded="false">筛选</button><button id="labelsButton" hidden>隐藏标签</button><button id="statsButton" hidden>统计</button><select id="hierarchyLevel" hidden aria-label="显示层级"><option value="all">全部展开</option><option value="chapters">章节</option><option value="book">全书</option></select>
     </div>
-    <nav><button id="libraryButton" hidden>资料</button><button id="importButton" hidden disabled>加入课程草稿</button><button id="exportButton" hidden disabled>导出</button><a href="/author">课程</a></nav>
+    <nav><button id="libraryButton" hidden>资料</button><button id="importButton" hidden disabled>加入课程草稿</button><button id="exportButton" hidden disabled>导出</button></nav>
   </header>
   <main>
     <div id="graph" role="img" aria-label="资料知识图谱"></div>
@@ -42,7 +43,7 @@
   </main>
   <dialog id="physicsDialog"><div class="panel-head"><h2>布局设置</h2><button data-close="physicsDialog" aria-label="关闭布局设置">×</button></div><label>斥力<input id="repulsion" type="range" min="500" max="10000" step="100" value="3200"/></label><label>间距<input id="distance" type="range" min="50" max="240" step="5" value="115"/></label><button id="applyLayout" class="button">应用布局</button></dialog>
   <dialog id="statsDialog"><div class="panel-head"><h2>统计</h2><button data-close="statsDialog" aria-label="关闭统计">×</button></div><div id="statsContent"></div></dialog>
-  <dialog id="importDialog" class="import-dialog"><div class="panel-head"><h2>加入课程草稿</h2><button data-close="importDialog" aria-label="关闭导入">×</button></div><div class="import-summary"><label><input id="selectAll" type="checkbox" checked/>全选</label><span id="importCount"></span></div><div id="importNodes" class="import-nodes"></div><p id="importError" class="error-message" role="alert" hidden></p><div class="dialog-actions"><span id="draftVersion" class="muted"></span><button id="confirmImport" class="primary">加入草稿</button></div></dialog>
+  <dialog id="importDialog" class="import-dialog"><div class="panel-head"><h2>加入课程草稿</h2><button data-close="importDialog" aria-label="关闭导入">×</button></div><label class="target-course-label">目标课程<select id="targetCourse" aria-label="目标课程"></select></label><div class="import-summary"><label><input id="selectAll" type="checkbox" checked/>全选</label><span id="importCount"></span></div><div id="importNodes" class="import-nodes"></div><p id="importError" class="error-message" role="alert" hidden></p><div class="dialog-actions"><span id="draftVersion" class="muted"></span><button id="confirmImport" class="primary">加入草稿</button></div></dialog>
   <div id="toast" role="status" aria-live="polite" hidden></div>
 </body>
 </html>

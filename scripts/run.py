@@ -17,7 +17,11 @@ sys.path.insert(0, str(ROOT / "src"))
 def existing(port):
     try:
         with urllib.request.urlopen(f"http://127.0.0.1:{port}/health", timeout=1) as response:
-            return json.load(response).get("app") == "learning-agent"
+            if json.load(response).get("app") != "learning-agent":
+                return False
+        # An older server may share the assets while lacking the course catalog API.
+        with urllib.request.urlopen(f"http://127.0.0.1:{port}/api/courses", timeout=2) as response:
+            return isinstance(json.load(response).get("courses"), list)
     except (OSError, ValueError):
         return False
 
@@ -45,7 +49,7 @@ def main():
         except OSError:
             candidate.close()
             if existing(port):
-                url = f"http://127.0.0.1:{port}/author"
+                url = f"http://127.0.0.1:{port}/courses"
                 print(f"工作台已在运行：{url}")
                 if not args.no_browser:
                     webbrowser.open(url)
@@ -53,7 +57,7 @@ def main():
     if listener is None:
         print("连续 10 个端口均不可用，请通过 --port 指定其他端口。")
         return 1
-    url = f"http://127.0.0.1:{port}/author"
+    url = f"http://127.0.0.1:{port}/courses"
     server = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=port, log_level="info"))
     if not args.no_browser:
         def ready():
@@ -64,7 +68,7 @@ def main():
                     return
                 time.sleep(.1)
         threading.Thread(target=ready, daemon=True).start()
-    print(f"教师图谱工作台：{url}\n正式课程入口：http://127.0.0.1:{port}/\n关闭窗口或按 Ctrl+C 停止服务。", flush=True)
+    print(f"课程入口：{url}\n关闭窗口或按 Ctrl+C 停止服务。", flush=True)
     try:
         server.run(sockets=[listener])
     finally:

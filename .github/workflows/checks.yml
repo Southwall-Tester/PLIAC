@@ -27,6 +27,7 @@ jobs:
       - run: node --check static/network-layout.js
       - run: node --check static/graph-encoding.js
       - run: node --check static/documents.js
+      - run: node --check static/courses.js
 
   browser:
     runs-on: ubuntu-latest
@@ -41,6 +42,7 @@ jobs:
       - run: python -X utf8 tests/test_ui_books.py
       - run: python -X utf8 tests/test_ui_network.py
       - run: python -X utf8 tests/test_ui_documents.py
+      - run: python -X utf8 tests/test_ui_courses.py
       - uses: actions/upload-artifact@v4
         if: always()
         with:

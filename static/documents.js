@@ -5,6 +5,8 @@
   const names={prerequisite:'前置',contains:'包含',related:'关联',confusable:'易混淆',cooccurs:'共现',structure:'包含'};
   const statusNames={queued:'排队中',parsing:'解析中',extracting:'提取中',completed:'已生成',partial:'部分完成',failed:'生成失败',cancelled:'已取消'};
   const activeStates=new Set(['queued','parsing','extracting']);
+  const pageParams=new URL(location.href).searchParams;
+  let targetCourseId=pageParams.get('course_id')||'',courseChoices=[],draftRequest=0;
   let current=null,graph=null,shownSignature='',listSignature='',timer=null,loadToken=0,toastTimer=null,uploading=false,draftVersion=null;
   let structure=[],memberships=[],collapsed=new Set(),filterTimer=null;
   const network=new NetworkView($('graph'),selectNode,selectEdge,documentMenu);
@@ -40,6 +42,15 @@
   function sourceURL(page){return `/api/documents/${encodeURIComponent(current.id)}/source${page?`#page=${Number(page)}`:''}`;}
   function openLibrary(){ $('libraryPanel').hidden=false;$('closeLibrary').hidden=!current;updateToolbar();refreshList().catch(error=>showError('libraryError',error.message)); }
   function closeLibrary(){if(current){$('libraryPanel').hidden=true;updateJob();}}
+  function showTargetCourse(){
+    const course=courseChoices.find(c=>c.id===targetCourseId);
+    $('activeCourseTitle').textContent=course?.title||'';$('editCourseLink').hidden=!course;
+    if(course)$('editCourseLink').href='/author?'+new URLSearchParams({course_id:course.id});
+  }
+  async function readCourses(){
+    const response=await fetch('/api/courses'),data=await response.json();if(!response.ok)throw new Error(data.detail||'课程列表读取失败。');
+    courseChoices=data.courses||[];showTargetCourse();return courseChoices;
+  }
 
   async function refreshList(){
     const data=await api();const docs=data.documents||[];const signature=JSON.stringify(docs.map(d=>[d.id,d.status,d.updated_at,d.stats]));
@@ -123,7 +134,7 @@
     const encoding=GraphEncoding.documentFamilies(structure,memberships);
     $('encodingLegend').hidden=false;
     $('colorLegend').innerHTML=encoding.families.map(f=>`<span data-family="${escape(f.id)}"><i style="background:${f.color}"></i>${escape(f.title)}</span>`).join('');
-    await network.setData({nodes:data.nodes.map(n=>{const e=encoding.encoding(n.id),container=e.kind!=='concept';return {id:n.id,data:{title:n.title,family_id:e.family_id,family_title:e.family_title,kind:e.kind,depth:e.depth},style:{fill:e.fill,size:e.size,...(container?{lineWidth:2,labelFontWeight:600}:{})}};}),edges:data.edges.map(e=>({id:e.id,source:e.source,target:e.target,data:{label:names[e.type]||e.type},style:{endArrow:['prerequisite','contains','structure'].includes(e.type),lineDash:e.type==='cooccurs'?[4,4]:undefined,lineWidth:e.type==='structure'?1.5:1,opacity:e.type==='structure'?.3:.35}}))},true);
+    await network.setData({nodes:data.nodes.map(n=>{const e=encoding.encoding(n.id),container=e.kind!=='concept';return {id:n.id,data:{title:n.title,family_id:e.family_id,family_title:e.family_title,kind:e.kind,depth:e.depth},style:{fill:e.fill,size:e.size,...(container?{lineWidth:2,labelFontWeight:600}:{})}};}),edges:data.edges.map(e=>({id:e.id,source:e.source,target:e.target,data:{label:names[e.type]||e.type,type:e.type},style:{endArrow:['prerequisite','contains','structure'].includes(e.type),lineDash:e.type==='cooccurs'?[4,4]:undefined,lineWidth:e.type==='structure'?1.5:1,opacity:e.type==='structure'?.3:.35}}))},true);
     updateToolbar();
   }
   function revealSource(){ $('sourcePanel').hidden=false;if(innerWidth<750){$('filtersPanel').hidden=true;$('filtersButton').setAttribute('aria-expanded','false');} }
@@ -150,7 +161,14 @@
     }
     showGraphMenu(item.title,items,point);
   }
-  function selectEdge(id){const e=graph?.edges.find(e=>e.id===id);if(!e)return;const from=graph.nodes.find(n=>n.id===e.source),to=graph.nodes.find(n=>n.id===e.target);$('sourceTitle').textContent=`${from?.title||e.source} → ${to?.title||e.target}`;$('sourceContent').innerHTML=`<div class="source-type">${escape(names[e.type]||e.type)}</div><p class="source-description">${escape(e.reason||'')}</p>${renderEvidence(e.evidence)}`;revealSource();}
+  function selectEdge(id){
+    if(!graph)return;const e=graph.edges.find(e=>e.id===id)||visibleData().edges.find(e=>e.id===id);if(!e)return;
+    const nodes=[...structure,...graph.nodes],from=nodes.find(n=>n.id===e.source)?.title||e.source,to=nodes.find(n=>n.id===e.target)?.title||e.target;
+    const directed=['prerequisite','contains','structure'].includes(e.type);
+    const meaning=e.type==='prerequisite'?`${from} 是 ${to} 的前置知识。`:['contains','structure'].includes(e.type)?`${from} 包含 ${to}。`:e.type==='confusable'?`${from} 与 ${to} 容易混淆。`:e.type==='cooccurs'?`${from} 与 ${to} 在原文中共同出现。`:`${from} 与 ${to} 相关。`;
+    $('sourceTitle').textContent=`${from} ${directed?'→':'—'} ${to}`;
+    $('sourceContent').innerHTML=`<div class="source-type">${escape(names[e.type]||e.type)}</div><p class="source-description">${escape(meaning)}</p>${e.reason?`<p class="source-description">${escape(e.reason)}</p>`:''}${e.type==='structure'?'':renderEvidence(e.evidence)}`;revealSource();
+  }
   function updateStats(){const s=current?.stats||{};const items=[['页数',s.pages],['知识点',graph?.nodes?.length??s.nodes],['关系',graph?.edges?.length??s.edges],['章节',structure.filter(n=>n.parent_id).length],['文本片段',s.chunks],['OCR 页数',s.ocr_pages]];$('statsContent').innerHTML=`<div class="stat-grid">${items.map(([title,value])=>`<div><strong>${escape(value??0)}</strong><span>${title}</span></div>`).join('')}</div>`;}
   async function upload(file){
     if(uploading)return;if(!file)return;
@@ -165,10 +183,40 @@
     }catch(error){showError('libraryError',error.message);$('libraryPanel').hidden=false;}
     finally{uploading=false;$('fileInput').disabled=false;$('fileInput').value='';$('uploadProgress').hidden=true;updateToolbar();}
   }
-  async function readDraftVersion(){const response=await fetch('/api/course-graph?view=draft');const data=await response.json();if(!response.ok)throw new Error(data.detail||'课程草稿读取失败。');draftVersion=data.graph.version;$('draftVersion').textContent=`课程草稿 v${draftVersion}`;}
-  function updateImportCount(){const inputs=[...$('importNodes').querySelectorAll('input')],checked=inputs.filter(n=>n.checked).length;$('importCount').textContent=`已选 ${checked} / ${inputs.length}`;$('selectAll').checked=checked===inputs.length;$('selectAll').indeterminate=checked>0&&checked<inputs.length;$('confirmImport').disabled=!checked;}
-  async function openImport(){if(!graph)return;showError('importError','');$('importNodes').innerHTML=graph.nodes.map(n=>`<label><input type="checkbox" value="${escape(n.id)}" checked/><span>${escape(n.title)}</span></label>`).join('');$('importNodes').querySelectorAll('input').forEach(input=>input.onchange=updateImportCount);updateImportCount();$('importDialog').showModal();$('confirmImport').disabled=true;try{await readDraftVersion();updateImportCount();}catch(error){showError('importError',error.message);}}
-  $('confirmImport').onclick=()=>action($('confirmImport'),async()=>{showError('importError','');const ids=[...$('importNodes').querySelectorAll('input:checked')].map(n=>n.value);if(!ids.length)return;try{await api(`/${encodeURIComponent(current.id)}/import`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({expected_version:draftVersion,node_ids:ids})});$('importDialog').close();toast('已加入课程草稿');}catch(error){if(error.status===409){await readDraftVersion();showError('importError','课程草稿已更新，请核对后重新加入。');}else showError('importError',error.message);}});
+  async function readDraftVersion(){
+    const token=++draftRequest,id=targetCourseId;draftVersion=null;$('draftVersion').textContent='';updateImportCount();
+    if(!id)throw new Error('请选择目标课程。');
+    const response=await fetch('/api/course-graph?'+new URLSearchParams({view:'draft',course_id:id}));const data=await response.json();
+    if(token!==draftRequest||id!==targetCourseId)return;
+    if(!response.ok)throw new Error(data.detail||'课程草稿读取失败。');draftVersion=data.graph.version;$('draftVersion').textContent=`草稿 v${draftVersion}`;updateImportCount();
+  }
+  function updateImportCount(){const inputs=[...$('importNodes').querySelectorAll('input')],checked=inputs.filter(n=>n.checked).length;$('importCount').textContent=`已选 ${checked} / ${inputs.length}`;$('selectAll').checked=checked===inputs.length;$('selectAll').indeterminate=checked>0&&checked<inputs.length;$('confirmImport').disabled=!checked||draftVersion===null||!targetCourseId;}
+  async function openImport(){
+    if(!graph)return;showError('importError','');draftVersion=null;$('targetCourse').innerHTML='';$('targetCourse').disabled=true;
+    $('importNodes').innerHTML=graph.nodes.map(n=>`<label><input type="checkbox" value="${escape(n.id)}" checked/><span>${escape(n.title)}</span></label>`).join('');$('importNodes').querySelectorAll('input').forEach(input=>input.onchange=updateImportCount);updateImportCount();$('importDialog').showModal();
+    try{
+      await readCourses();
+      if(!targetCourseId)targetCourseId=courseChoices.find(c=>c.is_default||c.id==='ml_classification')?.id||'';
+      $('targetCourse').innerHTML=`<option value="">选择课程</option>`+courseChoices.map(c=>`<option value="${escape(c.id)}">${escape(c.title)}</option>`).join('');
+      $('targetCourse').value=targetCourseId;
+      if(!$('targetCourse').value){targetCourseId='';throw new Error('请选择目标课程。');}
+      showTargetCourse();await readDraftVersion();
+    }catch(error){showError('importError',error.message);}finally{$('targetCourse').disabled=false;updateImportCount();}
+  }
+  $('targetCourse').onchange=async()=>{
+    targetCourseId=$('targetCourse').value;showError('importError','');showTargetCourse();
+    const url=new URL(location.href);if(targetCourseId)url.searchParams.set('course_id',targetCourseId);else url.searchParams.delete('course_id');history.replaceState({},'',url);
+    try{await readDraftVersion();}catch(error){showError('importError',error.message);}
+  };
+  $('confirmImport').onclick=async()=>{
+    const ids=[...$('importNodes').querySelectorAll('input:checked')].map(n=>n.value);if(!ids.length||draftVersion===null||!targetCourseId)return;
+    $('confirmImport').disabled=true;$('targetCourse').disabled=true;showError('importError','');
+    try{
+      await api(`/${encodeURIComponent(current.id)}/import`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({expected_version:draftVersion,node_ids:ids,course_id:targetCourseId})});
+      $('importDialog').close();showTargetCourse();toast('已加入课程草稿');
+    }catch(error){if(error.status===409){try{await readDraftVersion();showError('importError','课程草稿已更新，请核对后重新加入。');}catch(failure){showError('importError',failure.message);}}else showError('importError',error.message);}
+    finally{$('targetCourse').disabled=false;updateImportCount();}
+  };
   $('selectAll').onchange=()=>{$('importNodes').querySelectorAll('input').forEach(input=>input.checked=$('selectAll').checked);updateImportCount();};
   $('uploadForm').onsubmit=e=>e.preventDefault();$('fileInput').onchange=e=>upload(e.target.files[0]);
   $('dropZone').onkeydown=e=>{if(['Enter',' '].includes(e.key)){e.preventDefault();$('fileInput').click();}};
@@ -189,7 +237,8 @@
   $('hideJobButton').onclick=()=>$('jobPanel').hidden=true;$('viewResultButton').onclick=()=>loadGraph().catch(error=>toast(error.message));
   $('exportButton').onclick=()=>{if(!graph)return;const blob=new Blob([JSON.stringify(graph,null,2)],{type:'application/json;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=`${current.title||'资料图谱'}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};
   let saved='';try{saved=localStorage.getItem('pliac-document-id')||'';}catch{}
-  const initial=new URL(location.href).searchParams.get('id')||saved;
+  const initial=pageParams.get('id')||(pageParams.get('new')==='1'?'':saved);
+  if(targetCourseId)readCourses().catch(error=>showError('libraryError',error.message));
   updateToolbar();
   refreshList().catch(error=>showError('libraryError',error.message));
   if(initial)loadDocument(initial).catch(error=>{remember('');showError('libraryError',error.message);$('libraryPanel').hidden=false;updateToolbar();});else schedulePoll();

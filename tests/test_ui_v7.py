@@ -290,6 +290,7 @@ def main():
                         for edge in expression_data["edges"]:
                             assert edge["data"]["type"] == "expressed"
                             assert edge["data"]["evidence_id"]
+                            assert edge["style"]["endArrow"] is False
                             assert bool(edge["style"].get("lineDash")) == (edge["data"]["origin"] != "learner_expression")
                         inferred_nodes = [n for n in expression_data["nodes"] if n["style"].get("lineDash")]
                         assert {n["id"] for n in inferred_nodes} == {"ml003", "ml004"}

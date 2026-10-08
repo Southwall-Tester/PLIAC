@@ -130,7 +130,7 @@ def _review(item):
         _date(item["reviewed_at"], "审核时间")
 
 
-def validate_graph(graph: dict) -> dict:
+def validate_graph(graph: dict, *, allow_empty=False) -> dict:
     """Validate the complete graph without changing it or writing any files."""
     _dict(graph, "课程图谱")
     try:
@@ -159,7 +159,7 @@ def validate_graph(graph: dict) -> dict:
             _fail("单次复习间隔不能超过 3650 天。")
     if intervals != sorted(set(intervals)):
         _fail("复习间隔须按递增顺序排列且不能重复。")
-    if not chapters or not nodes:
+    if not chapters or (not nodes and not allow_empty):
         _fail("课程至少需要一个章节和一个知识节点。")
     chapter_ids = _unique(chapters, "章节")
     source_ids = _unique(sources, "资料")
@@ -377,7 +377,7 @@ class CourseGraphStore:
             if not path.exists():
                 _fail("该课程版本尚未发布，不能用于正式学习记录。", 409)
             graph = _read_json(path)
-        validate_graph(graph)
+        validate_graph(graph, allow_empty=view == "draft")
         return graph
 
     def publication(self):
@@ -401,7 +401,7 @@ class CourseGraphStore:
         _fail("该课程版本中不存在此知识节点。", 404)
 
     def save_graph(self, graph, expected_version):
-        validate_graph(graph)
+        validate_graph(graph, allow_empty=True)
         _integer(expected_version, "预期草稿版本", 1)
         with self._writer():
             current = self.load_graph("draft")
@@ -433,6 +433,7 @@ class CourseGraphStore:
             graph = self.load_graph("draft")
             if graph["version"] != expected_version:
                 _fail("草稿已变化，请重新审核当前版本。", 409)
+            validate_graph(graph)
             pending = [item["id"] for item in [*graph["nodes"], *graph["edges"], *graph["resources"]] if item["review_status"] != "reviewed"]
             if pending:
                 _fail(f"还有 {len(pending)} 个节点、关系或资源未人工审核，不能发布。", 409)
