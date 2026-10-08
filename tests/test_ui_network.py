@@ -29,7 +29,7 @@ def expect_controls(page, *, visible=(), hidden=()):
 
 def assert_neutral_toolbar(page):
     page.mouse.move(0, page.viewport_size['height'] - 1)
-    page.wait_for_timeout(180)
+    page.wait_for_function("document.querySelector('.topbar').getAnimations({subtree:true}).every(animation=>animation.playState!=='running')")
     styles = page.locator('.topbar button:visible, .topbar .button:visible').evaluate_all('''elements => elements.map(element => {
       const style=getComputedStyle(element);
       return [style.color,style.backgroundColor,style.borderTopColor];
