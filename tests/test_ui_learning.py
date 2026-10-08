@@ -140,6 +140,18 @@ def main():
                     assert data['workspace']['reports'][0]['nodes'][1]['evidence_ids']
                     passed('Published course policy controls chapter progression; saved reports and exports retain evidence references')
 
+                    review.locator('#refreshButton').click()
+                    review.locator('#taskNode').select_option('c')
+                    review.locator('#taskQuestion').fill('新的合成诊断题：限制树深度会影响哪类表现？')
+                    review.locator('#taskAnswer').fill('合成教师参考：分别比较训练与验证表现。')
+                    review.locator('#taskRubric').fill('合成判据：区分两种数据集的表现。')
+                    for i in range(1,5): review.locator(f'#taskHint{i}').fill(f'合成提示 {i}')
+                    review.locator('#taskEditorForm button[type=submit]').click()
+                    expect(review.locator('#saveStatus')).to_contain_text('任务草稿已保存')
+                    assert store.load_graph('draft')['nodes'][2]['review_status'] == 'draft'
+                    assert store.load_graph()['nodes'][2]['check_task']['version'] == 1
+                    passed('Teacher can author versioned diagnostic questions; edits remain draft until renewed review and publication')
+
                     page.locator('[data-node="a"]').click()
                     expect(page.locator('#promptBadge')).to_have_text('已使用 1 级提示')
                     page.locator('#themeButton').click()

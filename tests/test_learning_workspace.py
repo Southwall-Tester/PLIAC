@@ -287,6 +287,24 @@ class WorkspaceTests(unittest.TestCase):
             self.assertEqual(client.post('/api/learning/onboard', json={}).status_code, 400)
             self.assertEqual(client.post('/api/learning/nonexistent', json={}).status_code, 404)
 
+    def test_teacher_task_edit_is_versioned_and_requires_new_review(self):
+        from fastapi.testclient import TestClient
+        with patch.object(api, "store", self.store), TestClient(app) as client:
+            old = self.store.load_graph()
+            body = {"expected_version":old["version"], "node_id":"a", "question":"New unseen question", "expected_answer":"Reference only",
+                    "rubric":["Observable criterion"], "hint_levels":["h1", "h2", "h3", "h4"]}
+            response = client.post('/api/learning/teacher/task', json=body)
+            self.assertEqual(response.status_code, 200)
+            draft = response.json()["graph"]
+            self.assertEqual(draft["nodes"][0]["check_task"]["version"], 2)
+            self.assertEqual(draft["nodes"][0]["review_status"], "draft")
+            self.assertEqual(self.store.load_graph(), old)
+            with self.assertRaises(CourseGraphError):
+                self.store.publish(draft["version"], "Synthetic publisher", "Must reject stale review")
+            self.assertEqual(client.post('/api/learning/teacher/task', json=body).status_code, 409)
+            body.update(expected_version=draft["version"], hint_levels=["Only one"])
+            self.assertEqual(client.post('/api/learning/teacher/task', json=body).status_code, 400)
+
 
 if __name__ == "__main__":
     unittest.main()

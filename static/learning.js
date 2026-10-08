@@ -59,6 +59,7 @@
     $('notice').textContent = state.course_changed ? '课程已有新发布版本。这里保留了原小节与作答，请安排新小节后继续。' : state.publication.notice;
     $('studentWorkspace').hidden = teacher || !state.course;
     $('teacherWorkspace').hidden = !teacher;
+    $('taskAuthoring').hidden = !teacher;
     $('onboarding').hidden = teacher || !state.course || state.workspace.onboarded;
     if (teacher) { renderTeacher(); return; }
     if (!state.course) return;
@@ -105,6 +106,18 @@
     $('policyChapter').innerHTML = (draftGraph?.chapters || []).map(c => `<option value="${esc(c.id)}">${esc(c.title)}</option>`).join('');
     if (draftGraph?.chapters.some(c => c.id === chapter)) $('policyChapter').value = chapter;
     renderPolicy();
+    const taskNode = $('taskNode').value;
+    $('taskNode').innerHTML = (draftGraph?.nodes || []).map(n => `<option value="${esc(n.id)}">${esc(n.title)}</option>`).join('');
+    if (draftGraph?.nodes.some(n => n.id === taskNode)) $('taskNode').value = taskNode;
+    renderTask();
+  }
+  function renderTask() {
+    const node = draftGraph?.nodes.find(n => n.id === $('taskNode').value);
+    $('taskQuestion').value = node?.check_question || '';
+    $('taskAnswer').value = node?.expected_answer || '';
+    $('taskRubric').value = (node?.check_task?.rubric || []).join('\n');
+    for (let i = 1; i <= 4; i++) $(`taskHint${i}`).value = node?.check_task?.hint_levels?.[i - 1] || '';
+    $('taskVersion').textContent = node?.check_task ? `草稿任务 v${node.check_task.version} · 修改内容会递增版本并退回节点审核。` : '此节点尚未配置正式诊断任务。';
   }
   function renderEvidence() {
     const nodeId = $('reviewNode').value;
@@ -166,6 +179,11 @@
   $('exportHandbook').onclick = () => download('个人知识手册.txt', state.handbook.map(h => `${h.title} · ${labels[h.status]}\n${h.reason}\n${h.concept}\n下一步：${h.next_step}\n证据：${h.evidence_ids.join(', ')}\n`).join('\n'), 'text/plain');
   $('reviewNode').onchange = renderEvidence;
   $('policyChapter').onchange = renderPolicy;
+  $('taskNode').onchange = renderTask;
+  $('taskEditorForm').onsubmit = event => { event.preventDefault(); run(async () => {
+    const result = await api('/api/learning/teacher/task', {node_id:$('taskNode').value, question:$('taskQuestion').value, expected_answer:$('taskAnswer').value, rubric:$('taskRubric').value.split('\n').map(x => x.trim()).filter(Boolean), hint_levels:[1,2,3,4].map(i => $(`taskHint${i}`).value), expected_version:draftGraph.version});
+    draftGraph = result.graph; renderTask(); $('saveStatus').textContent = '任务草稿已保存，请重新审核节点并发布';
+  }); };
   $('reviewForm').onsubmit = event => { event.preventDefault(); run(async () => {
     const nodeId = $('reviewNode').value;
     const ids = [...document.querySelectorAll('[data-evidence]:checked')].map(x => x.dataset.evidence);

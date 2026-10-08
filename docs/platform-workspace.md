@@ -4,6 +4,31 @@
 
 ## 模块与入口
 
+### 独立验证图谱版本
+
+图谱无需始终占据 main。`feat/knowledge-graph` 分支供单独验证或后续维护；`knowledge-graph-v0.4.2` 标签固定本轮平台开发之前的代码。精确提交为 [`02aacf1b8a442f168e146f83e0e72cb27f0033bb`](https://github.com/Southwall-Tester/PLIAC/commit/02aacf1b8a442f168e146f83e0e72cb27f0033bb)。分支后续可以向前推进，复现报告应记录完整 SHA。
+
+首次取代码：
+
+```powershell
+git clone --branch knowledge-graph-v0.4.2 https://github.com/Southwall-Tester/PLIAC.git PLIAC-graph
+cd PLIAC-graph
+git rev-parse HEAD
+pip install -r requirements-dev.txt
+python -m unittest discover -s tests -p "test_*.py"
+python scripts/check_assets.py
+python scripts/run.py
+```
+
+已有仓库可另建工作目录，保持当前平台分支与未提交文件不动：
+
+```powershell
+git fetch origin --tags
+git worktree add --detach ../PLIAC-graph-check 02aacf1b8a442f168e146f83e0e72cb27f0033bb
+```
+
+标签检出默认是 detached HEAD，适合验证；要在图谱上继续开发可 `git switch -c graph-validation`。源码版本包含内置课程种子和测试，不包含 `.gitignore` 排除的模型密钥、本地上传资料、`outputs` 建图结果和真实学习记录。需要复核某一本资料的实际建图结果时，应另提供经允许分享的输入和图谱导出，不能靠 Git 历史恢复未入库数据。
+
 | 部分 | 实现 | 作用 |
 | --- | --- | --- |
 | 平台装配 | `src/pliac/main.py` | 统一挂载课程、图谱、资料与学习接口 |
@@ -36,6 +61,8 @@
 学习写请求必须携带 `student_id`、`course_version`、`expected_version` 和 `request_id`。版本冲突返回 409，前端保留未提交文字，刷新后重试；同一请求 ID 的相同重试不重复添加证据，换成其他内容会拒绝。服务端校验学生归属、当前小节和课程版本，不信任客户端提交的提示等级。
 
 每个小节绑定课程 / 章节 / 节点 / 任务版本，保留材料快照、选点理由、资源筛选过程和已给提示。课程新版本发布后，旧小节继续可读但不能继续写入，需建立新小节。同一节点的同一道题即使换了版本号，已给提示也不清零；独立复测需要教师准备没有看过提示的新题。
+
+教师页「节点诊断任务」支持补题和换题，任务 ID 保持稳定，内容改变时递增任务版本；保存调用现有草稿审核失效机制。必须填写问题、参考答案、至少一条判据和四级提示，再经节点人工审核及课程发布后才能用于正式学习。学生接口仍不暴露未请求的提示、参考答案或评分判据。
 
 章节规则放在 `chapters[].completion_policy`：
 
