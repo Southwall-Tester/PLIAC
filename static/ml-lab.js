@@ -39,6 +39,8 @@
     const s=state.active;
     $('setup').hidden = !!s; $('workbench').hidden = !s;
     for(const [id,path] of [['learnLink','learn'],['graphLink','knowledge'],['reviewLink','review']]) $(id).href=`/${path}?course_id=ml_acceptance_demo&student_id=${encodeURIComponent(state.student_id)}`;
+    const originNode=new URLSearchParams(location.search).get('node_id');
+    if(originNode){$('learnLink').href+=`&node_id=${encodeURIComponent(originNode)}&view=study`;$('learnLink').textContent='返回讲义';}
     if (!s) {lockControls();return;}
     const scene=s.presentation || state.scenes[s.scene], task=state.tasks[s.step];
     $('sceneTitle').textContent=scene.title; $('mission').textContent=`你是${scene.role}。${scene.mission}`;
@@ -89,7 +91,8 @@
   }
   $('identityForm').addEventListener('submit',async e=>{
     e.preventDefault(); if(busy)return; error(); busy=true;
-    try {const student=$('studentId').value.trim(); state=await request(`?student_id=${encodeURIComponent(student)}`); localStorage.setItem('pliac-ml-student',student); const url=new URL(location);url.searchParams.set('student_id',student);history.replaceState(null,'',url);lastStep='';render();$('saveState').textContent='已恢复学习记录';}catch(e){error(e.message);}finally{busy=false;}
+    document.querySelectorAll('button,input,textarea,select').forEach(b=>b.disabled=true);
+    try {const student=$('studentId').value.trim(); state=await request(`?student_id=${encodeURIComponent(student)}`); localStorage.setItem('pliac-ml-student',student); const url=new URL(location);url.searchParams.set('student_id',student);history.replaceState(null,'',url);lastStep='';render();$('saveState').textContent='已恢复学习记录';}catch(e){error(e.message);}finally{busy=false;document.querySelectorAll('button,input,textarea,select').forEach(b=>b.disabled=false);lockControls();}
   });
   $('startForm').addEventListener('submit',e=>{e.preventDefault();operate('start',{scene:$('scene').value,goal:$('goal').value});});
   $('runForm').addEventListener('submit',e=>{e.preventDefault();operate('run',{config:{train_percent:Number($('trainPercent').value),depth:Number($('depth').value),features:$('features').value,split:$('split').value}});});
@@ -102,4 +105,5 @@
   downloadCode.onclick=async()=>{try{const data=await request(`/export?student_id=${encodeURIComponent(state.student_id)}`);const run=state.active.runs.at(-1);if(!run)return;const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([data.scripts[`experiment-${run.number}.py`]],{type:'text/x-python;charset=utf-8'}));a.download=`experiment-${run.number}.py`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);}catch(e){error(e.message);}};
   lockControls();
   $('identityForm').querySelectorAll('input,button').forEach(control=>control.disabled=false);
+  if(new URLSearchParams(location.search).has('student_id'))$('identityForm').requestSubmit();
 })();

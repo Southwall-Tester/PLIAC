@@ -18,7 +18,7 @@ def existing(port):
     try:
         with urllib.request.urlopen(f"http://127.0.0.1:{port}/health", timeout=1) as response:
             health = json.load(response)
-            if health.get("app") != "learning-agent" or "ml_lab" not in health.get("capabilities", []):
+            if health.get("app") != "learning-agent" or "course_home" not in health.get("capabilities", []):
                 return False
         # An older server may share the assets while lacking the course catalog API.
         with urllib.request.urlopen(f"http://127.0.0.1:{port}/api/courses", timeout=2) as response:
@@ -50,7 +50,7 @@ def main():
         except OSError:
             candidate.close()
             if existing(port):
-                url = f"http://127.0.0.1:{port}/courses"
+                url = f"http://127.0.0.1:{port}/"
                 print(f"工作台已在运行：{url}")
                 if not args.no_browser:
                     webbrowser.open(url)
@@ -58,7 +58,7 @@ def main():
     if listener is None:
         print("连续 10 个端口均不可用，请通过 --port 指定其他端口。")
         return 1
-    url = f"http://127.0.0.1:{port}/courses"
+    url = f"http://127.0.0.1:{port}/"
     server = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=port, log_level="info"))
     if not args.no_browser:
         def ready():

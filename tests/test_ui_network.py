@@ -111,7 +111,7 @@ def main():
                       get(){return this.__View},set(View){this.__View=class extends View{
                         constructor(...args){super(...args);window.__network=this;}
                       }}});""")
-                    page.goto(url+'/')
+                    page.goto(url+'/knowledge')
                     expect(page.locator('#unpublished')).to_be_visible()
                     expect_controls(page, visible=('#themeButton', '#authorView'), hidden=(
                         '#physicsSettings', '#stabilizeButton', '#filtersButton', '#labelsButton',
@@ -454,7 +454,7 @@ def main():
                     fixture['learner'] = {'evidence': [], 'states': {}, 'profile': {}}
                     page.route(re.compile(r'/api/course-graph\?'), lambda route: route.fulfill(json=fixture))
                     page.set_viewport_size({'width':1440, 'height':900})
-                    page.goto(url+'/')
+                    page.goto(url+'/knowledge')
                     page.wait_for_function('window.__network?.data?.nodes.length===43 && !window.__network.busy')
                     expect_controls(page, visible=('#structureView',), hidden=('#manageButton', '#importDocuments', '#profileButton'))
                     page.locator('#structureView').select_option('expressions')

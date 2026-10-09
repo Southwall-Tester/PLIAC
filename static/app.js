@@ -11,6 +11,7 @@
   const formats = {video:'讲解视频',lesson:'解读教案',case:'案例资料',practice:'情境式实训',course:'补充课程'};
   const colors = {unknown:['#f7f0ff','#b09adb','#7650a3'],uncertain:['#fff8db','#e9ca76','#95700d'],needs_review:['#fff0f6','#e99bb6','#b43c69'],mastered:['#eafff3','#6bcaa4','#237851']};
   const view = ['/author','/admin'].includes(location.pathname) ? 'draft' : 'published';
+  $('coursesLink').href=view==='draft'?'/manage/courses':'/courses';
   const courseId = new URL(location.href).searchParams.get('course_id')||'';
   const courseURL = (path,extra={}) => {const params=new URLSearchParams({...extra,...(courseId?{course_id:courseId}:{})});return path+(params.size?'?'+params:'');};
   let graph = null, learner = {}, summary = {}, publication = {}, student = '', selected = '', chapter = 'all', activeTab = 'detail', mode = 'node';

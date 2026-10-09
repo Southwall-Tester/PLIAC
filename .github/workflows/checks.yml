@@ -30,6 +30,7 @@ jobs:
       - run: node --check static/graph-encoding.js
       - run: node --check static/documents.js
       - run: node --check static/courses.js
+      - run: node --check static/learning-home.js
       - run: node --check static/learning.js
       - run: node --check static/document-subgraphs.js
       - run: node --check static/ml-lab.js
@@ -55,6 +56,7 @@ jobs:
       - run: python -X utf8 tests/test_ui_acceptance_course.py
       - run: python -X utf8 tests/test_ui_document_subgraphs.py
       - run: python -X utf8 tests/test_ui_ml_lab.py
+      - run: python -X utf8 tests/test_ui_course_home.py
       - uses: actions/upload-artifact@v4
         if: always()
         with:

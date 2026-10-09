@@ -67,6 +67,27 @@ class WorkspaceTests(unittest.TestCase):
                                         "status": status, "review_status": "reviewed", "reviewer": "Synthetic reviewer",
                                         "basis": "Synthetic explicit review", **values})
 
+    def test_questions_persist_source_and_evidence_without_grading(self):
+        lesson = self.start()
+        before = self.workspace.view('synthetic')['learner']
+        payload = self.payload(lesson_id=lesson['id'], text='Explain this concept again')
+        result = self.workspace.ask(payload)
+        turn = result['current_lesson']['discussions'][0]
+        paragraph = next(p for p in lesson['paragraphs'] if p['id'] == turn['source_paragraph_id'])
+        self.assertIn(paragraph['text'], turn['response'])
+        self.assertEqual(turn['response_origin'], 'course_material')
+        self.assertNotIn('TEACHER_ONLY', turn['response'])
+        evidence = next(e for e in result['learner']['evidence'] if e['id'] == turn['evidence_id'])
+        self.assertEqual(evidence['text'], payload['text'])
+        self.assertEqual(evidence['context']['kind'], 'learner_question')
+        self.assertEqual(result['learner']['diagnoses'], before['diagnoses'])
+        self.assertEqual({k: v['status'] for k, v in result['learner']['states'].items()},
+                         {k: v['status'] for k, v in before['states'].items()})
+        self.workspace.ask(payload)
+        restored = LearningWorkspace(self.store).view('synthetic')
+        self.assertEqual(len(restored['current_lesson']['discussions']), 1)
+        self.assertEqual(restored['current_lesson']['discussions'][0], turn)
+
     def test_unpublished_blocks_writes_without_changing_legacy_records(self):
         store = CourseGraphStore(self.seed, self.root / "unpublished")
         workspace = LearningWorkspace(store)

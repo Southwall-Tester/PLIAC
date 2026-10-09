@@ -21,7 +21,7 @@
     return text.replace('这只是教学算例，不是实际训练产出的性能承诺。', '')
       .replace('这里只报告实际观察，不宣称它对所有数据都成立。', '');
   }
-  let state, draftGraph, studentId = '', busy = false, annotationId, saveTimer, failedRequest;
+  let state, draftGraph, studentId = '', busy = false, annotationId, saveTimer, failedRequest, home;
   const storageKey = `pliac.student.${courseId}`;
   function error(message = '') { $('workspaceError').textContent = message; $('workspaceError').hidden = !message; }
   async function api(path, body, method = 'POST') {
@@ -56,6 +56,7 @@
     }
     const complete = state.chapters.length > 0 && state.chapters.every(c => c.passed);
     $('nextLesson').disabled = !state.workspace.onboarded || complete;
+    if(!teacher)$('studyTab').disabled=!state.workspace.onboarded;
     $('nextLesson').textContent = complete ? '本课程当前已完成' : demo && current && state.learner.states[current.node_id].status !== 'mastered' ? '安排补学 / 复测' : '安排下一小节';
   }
   async function mutate(operation, values = {}, {renderPage = true} = {}) {
@@ -75,7 +76,7 @@
   }
   function render() {
     $('refreshButton').hidden = false; $('exportButton').hidden = false;
-    $('pageTitle').textContent = `${state.course?.title || '课程'} · ${teacher ? '教师复核' : '学习工作台'}`;
+    $('pageTitle').textContent = `${state.course?.title || '课程'}${teacher ? ' · 教师复核' : ''}`;
     $('notice').hidden = !!state.course && !state.course_changed;
     $('notice').textContent = state.course_changed ? '课程已有新发布版本。这里保留了原小节与作答，请安排新小节后继续。' : state.publication.notice;
     $('studentWorkspace').hidden = teacher || !state.course;
@@ -96,7 +97,7 @@
       if (select) select.value = item.value;
     }
     $('nodeList').innerHTML = state.course.chapters.map(c => `<h3>${esc(c.title)}</h3>${state.course.nodes.filter(n => n.chapter_id === c.id).map(n => `<button class="node-button ${state.current_lesson?.node_id === n.id ? 'active' : ''}" data-node="${esc(n.id)}" title="${esc(labels[state.learner.states[n.id].status])}"><span class="state-dot ${esc(state.learner.states[n.id].status)}"></span>${esc(n.title)}</button>`).join('')}`).join('');
-    renderLesson(); renderReports(); renderHandbook(); setAvailability();
+    renderLesson(); renderReports(); renderHandbook(); home?.render(state); setAvailability();
   }
   function renderLesson() {
     const lesson = state.current_lesson;
@@ -172,6 +173,8 @@
     if (teacher || !requestedNode || !state.workspace.onboarded) return;
     const node = requestedNode; requestedNode = null;
     if (state.course.nodes.some(n => n.id === node) && state.current_lesson?.node_id !== node) await mutate('next', {node_id:node});
+    const url=new URL(location.href);url.searchParams.delete('node_id');history.replaceState(null,'',url);
+    home?.show('study');
   }
   async function saveDraft() {
     clearTimeout(saveTimer);
@@ -182,14 +185,14 @@
     if (text === (state.workspace.drafts[lesson.id]?.text || '') && choice_id === (state.workspace.drafts[lesson.id]?.choice_id || '')) return;
     await mutate('draft', {lesson_id:lesson.id, text, ...(demo ? {choice_id} : {})}, {renderPage:false});
   }
-  $('themeButton').onclick = () => GraphTheme.toggle();
+  $('themeButton').onclick = () => { GraphTheme.toggle(); home?.theme(); };
   $('graphLink').href = `/knowledge?${query}`;
   $('authorLink').href = `/author?${query}`;
   $('roleLink').href = `${teacher ? '/learn' : '/review'}?${query}`;
   $('roleLink').textContent = teacher ? '学习工作台' : '教师复核';
   try { $('studentId').value = localStorage.getItem(storageKey) || ''; } catch {}
   $('studentId').value = new URLSearchParams(location.search).get('student_id') || $('studentId').value;
-  if (demo && !$('studentId').value) $('studentId').value = 'demo-' + crypto.randomUUID().slice(0,8);
+  if (!teacher && !$('studentId').value) $('studentId').value = 'learner-' + crypto.randomUUID().slice(0,8);
   function choiceValue() { return document.querySelector('[name=answerChoice]:checked')?.value || ''; }
   $('identityForm').onsubmit = event => { event.preventDefault(); run(async () => { await saveDraft(); studentId = $('studentId').value.trim(); await load(); $('labLink').href = `/ml-lab?student_id=${encodeURIComponent(studentId)}`; try { localStorage.setItem(storageKey, studentId); } catch {} }); };
   $('refreshButton').onclick = () => run(async () => { if (!teacher) await saveDraft(); await load(); });
@@ -198,9 +201,9 @@
     await mutate('onboard', {goals:$('goals').value, background:$('background').value, interests:$('interests').value.split(/[,，]/).map(x => x.trim()).filter(Boolean), self_assessments:selfAssessments});
     await openRequestedNode();
   }); };
-  $('profileButton').onclick = () => { $('onboarding').hidden = !$('onboarding').hidden; if (!$('onboarding').hidden) $('onboarding').scrollIntoView({behavior:'smooth'}); };
-  $('nextLesson').onclick = () => run(async () => { await saveDraft(); await mutate('next'); });
-  $('nodeList').onclick = event => { const button = event.target.closest('[data-node]'); if (button) run(async () => { await saveDraft(); await mutate('next', {node_id:button.dataset.node}); }); };
+  $('profileButton').onclick = () => { home?.show('overview'); $('onboarding').hidden = false; $('onboarding').scrollIntoView({behavior:'smooth'}); };
+  $('nextLesson').onclick = () => run(async () => { await saveDraft(); await mutate('next'); home?.show('study'); });
+  $('nodeList').onclick = event => { const button = event.target.closest('[data-node]'); if (button) { if(home?.mode==='overview'){home.select(button.dataset.node);return;} run(async () => { await saveDraft(); await mutate('next', {node_id:button.dataset.node}); home?.show('study'); }); } };
   function scheduleSave() { clearTimeout(saveTimer); saveTimer = setTimeout(() => { if (busy) scheduleSave(); else run(saveDraft); }, 900); }
   $('answerText').oninput = () => { $('saveStatus').textContent = '正在编辑'; scheduleSave(); };
   $('answerChoices').onchange = () => { $('saveStatus').textContent = '正在编辑'; scheduleSave(); };
@@ -215,6 +218,8 @@
   };
   $('cancelAnnotation').onclick = () => $('annotationDialog').close();
   $('annotationForm').onsubmit = event => { event.preventDefault(); run(async () => { await saveDraft(); await mutate('annotate', {lesson_id:state.current_lesson.id, paragraph_id:annotationId, quote:$('annotationQuote').value, question:$('annotationQuestion').value}); $('annotationDialog').close(); }); };
+  $('discussionForm').onsubmit = event => { event.preventDefault(); const text=$('discussionText').value.trim(); if(!text)return;run(async()=>{await saveDraft();await mutate('ask',{lesson_id:state.current_lesson.id,text});$('discussionText').value='';}); };
+  $('lessonLabLink').onclick = event => {event.preventDefault();run(async()=>{await saveDraft();location.assign($('lessonLabLink').href);});};
   $('chapterReports').onclick = event => { const button = event.target.closest('[data-report]'); if (button) run(async () => { await saveDraft(); await mutate('report', {chapter_id:button.dataset.report}); }); };
   $('exportButton').onclick = () => run(async () => { if (!teacher) await saveDraft(); const data = await api(`/api/course-graph/learner/export?${studentQuery()}`); download(`PLIAC-${studentId}.json`, JSON.stringify(data,null,2)); });
   $('exportHandbook').onclick = () => download('个人知识手册.txt', state.handbook.map(h => `${h.title} · ${labels[h.status]}\n${displayReason(h.reason)}\n${h.concept}\n下一步：${h.next_step}\n证据：${h.evidence_ids.join(', ')}\n`).join('\n'), 'text/plain');
@@ -237,4 +242,11 @@
     draftGraph = result.graph; renderPolicy(); $('saveStatus').textContent = '规则草稿已保存，请审核发布';
   }); };
   window.addEventListener('beforeunload', event => { if (state?.current_lesson && !teacher && ($('answerText').value !== (state.workspace.drafts[state.current_lesson.id]?.text || '') || choiceValue() !== (state.workspace.drafts[state.current_lesson.id]?.choice_id || ''))) { event.preventDefault(); event.returnValue = ''; } });
+  if(!teacher){
+    home=new LearningHome({error,displayReason,changeView:mode=>run(async()=>{await saveDraft();home.show(mode);}),study:id=>run(async()=>{await saveDraft();if(!state.current_lesson||state.current_lesson.node_id!==id)await mutate('next',{node_id:id});home.show('study');})});
+    run(async()=>{studentId=$('studentId').value.trim();await load();try{localStorage.setItem(storageKey,studentId);}catch{}});
+  }else{
+    $('learningTabs').hidden=true;
+    $('identityForm').querySelectorAll('input,button').forEach(control=>control.disabled=false);
+  }
 })();

@@ -40,7 +40,7 @@ def main():
                         return response.json()['graph']
 
                     def create(title, method):
-                        page.goto(base + '/courses')
+                        page.goto(base + '/manage/courses')
                         page.locator('#newCourseButton').click()
                         page.locator('#newCourseTitle').fill(title)
                         page.locator(f'input[name="createMethod"][value="{method}"]').check()
@@ -53,7 +53,7 @@ def main():
                             page.locator('#themeButton').click()
                         page.wait_for_timeout(350)
 
-                    page.goto(base + '/courses')
+                    page.goto(base + '/manage/courses')
                     expect(page.locator('[data-course-id]')).to_have_count(1)
                     assert not default_store.output_dir.exists()
                     report['checks'].append('Course list exposes the existing course without writing data')
@@ -133,7 +133,7 @@ def main():
                     report['checks'].append('Book extraction imports into the selected new course and preserves both another course and the original seed')
 
                     # Returning to the library must retain a bordered navigation control in both themes.
-                    course_link = page.locator('.toolbar a[href="/courses"]')
+                    course_link = page.locator('.toolbar a[href="/manage/courses"]')
                     for dark in (True, False):
                         theme(dark)
                         assert course_link.evaluate("e=>parseFloat(getComputedStyle(e).borderTopWidth)") >= 1

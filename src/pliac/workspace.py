@@ -249,6 +249,31 @@ class LearningWorkspace:
             self._event(workspace, "annotation", lesson_id=lesson["id"], evidence_id=record["id"])
         return self._mutate(payload, "annotate", apply)
 
+    def ask(self, payload):
+        """Persist a learner question and grounded course support, separate from grading."""
+        def apply(graph, learner, workspace):
+            lesson = self._lesson(payload, graph, workspace)
+            question = _text(payload.get("text"), "本节问题", 1200)
+            node = self.store._node(graph, lesson["node_id"])
+            discussions = lesson.setdefault("discussions", [])
+            if len(discussions) >= 100:
+                raise CourseGraphError("本节已有 100 条提问，请整理知识手册后继续。", 409)
+            paragraphs = [p for p in lesson["paragraphs"] if p.get("text")]
+            # Return stored teaching material. Never claim a live model answered the
+            # question or infer mastery from the system's explanatory completion.
+            wants_example = any(word in question for word in ("例子", "案例", "举例", "example"))
+            preferred = "example" if wants_example else "concept"
+            paragraph = next((p for p in paragraphs if p["id"] == preferred), paragraphs[0] if paragraphs else None)
+            content = paragraph["text"] if paragraph else node["description"]
+            heading = paragraph.get("heading", node["title"]) if paragraph else node["title"]
+            response = content + "\n\n对照这段内容，你卡住的是哪个词、哪个步骤，或哪个前置概念？请指出具体位置，我们把问题继续记在这一节。"
+            evidence = self._evidence(graph, learner, node, question, "dialog", context={"lesson_id": lesson["id"], "kind": "learner_question"})
+            discussions.append({"id": uuid.uuid4().hex, "question": question, "response": response,
+                                "evidence_id": evidence["id"], "source_paragraph_id": paragraph["id"] if paragraph else None,
+                                "source_heading": heading, "response_origin": "course_material", "created_at": self.store._stamp()})
+            self._event(workspace, "learner_question", lesson_id=lesson["id"], evidence_id=evidence["id"])
+        return self._mutate(payload, "ask", apply)
+
     def resource(self, payload):
         def apply(graph, learner, workspace):
             lesson = self._lesson(payload, graph, workspace)

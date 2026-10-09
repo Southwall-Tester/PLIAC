@@ -121,7 +121,7 @@ def main():
                         expect(page.locator("#toast")).to_contain_text("未人工审核")
                         passed("author: unreviewed publication rejected through UI")
 
-                        page.goto(url + "/")
+                        page.goto(url + "/knowledge")
                         expect(page.locator("#unpublished")).to_be_visible()
                         expect(page.locator("#workbench")).to_be_hidden()
                         screenshot("unpublished")
@@ -319,7 +319,7 @@ def main():
                         assert get()["graph"]["version"] == version
                         passed("author: edited draft preserves published course and version")
 
-                        page.goto(url + "/")
+                        page.goto(url + "/knowledge")
                         page.set_viewport_size({"width": 390, "height": 844})
                         expect(page.locator("#workbench")).to_be_visible()
                         expect(page.locator("#manageButton")).to_be_hidden()

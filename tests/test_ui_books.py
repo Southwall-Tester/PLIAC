@@ -143,7 +143,7 @@ def main():
                     response.raise_for_status()
 
                     page.set_viewport_size({"width": 1600, "height": 1100})
-                    page.goto(url + "/")
+                    page.goto(url + "/knowledge")
                     expect(page.locator("#workbench")).to_be_visible()
                     page.locator("#filtersButton").click()
                     page.locator("#studentId").fill(STUDENT)
