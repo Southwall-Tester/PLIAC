@@ -200,6 +200,8 @@ class LearningWorkspace:
             level += 1
             task = self.store.lesson_task(node, lesson) if getattr(self.store, "is_demo", False) else node["check_task"]
             text = task["hint_levels"][level - 1]
+            if getattr(self.store, "is_demo", False) and level == 4:
+                text += "\n" + task["explanation"]
             workspace["exposures"][lesson["task_key"]] = level
             lesson["prompt_level"] = level
             lesson["hints"].append({"level": level, "text": text, "created_at": self.store._stamp()})
@@ -218,7 +220,7 @@ class LearningWorkspace:
             text = payload.get("text")
             demo = getattr(self.store, "is_demo", False)
             if demo:
-                if lesson["responses"]:
+                if lesson["status"] == "assessed":
                     raise CourseGraphError("本小节已提交，请安排新的复测小节；原始作答已保留。", 409)
                 choice = self._choice(lesson, payload)
                 option = next(o for o in lesson["options"] if o["id"] == choice)

@@ -90,7 +90,7 @@ class AcceptanceCourseStore(CourseGraphStore):
         status = "mastered" if passed and independent else "uncertain" if passed else "needs_review"
         basis = ("本题独立作答通过。" if status == "mastered" else
                  "提示或解析后答对，需换题独立复测；若两题均已看过，请教师复核。" if passed else
-                 "本次选项未通过，请重读算例、按需查看提示，再安排本节点复测。")
+                 "先看方向提示，修改判断后再提交。")
         previous = [d for d in learner["diagnoses"] if d["node_id"] == node["id"]
                     and d.get("assessment_origin") == "objective_rule"]
         refs = [record["id"], *[e["id"] for e in learner["evidence"] if e["node_id"] == node["id"]
@@ -103,11 +103,13 @@ class AcceptanceCourseStore(CourseGraphStore):
         if status == "mastered":
             diagnosis["mastered_at"] = record["created_at"]
         learner["diagnoses"].append(diagnosis)
-        # Feedback exposes the solution. Future use of this exact question is assisted,
-        # even in a new lesson or after refresh. The submitted evidence stays immutable.
-        workspace["exposures"][lesson["task_key"]] = 4
-        lesson["prompt_level"] = 4
-        lesson["status"] = "assessed"
+        # Increase support after a wrong answer without exposing the solution early.
+        # The submitted evidence keeps its original assistance level.
+        level = 4 if passed else min(4, lesson["prompt_level"] + 1)
+        workspace["exposures"][lesson["task_key"]] = level
+        lesson["prompt_level"] = level
+        lesson["status"] = "assessed" if passed or level == 4 else "retry"
+        explanation = task["explanation"] if level == 4 else task["hint_levels"][level - 1]
         return {"passed": passed, "choice_id": choice, "error_code": None if passed else task["error_code"],
-                "feedback": basis, "explanation": task["explanation"], "assessment_origin": "objective_rule",
+                "feedback": basis, "explanation": explanation, "solution_revealed": level == 4, "assessment_origin": "objective_rule",
                 "diagnosis_id": diagnosis["id"], "status": status}

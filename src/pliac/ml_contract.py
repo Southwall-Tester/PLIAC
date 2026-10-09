@@ -1,0 +1,18 @@
+"""Versioned ML task contracts. Narratives never own assessment rules."""
+VERSION = 1
+SCENES = {
+    "space": {"title": "轨道站 · 设备预警", "role": "轨道站的数据分析员", "mission": "根据两路传感器读数识别需要检修的设备，让值班员提前安排检查。", "sample": "设备观测", "features": ["振动读数", "温度读数"], "target": "需要检修", "receipt": "检修回执"},
+    "ocean": {"title": "海洋站 · 样本分流", "role": "海洋站的数据分析员", "mission": "根据两路检测读数识别需要复查的样本，为下一批采样安排检测资源。", "sample": "采样记录", "features": ["光学读数", "电导读数"], "target": "需要复查", "receipt": "复查回执"},
+    "sport": {"title": "训练馆 · 器材巡检", "role": "训练馆的数据分析员", "mission": "根据两路器材读数识别需要维护的器材，为下一场训练准备设备。", "sample": "器材观测", "features": ["阻力读数", "回弹读数"], "target": "需要维护", "receipt": "维护回执"},
+}
+TASKS = [
+    {"id": "inspect", "title": "检查数据", "nodes": ["sample", "leakage"], "goal": "确定预测目标，选择预测发生时已经可获得的特征。", "acceptance": "提交目标列和特征列，并说明回执的产生时间。", "hints": ["比较每一列的产生时间。", "预测发生在处理之前，回执产生在处理之后。", "用 x1、x2 预测 target；receipt 是处理完成后产生的回执，应留在审计材料中。"]},
+    {"id": "split", "title": "划分数据", "nodes": ["partition", "roles"], "goal": "建立训练、验证、测试三份数据，并完成一次训练。", "acceptance": "训练与验证样本分离，训练集占 50%—70%，测试集固定为 20%。", "hints": ["检查实验结果中的样本数和重叠数。", "训练集拟合参数，验证集比较方案，测试集留到方案封存之后。", "选择独立划分、60% 训练集和双传感器特征，运行一次实验。"]},
+    {"id": "compare", "title": "比较模型", "nodes": ["complexity", "underfit", "overfit"], "goal": "观察模型复杂度变化如何影响训练和验证表现。", "acceptance": "在同一划分上比较深度 1 与自由生长的树，再判断训练表现较好而验证表现下降的原因。", "hints": ["并排观察训练准确率和验证准确率。", "保持数据划分相同，再比较两种深度。", "运行深度 1 和自由生长（深度 0）。训练表现高而验证表现下降，是泛化差距扩大的线索。"]},
+    {"id": "select", "title": "选择方案", "nodes": ["selection", "accuracy"], "goal": "补充一组中等深度实验，依据验证结果选择方案。", "acceptance": "同一划分至少比较三种深度，其中包含 2—8 的深度；选择验证准确率最高的实验并写下依据。", "hints": ["先明确哪份数据用于选择方案。", "补充中等深度，并保持其他条件相同。", "在深度 1、自由生长之外增加深度 2—8 的实验，选择其中验证准确率最高的记录。并列时均可。"]},
+    {"id": "deliver", "title": "封存与测试", "nodes": ["final"], "goal": "封存选定模型，读取测试结果，解释三类数据的职责。", "acceptance": "在测试前封存参数，完成一次测试并提交评估说明。", "hints": ["检查选择方案时使用的是哪份数据。", "测试结果用于报告已经选定方案的表现。", "先封存模型再测试；若根据测试结果继续调参，需要另备新的测试数据。"]},
+]
+
+
+def public_tasks():
+    return [{key: value for key, value in task.items() if key != "hints"} for task in TASKS]

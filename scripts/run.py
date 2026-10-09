@@ -18,7 +18,7 @@ def existing(port):
     try:
         with urllib.request.urlopen(f"http://127.0.0.1:{port}/health", timeout=1) as response:
             health = json.load(response)
-            if health.get("app") != "learning-agent" or "acceptance_course" not in health.get("capabilities", []):
+            if health.get("app") != "learning-agent" or "ml_lab" not in health.get("capabilities", []):
                 return False
         # An older server may share the assets while lacking the course catalog API.
         with urllib.request.urlopen(f"http://127.0.0.1:{port}/api/courses", timeout=2) as response:

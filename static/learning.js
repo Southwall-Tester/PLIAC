@@ -6,6 +6,7 @@
   const courseId = new URLSearchParams(location.search).get('course_id') || '';
   const demo = courseId === 'ml_acceptance_demo';
   const query = new URLSearchParams({course_id: courseId});
+  let requestedNode = new URLSearchParams(location.search).get('node_id');
   const labels = {unknown:'尚未涉及', uncertain:'待核验', needs_review:'需要补学', mastered:'当前已掌握'};
   // Old session snapshots keep their original wording on disk.
   function displayReason(text) {
@@ -50,7 +51,7 @@
     $('hintButton').disabled = !current?.task || current.prompt_level >= 4 || state.course_changed;
     $('answerForm').querySelector('button[type=submit]').disabled = !current || state.course_changed;
     $('saveDraftButton').disabled = !current || state.course_changed;
-    if (demo && current?.responses.length) {
+    if (demo && current?.status === 'assessed') {
       $('answerForm').querySelectorAll('button,input,textarea').forEach(b => b.disabled = true);
     }
     const complete = state.chapters.length > 0 && state.chapters.every(c => c.passed);
@@ -105,7 +106,7 @@
     const gaps = lesson.prerequisite_gaps.filter(i => i !== lesson.node_id);
     $('lessonContent').innerHTML = `<h3>${esc(lesson.title)}</h3><p class="reason">安排依据：${esc(displayReason(lesson.reason))}${gaps.length ? `<br>相关先修仍待核验：${gaps.map(i => esc(names[i] || i)).join('、')}` : ''}</p>${lesson.paragraphs.filter(p => p.text).map(p => `<div class="paragraph"><div class="paragraph-body">${p.heading ? `<h4>${esc(p.heading)}</h4>` : ''}<p>${esc(paragraphText(p.text))}</p></div><button data-paragraph="${esc(p.id)}">不明白</button></div>`).join('')}<div>${lesson.resources.length ? '<h3>可选学习材料</h3>' + lesson.resources.map(r => `<a class="resource-card" data-resource="${esc(r.id)}" href="${esc(r.url)}" target="_blank" rel="noopener noreferrer">${esc(r.title)}<small>${esc(r.organization)} · ${esc(r.applicable_segment || '')}</small></a>`).join('') : demo ? '' : '<p class="muted">暂无学习材料。</p>'}</div>${(lesson.sources || []).map(s => `<a class="resource-card" href="${esc(s.url)}" target="_blank" rel="noopener noreferrer">延伸阅读：${esc(s.title)}<small>${esc(s.locator)}</small></a>`).join('')}${lesson.annotations.length ? `<details><summary>已记录 ${lesson.annotations.length} 处困惑</summary>${lesson.annotations.map(a => `<p>${esc(a.question)}</p>`).join('')}</details>` : ''}`;
     $('questionText').textContent = lesson.question;
-    $('promptBadge').textContent = demo && lesson.responses.length ? '已显示本题解析' : lesson.prompt_level ? `已使用 ${lesson.prompt_level} 级提示` : '本题尚未使用提示';
+    $('promptBadge').textContent = demo && lesson.prompt_level === 4 ? '已显示本题解析' : lesson.prompt_level ? `已使用 ${lesson.prompt_level} 级提示` : '本题尚未使用提示';
     $('taskNotice').textContent = demo ? '' : lesson.task ? '提交后由教师复核。' : '请先记录理解与困惑，教师将补充诊断题。';
     $('taskNotice').hidden = !$('taskNotice').textContent;
     $('hintList').innerHTML = lesson.hints.map(h => `<div class="hint">提示 ${h.level}：${esc(h.text)}</div>`).join('');
@@ -165,6 +166,12 @@
     state = await api(`/api/learning${teacher ? '/teacher' : ''}?${studentQuery()}`);
     if (teacher) draftGraph = (await api('/api/course-graph?view=draft')).graph;
     render(); $('saveStatus').textContent = '已恢复最近保存的记录';
+    await openRequestedNode();
+  }
+  async function openRequestedNode() {
+    if (teacher || !requestedNode || !state.workspace.onboarded) return;
+    const node = requestedNode; requestedNode = null;
+    if (state.course.nodes.some(n => n.id === node) && state.current_lesson?.node_id !== node) await mutate('next', {node_id:node});
   }
   async function saveDraft() {
     clearTimeout(saveTimer);
@@ -181,13 +188,15 @@
   $('roleLink').href = `${teacher ? '/learn' : '/review'}?${query}`;
   $('roleLink').textContent = teacher ? '学习工作台' : '教师复核';
   try { $('studentId').value = localStorage.getItem(storageKey) || ''; } catch {}
+  $('studentId').value = new URLSearchParams(location.search).get('student_id') || $('studentId').value;
   if (demo && !$('studentId').value) $('studentId').value = 'demo-' + crypto.randomUUID().slice(0,8);
   function choiceValue() { return document.querySelector('[name=answerChoice]:checked')?.value || ''; }
-  $('identityForm').onsubmit = event => { event.preventDefault(); run(async () => { await saveDraft(); studentId = $('studentId').value.trim(); await load(); try { localStorage.setItem(storageKey, studentId); } catch {} }); };
+  $('identityForm').onsubmit = event => { event.preventDefault(); run(async () => { await saveDraft(); studentId = $('studentId').value.trim(); await load(); $('labLink').href = `/ml-lab?student_id=${encodeURIComponent(studentId)}`; try { localStorage.setItem(storageKey, studentId); } catch {} }); };
   $('refreshButton').onclick = () => run(async () => { if (!teacher) await saveDraft(); await load(); });
   $('onboardForm').onsubmit = event => { event.preventDefault(); run(async () => {
     const selfAssessments = Object.fromEntries([...document.querySelectorAll('[data-assess]')].filter(s => s.value).map(s => [s.dataset.assess,s.value]));
     await mutate('onboard', {goals:$('goals').value, background:$('background').value, interests:$('interests').value.split(/[,，]/).map(x => x.trim()).filter(Boolean), self_assessments:selfAssessments});
+    await openRequestedNode();
   }); };
   $('profileButton').onclick = () => { $('onboarding').hidden = !$('onboarding').hidden; if (!$('onboarding').hidden) $('onboarding').scrollIntoView({behavior:'smooth'}); };
   $('nextLesson').onclick = () => run(async () => { await saveDraft(); await mutate('next'); });

@@ -7,10 +7,10 @@
   <link rel="stylesheet" href="/static/theme.css?v=1">
   <link rel="stylesheet" href="/static/courses.css?v=18">
   <link rel="stylesheet" href="/static/learning.css?v=3">
-  <script defer src="/static/learning.js?v=3"></script>
+  <script defer src="/static/learning.js?v=4"></script>
 </head>
 <body>
-  <header class="toolbar"><a href="/courses">PLIAC · 课程</a><a id="graphLink" href="/knowledge">知识图谱</a><a id="roleLink" href="/review">教师复核</a><button id="themeButton">深色</button></header>
+  <header class="toolbar"><a href="/courses">PLIAC · 课程</a><a id="graphLink" href="/knowledge">知识图谱</a><a id="labLink" href="/ml-lab">机器学习 Lab</a><a id="roleLink" href="/review">教师复核</a><button id="themeButton">深色</button></header>
   <main class="workspace-main">
     <div class="page-heading"><h1 id="pageTitle">学习工作台</h1><span id="saveStatus" role="status"></span></div>
     <form id="identityForm" class="identity"><label>匿名学习编号<input id="studentId" required maxlength="64" pattern="[A-Za-z0-9_-]+" placeholder="例如 learner-01" autocomplete="off"></label><button type="submit">进入 / 恢复</button><button type="button" id="refreshButton" hidden>刷新状态</button><button type="button" id="exportButton" hidden>导出学习记录</button></form>

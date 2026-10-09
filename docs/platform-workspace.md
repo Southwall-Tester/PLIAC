@@ -87,4 +87,4 @@ git worktree add --detach ../PLIAC-graph-check 02aacf1b8a442f168e146f83e0e72cb27
 
 浏览器结果与截图保存在 `outputs/verification/learning-workspace-report.json`、`learning-workspace-desktop.png`、`learning-review-desktop.png`、`learning-workspace-mobile-dark.png`。测试不使用正式课程和学习记录。
 
-下一阶段按 v7 优先实现一个机器学习实训的完整链路：审核骨架与参数 → 个性化外观及一致性校验 → Docker 隔离执行与客观判定 → 错误归因 / 提示 → 证据、手册与复测。之后接入受控模型讲解、摄像头授权 / 关闭 / 回看、部署权限和真实学习者试跑。本机当前未发现 Docker 命令，且未配置 `config/models.json`；本轮没有声称这两条外部运行链已验收。
+0.7.0 已加入 [机器学习 Lab](ml-lab.md)：情境模板与任务判据分离，执行真实 scikit-learn 参数实验，完成数据检查、划分、比较、方案封存与测试，并保存提示、证据和新数据复测记录。它使用有界参数引擎，学生自由 Python 代码的 Docker 隔离执行仍需另行建设。后续工作包括初始实测与个性化教学编排、模型情境生成与语义复核、受控讲解、摄像头授权与回看、部署权限和真实学习者试跑。

@@ -6,3 +6,4 @@ python-multipart>=0.0.20,<1
 jieba>=0.42,<1
 # jieba 0.42 imports pkg_resources at runtime.
 setuptools>=70,<81
+scikit-learn>=1.7,<1.8

@@ -107,6 +107,20 @@ class AcceptanceTests(unittest.TestCase):
         self.assertEqual(repeated["prompt_level"], 4)
         self.assertEqual(self.answer(repeated)["learner"]["states"]["sample"]["status"], "uncertain")
 
+    def test_wrong_answer_increases_support_and_allows_retry(self):
+        lesson = self.start()
+        first = self.answer(lesson, choice_id="A")
+        response = first["current_lesson"]["responses"][0]
+        self.assertFalse(response["judgement"]["solution_revealed"])
+        self.assertEqual(first["current_lesson"]["status"], "retry")
+        self.assertEqual(response["prompt_level"], 0)
+        second = self.answer(lesson)
+        self.assertEqual(second["current_lesson"]["responses"][-1]["prompt_level"], 1)
+        self.assertEqual(second["learner"]["states"]["sample"]["status"], "uncertain")
+        self.assertTrue(second["current_lesson"]["responses"][-1]["judgement"]["solution_revealed"])
+        with self.assertRaises(CourseGraphError):
+            self.answer(lesson)
+
     def test_draft_restores_choice_and_validates_options(self):
         lesson = self.start()
         self.mutate("draft", lesson_id=lesson["id"], choice_id="B", text="Synthetic reasoning")
