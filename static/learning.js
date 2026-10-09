@@ -76,7 +76,6 @@
     }
   }
   function render() {
-    $('labLink').href = `/ml-lab?student_id=${encodeURIComponent(studentId)}`;
     $('refreshButton').hidden = false; $('exportButton').hidden = false;
     $('pageTitle').textContent = `${state.course?.title || '课程'}${teacher ? ' · 教师复核' : ''}`;
     $('notice').hidden = !!state.course && !state.course_changed;
@@ -198,7 +197,7 @@
   $('studentId').value = new URLSearchParams(location.search).get('student_id') || $('studentId').value;
   if (!teacher && !$('studentId').value) $('studentId').value = 'learner-' + crypto.randomUUID().slice(0,8);
   function choiceValue() { return document.querySelector('[name=answerChoice]:checked')?.value || ''; }
-  $('identityForm').onsubmit = event => { event.preventDefault(); run(async () => { await saveDraft(); studentId = $('studentId').value.trim(); await load(); $('labLink').href = `/ml-lab?student_id=${encodeURIComponent(studentId)}`; try { localStorage.setItem(storageKey, studentId); } catch {} }); };
+  $('identityForm').onsubmit = event => { event.preventDefault(); run(async () => { await saveDraft(); studentId = $('studentId').value.trim(); await load(); try { localStorage.setItem(storageKey, studentId); } catch {} }); };
   $('refreshButton').onclick = () => run(async () => { if (!teacher) await saveDraft(); await load(); });
   $('onboardForm').onsubmit = event => { event.preventDefault(); run(async () => {
     const selfAssessments = Object.fromEntries([...document.querySelectorAll('[data-assess]')].filter(s => s.value).map(s => [s.dataset.assess,s.value]));
@@ -224,7 +223,7 @@
   $('annotationForm').onsubmit = event => { event.preventDefault(); run(async () => { await saveDraft(); await mutate('annotate', {lesson_id:state.current_lesson.id, paragraph_id:annotationId, quote:$('annotationQuote').value, question:$('annotationQuestion').value}); $('annotationDialog').close(); }); };
   $('discussionForm').onsubmit = event => { event.preventDefault(); const text=$('discussionText').value.trim(); if(!text)return;run(async()=>{await saveDraft();await mutate('ask',{lesson_id:state.current_lesson.id,text});$('discussionText').value='';}); };
   $('lessonLabLink').onclick = event => {event.preventDefault();run(async()=>{await saveDraft();location.assign($('lessonLabLink').href);});};
-  $('labLink').onclick = event => {event.preventDefault();run(async()=>{await saveDraft();location.assign($('labLink').href);});};
+  $('courseLabList').onclick = event => {const link=event.target.closest('a');if(!link)return;event.preventDefault();run(async()=>{await saveDraft();location.assign(link.href);});};
   $('chapterReports').onclick = event => { const button = event.target.closest('[data-report]'); if (button) run(async () => { await saveDraft(); await mutate('report', {chapter_id:button.dataset.report}); }); };
   $('exportButton').onclick = () => run(async () => { if (!teacher) await saveDraft(); const data = await api(`/api/course-graph/learner/export?${studentQuery()}`); download(`PLIAC-${studentId}.json`, JSON.stringify(data,null,2)); });
   $('exportHandbook').onclick = () => run(async()=>{ await saveDraft(); render(); download('个人知识手册.txt', state.handbook.map(h => `${h.title} · ${labels[h.status]}\n${displayReason(h.reason)}\n${h.concept}\n下一步：${h.next_step}\n证据：${h.evidence_ids.join(', ')}\n`).join('\n') + '\n' + (study?.exportCards() || ''), 'text/plain'); });

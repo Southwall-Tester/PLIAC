@@ -8,6 +8,8 @@
     constructor(actions){
       this.actions=actions;this.mode=new URLSearchParams(location.search).get('view')==='study'?'study':'overview';this.selected=null;this.state=null;this.chapter='';this.renderVersion=0;
       document.body.classList.add('student-home');
+      this.activities={};
+      fetch('/static/course-activities.json',{cache:'no-store'}).then(response=>{if(!response.ok)throw new Error('课程实验入口加载失败，请刷新重试。');return response.json();}).then(data=>{this.activities=data;this.activitiesLoaded=true;this.renderActivities();}).catch(error=>actions.error(error.message));
       $('onboardSlot').appendChild($('onboarding'));
       $('overviewTab').onclick=()=>actions.changeView('overview');
       $('studyTab').onclick=()=>actions.changeView('study');
@@ -50,7 +52,20 @@
       $('overviewChapter').innerHTML='<option value="">全部章节</option>'+state.course.chapters.map(c=>`<option value="${esc(c.id)}">${esc(c.title)}</option>`).join('');
       if(!state.course.chapters.some(c=>c.id===this.chapter))this.chapter='';$('overviewChapter').value=this.chapter;
       $('graphLink').href=`/knowledge?course_id=${encodeURIComponent(state.course.id)}&student_id=${encodeURIComponent(state.learner.student_id)}`;
-      this.select(this.selected,false);this.renderSupport();this.layout();
+      this.select(this.selected,false);this.renderSupport();this.renderActivities();this.layout();
+    }
+    renderActivities(){
+      const s=this.state;if(!s?.course)return;
+      const configured=this.activities[s.course.id];
+      const labs=(Array.isArray(configured)?configured:[]).filter(lab=>typeof lab.href==='string'&&lab.href.startsWith('/')&&!lab.href.startsWith('//'));
+      $('courseLabs').hidden=!labs.length;
+      $('courseLabList').innerHTML=labs.map(lab=>{
+        const url=new URL(lab.href,location.origin);
+        if(url.origin!==location.origin)return '';
+        url.searchParams.set('course_id',s.course.id);url.searchParams.set('student_id',s.learner.student_id);
+        return `<article><h3>${esc(lab.title)}</h3><p>${esc(lab.description)}</p><a href="${esc(url.pathname+url.search)}">进入实验</a></article>`;
+      }).join('');
+      $('courseLabs').dataset.ready=String(!!this.activitiesLoaded);
     }
     select(id,focus=true){
       const s=this.state,n=s?.course.nodes.find(n=>n.id===id);if(!n)return;

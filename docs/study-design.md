@@ -6,6 +6,10 @@
 
 ML Lab 保持原有五步主线、实验引擎、提示、验收和迁移任务。本轮不向 Lab 加入回想、预测、反思问卷或混合辨析，只增加侧栏休息机会。
 
+## 课程实验入口
+
+课程总览的“课程实验”区域按 `static/course-activities.json` 中当前课程 ID 的配置展示入口；通用顶栏不放某一门课的专属实验。未配置实验的课程不显示该区域。当前机器学习课程配置 `/ml-lab`，进入时携带课程与学习编号；讲义下方仍保留相关实验入口。配置是已有实验能力的入口登记，不会自动生成或实现新的实验。
+
 ## 休息位置如何计算
 
 参考本地 LearnMargin 的 `src/learnmargin/study_rhythm.py`、`models.py::StudyLoad` 和 `references/learning-design.md`，采用“内容负荷 → 不可分割的完整任务块 → 跨块累计 → 选择邻近完整边界”的规划方式。来源项目：https://github.com/Southwall-Tester/LearnMargin 。[MIT 授权](third-party/LearnMargin-LICENSE.txt)。实现位于 `src/pliac/rhythm.py`。

@@ -3,3 +3,5 @@
 .map-heading{flex-wrap:wrap}.map-color-label{display:flex;align-items:center;gap:7px;font-size:12px;margin-left:auto}.map-color-label select{width:auto;padding:5px}.map-legend i{width:8px;height:8px;border-radius:50%}.map-relations-legend{font-size:11px;color:var(--muted);margin:14px 0 0}#knowledgeRelations{border-top:1px solid var(--line);margin-top:18px}#knowledgeRelations h3,#relationDetail h3{font-size:13px}#knowledgeRelations button{display:block;border:0;background:transparent;text-align:left;padding:5px 0;font-size:12px}#relationDetail{border-top:1px solid var(--line);font-size:12px;overflow-wrap:anywhere}#relationDetail a{display:block;margin:10px 0}#courseMap{height:500px}@media(max-width:700px){#courseMap{height:350px}}
 
 .concept-sources a{display:block;font-size:11px;margin:10px 0}.map-panel #courseMap{height:620px}@media(max-width:700px){.map-panel #courseMap{height:430px}}
+
+.course-labs{margin:0 0 18px}.course-labs h2{margin-top:0}.course-labs article{display:flex;align-items:center;gap:16px;flex-wrap:wrap}.course-labs h3,.course-labs p{margin:0}.course-labs p{flex:1;min-width:180px}.course-labs a{white-space:nowrap}
