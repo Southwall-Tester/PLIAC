@@ -39,6 +39,7 @@
       this.repulsion = 6500; this.distance = 145; this.gravity = 0.012;
     }
     setData(nodes, edges) {
+      this.anchorId=nodes.find(n=>n.data?.layout_anchor)?.id||null;
       this.nodes = nodes.map((n, i) => {
         if (!this.points.has(n.id)) {
           const angle = i * 2.3999632297, radius = 45 * Math.sqrt(i + 1);
@@ -78,6 +79,7 @@
         }
         movement=0;
         for(let i=0;i<count;i++){
+          if(nodes[i].id===this.anchorId){Object.assign(nodes[i],{x:0,y:0,vx:0,vy:0});continue;}
           const p=nodes[i],vx=(p.vx+fx[i])*0.76,vy=(p.vy+fy[i])*0.76;
           p.vx=vx>12?12:vx< -12?-12:vx;p.vy=vy>12?12:vy< -12?-12:vy;
           p.x+=p.vx;p.y+=p.vy;movement+=abs(p.vx)+abs(p.vy);

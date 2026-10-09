@@ -38,6 +38,18 @@ def main():
                         'course_id': 'ml_acceptance_demo', 'student_id': student}).json()
                 initial = state()
                 assert len(page.evaluate('__network.data.nodes')) == 10
+                assert page.evaluate(r'__network.data.nodes.every(n=>n.data.kind==="concept" && !/^\d/.test(n.data.title))')
+                assert page.evaluate('__network.data.edges.some(e=>e.source==="underfit" && e.target==="overfit" && e.data.type==="confusable" && !e.style.endArrow)')
+                assert page.evaluate('__network.data.edges.filter(e=>e.source==="complexity" && e.data.type==="prerequisite").length === 2')
+                page.locator('[data-node="underfit"]').click()
+                page.locator('[data-relation="knowledge_underfit_overfit_confusable"]').click()
+                expect(page.locator('#relationDetail')).to_contain_text('训练表现')
+                expect(page.locator('#relationDetail a')).to_have_count(1)
+                before_positions = page.evaluate('__network.force.positions()')
+                page.locator('#mapColorMode').select_option('mastery')
+                page.wait_for_function('__network.data.nodes.every(n=>n.style.fill === "#a8b0b8") && !__network.busy')
+                assert before_positions == page.evaluate('__network.force.positions()')
+                page.locator('#mapColorMode').select_option('family')
                 assert all(v['status'] == 'unknown' for v in initial['learner']['states'].values())
                 page.locator('#overviewChapter').select_option('data')
                 page.wait_for_function('__network.data.nodes.length === 5 && !__network.busy')
@@ -113,6 +125,22 @@ def main():
                 page.locator('#manageLink').click()
                 expect(page.locator('#newCourseButton')).to_be_visible()
                 passed('Mobile light/dark layouts fit; course authoring has its own management entry')
+                page.set_viewport_size({'width':1440,'height':1000})
+                page.goto(base + '/author')
+                page.wait_for_function('window.__network?.data?.nodes.some(n=>n.id==="course_root") && !__network.busy')
+                def centered_root():
+                    return page.evaluate('''() => {
+                        const n=__network,p=n.graph.getViewportByCanvas(n.graph.getElementPosition('course_root'));
+                        return Math.hypot(p[0]-n.element.clientWidth/2,p[1]-n.element.clientHeight/2)<2;
+                    }''')
+                assert centered_root()
+                point = page.evaluate('__network.force.points.get("course_root")')
+                assert abs(point['x']) < 1 and abs(point['y']) < 1
+                page.locator('#stabilizeButton').click()
+                page.wait_for_function('!__network.arranging && !__network.busy')
+                assert centered_root()
+                page.screenshot(path=str(OUTPUT / 'course-graph-centered-root.png'))
+                passed('Original full graph anchors its course root at the center on initial layout and explicit rearrange')
                 assert not report['page_errors'], report['page_errors']
                 browser.close()
     finally:

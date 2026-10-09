@@ -13,8 +13,10 @@
       $('studyTab').onclick=()=>actions.changeView('study');
       $('continueLesson').onclick=()=>{if(!this.state.workspace.onboarded){this.show('overview');$('onboarding').hidden=false;$('onboarding').scrollIntoView({behavior:'smooth',block:'start'});$('goals').focus();}else actions.study(this.selected);};
       $('overviewChapter').onchange=()=>{this.chapter=$('overviewChapter').value;this.drawMap();};
+      $('mapColorMode').onchange=()=>this.drawMap();
       $('fitCourseMap').onclick=()=>this.network?.fit();
       $('selectedPrerequisites').onclick=e=>{const b=e.target.closest('[data-prerequisite]');if(b)this.select(b.dataset.prerequisite);};
+      $('knowledgeRelations').onclick=e=>{const b=e.target.closest('[data-relation]');if(b)this.selectRelation(b.dataset.relation);};
       for(const [button,panel] of [['reportsLink','reportsPanel'],['handbookLink','handbookPanel']])$(button).onclick=()=>{this.show('study');$(panel).scrollIntoView({behavior:'smooth',block:'start'});};
     }
     show(mode){
@@ -58,17 +60,34 @@
       const pre=s.course.edges.filter(e=>e.type==='prerequisite'&&e.target===id).map(e=>s.course.nodes.find(n=>n.id===e.source)).filter(Boolean);
       $('selectedPrerequisites').innerHTML=pre.length?'相关前置知识<br>'+pre.map(n=>`<button data-prerequisite="${esc(n.id)}">${esc(n.title)}</button>`).join(''):'';
       if(focus)this.network?.setFocus(id);
+      $('relationDetail').hidden=true;
+      const names=s.course.knowledge_titles||{};
+      $('knowledgeRelations').innerHTML='<h3>知识关系</h3>'+s.course.edges.filter(e=>e.source===id||e.target===id).map(e=>{
+        const other=s.course.nodes.find(n=>n.id===(e.source===id?e.target:e.source));
+        const label=e.type==='prerequisite'?(e.target===id?'前置知识':'支撑知识'):({related:'关联',confusable:'易混淆',contains:e.source===id?'包含':'属于'}[e.type]||e.type);
+        return `<button data-relation="${esc(e.id)}">${esc(label)} · ${esc(names[other.id]||other.title)}</button>`;
+      }).join('');
+    }
+    selectRelation(id){
+      const g=this.state.course,e=g.edges.find(e=>e.id===id);if(!e)return;
+      const name=id=>g.knowledge_titles?.[id]||g.nodes.find(n=>n.id===id)?.title||id;
+      $('relationDetail').hidden=false;
+      $('relationDetail').innerHTML=`<h3>${esc(name(e.source))} ${['prerequisite','contains'].includes(e.type)?'→':'—'} ${esc(name(e.target))}</h3><p>${esc(e.reason)}</p>`+(e.source_ids||[]).map(id=>g.sources.find(s=>s.id===id)).filter(Boolean).map(s=>`<a href="${esc(s.url)}" target="_blank" rel="noopener noreferrer">${esc(s.title)}</a>`).join('');
     }
     async drawMap(){
       const state=this.state;if(!state?.course||this.mode!=='overview')return;
-      if(!this.network)this.network=new NetworkView($('courseMap'),id=>this.select(id));
+      if(!this.network){this.network=new NetworkView($('courseMap'),id=>this.select(id),id=>this.selectRelation(id));this.network.force.repulsion=18000;this.network.force.distance=190;}
       const nodes=state.course.nodes.filter(n=>!this.chapter||n.chapter_id===this.chapter),ids=new Set(nodes.map(n=>n.id));
-      const data={nodes:nodes.map(n=>({id:n.id,data:{title:n.title},style:{size:state.current_lesson?.node_id===n.id?23:17,fill:colors[state.learner.states[n.id]?.status||'unknown']}})),edges:state.course.edges.filter(e=>ids.has(e.source)&&ids.has(e.target)).map(e=>({id:e.id,source:e.source,target:e.target,data:{label:e.type==='prerequisite'?'前置':''},style:{endArrow:e.type==='prerequisite'||e.type==='contains',lineDash:e.type==='confusable'?[4,3]:undefined}}))};
+      const mastery=$('mapColorMode').value==='mastery';
+      const relationNames={prerequisite:'前置',related:'关联',confusable:'易混淆',contains:'包含'};
+      const data={nodes:nodes.map(n=>({id:n.id,data:{title:state.course.knowledge_titles?.[n.id]||n.title,kind:'concept',family_id:n.chapter_id},style:{size:18,fill:mastery?colors[state.learner.states[n.id]?.status||'unknown']:GraphEncoding.family(state.course.chapters.findIndex(c=>c.id===n.chapter_id))}})),edges:state.course.edges.filter(e=>ids.has(e.source)&&ids.has(e.target)).map(e=>({id:e.id,source:e.source,target:e.target,data:{label:relationNames[e.type]||e.type,type:e.type,reason:e.reason},style:{endArrow:e.type==='prerequisite'||e.type==='contains',lineDash:['confusable','related'].includes(e.type)?[4,3]:undefined,opacity:.42}}))};
+      $('mapLegend').innerHTML=(mastery?Object.entries(labels).map(([id,title])=>({title,color:colors[id]})):state.course.chapters.filter(c=>!this.chapter||c.id===this.chapter).map(c=>({title:c.title,color:GraphEncoding.family(state.course.chapters.indexOf(c))}))).map(x=>`<span><i style="background:${x.color}"></i>${esc(x.title)}</span>`).join('');
       const signature=JSON.stringify(data);
       if(this.mapSignature===signature)return;
       const revision=++this.renderVersion;
       this.mapSignature=signature;
-      try{await this.network.setData(data,true);if(revision!==this.renderVersion)return;await this.network.fit();$('courseMap').dataset.ready='true';}
+      const topology=JSON.stringify([data.nodes.map(n=>n.id),data.edges.map(e=>e.id)]),changed=topology!==this.mapTopology;this.mapTopology=topology;
+      try{await this.network.setData(data,changed);if(revision!==this.renderVersion)return;$('courseMap').dataset.ready='true';}
       catch(e){$('courseMap').dataset.ready='error';this.actions.error('知识地图加载失败，可从课程目录继续学习。');console.error(e);}
     }
     renderSupport(){

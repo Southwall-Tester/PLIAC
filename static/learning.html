@@ -7,17 +7,17 @@
   <link rel="stylesheet" href="/static/theme.css?v=1">
   <link rel="stylesheet" href="/static/courses.css?v=18">
   <link rel="stylesheet" href="/static/learning.css?v=5">
-  <link rel="stylesheet" href="/static/learning-home.css?v=1">
+  <link rel="stylesheet" href="/static/learning-home.css?v=2">
   <script defer src="/static/vendor/pixi-8.19.0.min.js"></script>
-  <script defer src="/static/network-layout.js?v=27"></script>
+  <script defer src="/static/network-layout.js?v=29"></script>
   <script defer src="/static/graph-encoding.js?v=27"></script>
   <script defer src="/static/network-pixi.js?v=27"></script>
-  <script defer src="/static/network-view.js?v=27"></script>
-  <script defer src="/static/learning-home.js?v=1"></script>
+  <script defer src="/static/network-view.js?v=29"></script>
+  <script defer src="/static/learning-home.js?v=2"></script>
   <script defer src="/static/learning.js?v=5"></script>
 </head>
 <body>
-  <header class="toolbar"><a href="/courses">PLIAC · 课程</a><nav id="learningTabs" aria-label="课程视图"><button id="overviewTab" type="button" aria-pressed="true">课程总览</button><button id="studyTab" type="button" aria-pressed="false">正在学习</button></nav><a id="graphLink" href="/knowledge">完整图谱</a><a id="labLink" href="/ml-lab" hidden>机器学习 Lab</a><details class="management-menu"><summary>管理</summary><div><a href="/manage/courses">课程管理</a><a id="roleLink" href="/review">教师复核</a><a href="/documents">资料库</a></div></details><button id="themeButton">深色</button></header>
+  <header class="toolbar"><a href="/courses">PLIAC · 课程</a><nav id="learningTabs" aria-label="课程视图"><button id="overviewTab" type="button" aria-pressed="true">课程总览</button><button id="studyTab" type="button" aria-pressed="false">正在学习</button></nav><a id="graphLink" href="/knowledge">完整图谱</a><a href="/documents">资料图谱</a><a id="labLink" href="/ml-lab" hidden>机器学习 Lab</a><details class="management-menu"><summary>管理</summary><div><a href="/manage/courses">课程管理</a><a id="roleLink" href="/review">教师复核</a><a href="/documents">资料库</a></div></details><button id="themeButton">深色</button></header>
   <main class="workspace-main">
     <div class="page-heading"><h1 id="pageTitle">学习工作台</h1><span id="saveStatus" role="status"></span></div>
     <form id="identityForm" class="identity"><label>匿名学习编号<input id="studentId" required maxlength="64" pattern="[A-Za-z0-9_-]+" placeholder="例如 learner-01" autocomplete="off" disabled></label><button type="submit" disabled>进入 / 恢复</button><button type="button" id="refreshButton" hidden>刷新状态</button><button type="button" id="exportButton" hidden>导出学习记录</button></form>
@@ -30,7 +30,7 @@
     <section id="studentWorkspace" class="workspace-grid" hidden>
       <aside class="panel navigation"><div class="section-heading"><h2>课程目录</h2><button id="profileButton">起点</button></div><div id="nodeList"></div><div class="navigation-footer"><button id="reportsLink">章节报告</button><button id="handbookLink">知识手册</button></div></aside>
       <div class="learning-column">
-        <section id="courseOverview" hidden><div class="overview-heading"><div><h2>这门课的知识路线</h2><p id="courseOverviewText" class="muted"></p></div><label>章节<select id="overviewChapter"><option value="">全部章节</option></select></label></div><div class="overview-grid"><section class="panel map-panel"><div class="map-heading"><h3>知识地图</h3><button id="fitCourseMap" type="button">适应画布</button></div><div id="courseMap" role="img" aria-label="课程知识点与关系，知识点也可从左侧目录选择"></div><div class="map-legend"><span><i class="state-dot mastered"></i>已掌握</span><span><i class="state-dot needs_review"></i>待补学</span><span><i class="state-dot uncertain"></i>待核验</span><span><i class="state-dot unknown"></i>尚未学习</span></div></section><aside class="panel next-card"><p id="selectedChapter" class="muted"></p><h2 id="selectedTitle"></h2><p id="selectedDescription"></p><p id="selectedState"></p><p id="selectedReason" class="muted"></p><button id="continueLesson" class="primary">确认学习起点</button><div id="overviewAdvance"></div><details id="selectedEvidence"><summary>查看学习依据</summary><div id="selectedEvidenceBody"></div></details><div id="selectedPrerequisites"></div></aside></div><div id="onboardSlot"></div></section>
+        <section id="courseOverview" hidden><div class="overview-heading"><div><h2>知识点图谱</h2><p id="courseOverviewText" class="muted"></p></div><label>章节<select id="overviewChapter"><option value="">全部章节</option></select></label></div><div class="overview-grid"><section class="panel map-panel"><div class="map-heading"><h3>知识关系</h3><label class="map-color-label">颜色<select id="mapColorMode"><option value="family">知识分组</option><option value="mastery">掌握状态</option></select></label><button id="fitCourseMap" type="button">适应画布</button></div><div id="courseMap" role="img" aria-label="课程知识点与关系，知识点也可从左侧目录选择"></div><div id="mapLegend" class="map-legend"></div><p class="map-relations-legend">箭头：前置、包含　虚线：关联、易混淆</p></section><aside class="panel next-card"><p id="selectedChapter" class="muted"></p><h2 id="selectedTitle"></h2><p id="selectedDescription"></p><p id="selectedState"></p><p id="selectedReason" class="muted"></p><button id="continueLesson" class="primary">确认学习起点</button><div id="overviewAdvance"></div><details id="selectedEvidence"><summary>查看学习依据</summary><div id="selectedEvidenceBody"></div></details><div id="selectedPrerequisites"></div><section id="knowledgeRelations"></section><section id="relationDetail" hidden></section></aside></div><div id="onboardSlot"></div></section>
         <div id="readingWorkspace" class="reading-grid" hidden>
         <section id="lessonPanel" class="panel"><div class="section-heading"><h2>当前讲义</h2><div id="studyAdvance"><button id="nextLesson" class="primary">安排下一小节</button></div></div><div id="lessonContent"><p class="muted">确认学习起点后，开始第一小节。</p></div><section id="contextualLab" class="contextual-lab" hidden><h3>把这一节放进实验</h3><p id="contextualLabText"></p><a id="lessonLabLink" href="/ml-lab">进入相关实验</a><p id="labReturnSummary" class="muted"></p></section></section>
         <div class="tutor-column">

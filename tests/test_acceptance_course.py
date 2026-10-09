@@ -62,6 +62,21 @@ class AcceptanceTests(unittest.TestCase):
             with self.assertRaises(CourseGraphError):
                 method(*args)
 
+    def test_knowledge_relations_are_separate_from_lesson_order(self):
+        graph = build_graph()
+        self.assertEqual(graph['learning_order'], [n['id'] for n in graph['nodes']])
+        edges = {(e['source'], e['target'], e['type']) for e in graph['edges']}
+        self.assertIn(('complexity', 'underfit', 'prerequisite'), edges)
+        self.assertIn(('complexity', 'overfit', 'prerequisite'), edges)
+        self.assertIn(('underfit', 'overfit', 'confusable'), edges)
+        self.assertIn(('roles', 'selection', 'prerequisite'), edges)
+        self.assertNotIn(('underfit', 'overfit', 'prerequisite'), edges)
+        self.assertFalse(any(e['source']=='leakage' and e['target']=='complexity' for e in graph['edges']))
+        for edge in graph['edges']:
+            self.assertTrue(edge['reason'])
+            self.assertTrue(edge['source_ids'])
+            self.assertTrue(set(edge['source_ids']) <= {s['id'] for s in graph['sources']})
+
     def test_full_course_reports_and_resume(self):
         self.mutate("onboard", self_assessments={"sample": "confident"})
         for node in build_graph()["nodes"]:

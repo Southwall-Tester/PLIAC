@@ -112,6 +112,12 @@ class LearningWorkspace:
         frontier = [i for i in unfinished if all(learner["states"][p]["status"] == "mastered" for p in dag.predecessors(i))]
         if not frontier:
             return None
+        # The authored route is a teaching preference, never a fabricated edge.
+        # Reuse the same task order and remedial loop for existing demo records.
+        if getattr(self.store, "is_demo", False) and graph.get("learning_order"):
+            route = graph["learning_order"]
+            return min(frontier, key=lambda i: (0 if learner["states"][i]["due"] or learner["states"][i]["status"] == "needs_review" else 1,
+                                                route.index(i)))
         # Unobserved tasks before waiting tasks; reviewed weaknesses and due reviews first.
         counts = {i: sum(x["node_id"] == i for x in workspace["lessons"]) for i in frontier}
         return min(frontier, key=lambda i: (0 if learner["states"][i]["due"] or learner["states"][i]["status"] == "needs_review" else 1,

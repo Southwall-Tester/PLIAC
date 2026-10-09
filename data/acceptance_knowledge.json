@@ -1,0 +1,38 @@
+{
+  "revision": 1,
+  "learning_order": ["sample", "partition", "roles", "accuracy", "leakage", "complexity", "underfit", "overfit", "selection", "final"],
+  "titles": {
+    "sample": "样本、特征与标签",
+    "partition": "数据集划分",
+    "roles": "训练集、验证集与测试集",
+    "accuracy": "分类准确率",
+    "leakage": "数据泄漏",
+    "complexity": "模型复杂度",
+    "underfit": "欠拟合",
+    "overfit": "过拟合",
+    "selection": "模型选择",
+    "final": "泛化评估"
+  },
+  "relations": [
+    {"source":"sample","target":"partition","type":"prerequisite","label":"前置","reason":"理解一个样本包含哪些输入与目标，才能确定数据划分的对象。","source_ids":["split"]},
+    {"source":"sample","target":"accuracy","type":"prerequisite","label":"前置","reason":"分类准确率比较预测类别与真实标签，需要先区分输入特征和目标标签。","source_ids":["metrics"]},
+    {"source":"sample","target":"complexity","type":"prerequisite","label":"前置","reason":"本课程通过决策树理解模型复杂度，需要先知道树使用特征预测标签。","source_ids":["curves"]},
+    {"source":"partition","target":"roles","type":"prerequisite","label":"前置","reason":"区分训练、验证与测试的职责，需要先理解它们来自不同的数据子集。","source_ids":["split"]},
+    {"source":"roles","target":"leakage","type":"prerequisite","label":"前置","reason":"识别验证或测试信息进入训练的问题，需要理解各数据集的信息边界。","source_ids":["leakage"]},
+    {"source":"roles","target":"selection","type":"prerequisite","label":"前置","reason":"使用验证结果选择模型，建立在区分训练、验证和测试职责的基础上。","source_ids":["split"]},
+    {"source":"accuracy","target":"underfit","type":"prerequisite","label":"前置","reason":"本课程用训练与验证准确率判断欠拟合，需要先能读懂准确率。","source_ids":["curves","metrics"]},
+    {"source":"accuracy","target":"overfit","type":"prerequisite","label":"前置","reason":"本课程通过训练与验证准确率的差异观察过拟合，需要先理解评价指标。","source_ids":["curves","metrics"]},
+    {"source":"complexity","target":"underfit","type":"prerequisite","label":"前置","reason":"理解模型表达能力受限，有助于解释过于简单的模型为何训练和验证表现都较差。","source_ids":["curves"]},
+    {"source":"complexity","target":"overfit","type":"prerequisite","label":"前置","reason":"理解模型复杂度，有助于解释模型为何可能过度适应训练数据。","source_ids":["curves"]},
+    {"source":"selection","target":"final","type":"prerequisite","label":"前置","reason":"先确定模型配置，再使用保留的测试集评估其对新数据的表现。","source_ids":["split"]},
+    {"source":"roles","target":"final","type":"prerequisite","label":"前置","reason":"泛化评估需要知道测试集承担最终独立评估的职责。","source_ids":["split"]},
+    {"source":"underfit","target":"overfit","type":"confusable","label":"易混淆","reason":"两者都可能导致验证表现较差；需结合训练表现区分表达能力不足与过度适应训练数据。","source_ids":["curves"]},
+    {"source":"leakage","target":"overfit","type":"confusable","label":"易混淆","reason":"泄漏涉及预测时不可用的信息或评估信息进入训练；过拟合涉及模型对训练样本的过度适应。二者都影响评估可信度，但成因不同。","source_ids":["leakage","curves"]},
+    {"source":"partition","target":"leakage","type":"related","label":"关联","reason":"先划分数据，再在训练集拟合预处理参数，是避免数据泄漏的一项措施。","source_ids":["leakage"]},
+    {"source":"accuracy","target":"selection","type":"related","label":"关联","reason":"在本课程固定的分类任务中，验证准确率是比较候选模型的评价依据。","source_ids":["split","metrics"]},
+    {"source":"overfit","target":"selection","type":"related","label":"关联","reason":"模型选择需要关注验证表现，避免因训练得分高而选择过拟合的模型。","source_ids":["curves"]},
+    {"source":"underfit","target":"selection","type":"related","label":"关联","reason":"比较候选复杂度时，训练与验证均差的模型提示应检查欠拟合。","source_ids":["curves"]},
+    {"source":"leakage","target":"final","type":"related","label":"关联","reason":"测试信息泄漏会使最终评价偏乐观，降低对新数据表现的估计可信度。","source_ids":["leakage","split"]},
+    {"source":"complexity","target":"selection","type":"related","label":"关联","reason":"本课程把决策树深度作为候选配置，通过验证结果选择合适复杂度。","source_ids":["curves"]}
+  ]
+}

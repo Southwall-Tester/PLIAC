@@ -11,9 +11,12 @@ NOTICE = ""
 
 def build_graph():
     source = json.loads((ROOT / "data/acceptance_course.json").read_text(encoding="utf-8"))
+    knowledge = json.loads((ROOT / "data/acceptance_knowledge.json").read_text(encoding="utf-8"))
     graph = {k: copy.deepcopy(source[k]) for k in ("id", "version", "title", "overview", "chapters", "sources")}
     graph.update(schema_version=1, delivery_mode="acceptance_demo", nodes=[], edges=[], resources=[],
                  review_policy={"intervals_days": [1, 7, 30]})
+    graph.update(knowledge_revision=knowledge["revision"], learning_order=knowledge["learning_order"],
+                 knowledge_titles=knowledge["titles"])
     for entry in source["nodes"]:
         tasks = []
         for index, question in enumerate(entry["questions"]):
@@ -29,10 +32,9 @@ def build_graph():
             "lesson_content": [{"id": key, "heading": heading, "text": entry[key]} for key, heading in
                                (("objective", "这一节学会什么"), ("concept", "理解概念"),
                                 ("example", "一起看一个例子"), ("pitfall", "容易出错的地方"))]})
-    for before, after in zip(graph["nodes"], graph["nodes"][1:]):
-        graph["edges"].append({"id": f"pre_{before['id']}_{after['id']}", "source": before["id"],
-            "target": after["id"], "type": "prerequisite", "reason": "示范课程从数据定义到模型评估的教学顺序。",
-            "source_ids": [], "review_status": "draft"})
+    for relation in knowledge["relations"]:
+        graph["edges"].append({**relation, "id": f"knowledge_{relation['source']}_{relation['target']}_{relation['type']}",
+                               "review_status": "draft"})
     for chapter in graph["chapters"]:
         chapter["completion_policy"] = {"mode": "all_required_mastered",
             "required_node_ids": [n["id"] for n in graph["nodes"] if n["chapter_id"] == chapter["id"]],

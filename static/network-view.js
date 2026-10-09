@@ -102,7 +102,18 @@
     }
     // Resolve current data when this operation runs, after earlier filter updates.
     redraw(){return this.enqueue(()=>this.data?this.drawData(this.data):undefined);}
-    async fit(){await this.graph.fitView();if(this.graph.getZoom()>1.15)await this.graph.zoomTo(1.15);}
+    async fit(){
+      await this.graph.fitView();
+      const anchor=this.data?.nodes.find(n=>n.data?.layout_anchor);
+      if(anchor){
+        const center=this.graph.getElementPosition(anchor.id);
+        let width=1,height=1;
+        for(const n of this.data.nodes){const p=this.graph.getElementPosition(n.id);width=Math.max(width,Math.abs(p[0]-center[0])+70);height=Math.max(height,Math.abs(p[1]-center[1])+45);}
+        await this.graph.zoomTo(Math.max(.08,Math.min(1.15,(this.element.clientWidth/2-30)/width,(this.element.clientHeight/2-30)/height)));
+        const at=this.graph.getViewportByCanvas(center);
+        await this.graph.translateBy([this.element.clientWidth/2-at[0],this.element.clientHeight/2-at[1]]);
+      }else if(this.graph.getZoom()>1.15)await this.graph.zoomTo(1.15);
+    }
     setFocus(id){if(this.focus===id)return;this.focus=id;this.focusDirty=true;this.wake();}
     pointerMove(event){
       if(!this.data||this.dragging||event.pointerType==='touch')return;
