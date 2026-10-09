@@ -7,3 +7,13 @@ jieba>=0.42,<1
 # jieba 0.42 imports pkg_resources at runtime.
 setuptools>=70,<81
 scikit-learn>=1.7,<1.8
+
+# LearnMargin source snapshot 63dba8f: document pipeline and renderer.
+pydantic>=2.10,<3
+httpx>=0.28,<1
+pypdf>=6.19,<7
+Pillow>=11,<13
+playwright>=1.51,<2
+jinja2>=3.1.6,<4
+markdown-it-py>=3,<5
+platformdirs>=4,<5

@@ -1,3 +1,4 @@
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -9,9 +10,18 @@ from learning_agent.document_api import router as document_router
 from learning_agent.documents import ocr_threads
 from .api import router as learning_router
 from .ml_api import router as ml_router
+from .margin import router as margin_router, close_jobs
 
 ROOT = Path(__file__).resolve().parents[2]
-app = FastAPI(title="PLIAC · 课程个性化学习智能体", version="0.9.0")
+
+
+@asynccontextmanager
+async def lifespan(app):
+    yield
+    await close_jobs()
+
+app = FastAPI(title="PLIAC · 课程个性化学习智能体", version="0.10.0", lifespan=lifespan)
+app.include_router(margin_router)
 app.mount("/static", StaticFiles(directory=ROOT / "static"), name="static")
 app.include_router(router)
 app.include_router(courses_router)
@@ -44,7 +54,7 @@ def courses():
 
 @app.get("/")
 def home():
-    return RedirectResponse("/learn?course_id=ml_acceptance_demo", status_code=307)
+    return RedirectResponse("/courses", status_code=307)
 
 
 @app.get("/knowledge")
@@ -56,7 +66,7 @@ def workbench():
 
 @app.get("/health")
 def health():
-    return {"app": "learning-agent", "platform": "PLIAC", "capabilities": ["knowledge_graph", "learning_workspace", "acceptance_course", "ml_lab", "course_home", "study_rhythm"],
+    return {"app": "learning-agent", "platform": "PLIAC", "capabilities": ["knowledge_graph", "learning_workspace", "acceptance_course", "ml_lab", "course_home", "study_rhythm", "learnmargin_graph"],
             "version": app.version, "specification": "v7_20261008", "ocr_threads": ocr_threads()}
 
 
@@ -69,3 +79,8 @@ def training_blueprints():
 @app.get("/api/course-assets/design-references")
 def design_references():
     return FileResponse(ROOT / "data/design_references.json", media_type="application/json")
+
+
+@app.get("/course-reader")
+def margin_reader():
+    return FileResponse(ROOT / "static/margin-reader.html")

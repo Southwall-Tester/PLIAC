@@ -27,7 +27,7 @@ def main():
                   get(){return this.__View},set(View){this.__View=class extends View{
                     constructor(...args){super(...args);window.__network=this;}
                   }}});""")
-                page.goto(base + '/')
+                page.goto(base + '/learn?course_id=ml_acceptance_demo')
                 expect(page.locator('#courseOverview')).to_be_visible()
                 expect(page.locator('#courseMap')).to_have_attribute('data-ready', 'true')
                 expect(page.locator('#readingWorkspace')).to_be_hidden()
@@ -76,7 +76,7 @@ def main():
                 expect(page.locator('#selectedTitle')).to_contain_text('划分')
                 assert state()['current_lesson'] is None
                 page.screenshot(path=str(OUTPUT / 'course-home-desktop.png'), full_page=True)
-                passed('Root opens real course graph; chapter selection and browsing do not create lessons')
+                passed('Course opens real course graph; chapter selection and browsing do not create lessons')
                 page.locator('#goals').fill('理解数据划分，并能用实验说明选择模型的依据。')
                 page.locator('#onboardForm button[type=submit]').click()
                 page.locator('#nextLesson').click()

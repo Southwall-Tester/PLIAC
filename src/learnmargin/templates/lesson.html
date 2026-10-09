@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="{{ text.language_tag }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src {{ script_sources }}; style-src 'unsafe-inline'; font-src data:; img-src data:; connect-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>{{ lesson.title }} · LearnMargin</title>
+  <style>{{ katex_css }}</style>
+  <style>:root{--page-width:{{ page_width }}mm;--rail-width:{{ 54 if layout == 'a4' else 66 }}mm}@page{size:{{ page_width }}mm 297mm;margin:0}{{ stylesheet }}</style>
+</head>
+<body>
+<main id="pages" aria-label="{{ text.document }}"></main>
+{% macro pause_card(section_no, boundary) -%}
+{% set selected = pause_cards.get(section_no, {}).get(boundary) %}{% if selected %}{% set pause = selected.pause %}
+<div class="pause" data-pause-kind="{{ selected.kind }}"><span class="card-kind">{{ text.pause }} · {{ pause.minutes }} {{ text.minutes }}</span><p>{{ pause.when | mdi }}</p><p>{{ pause.activity | mdi }}</p><p><strong>{{ text.after_pause }}: </strong>{{ pause.resume | mdi }}</p></div>
+{% endif %}
+{%- endmacro %}
+{% macro study_cards(section_no, boundary, edge) -%}
+{% set cards = prompt_cards.get(section_no, {}).get(boundary, {}).get(edge, []) %}
+{% if cards %}<div class="study-group study-{{ edge }}" data-study-edge="{{ edge }}"{% if cards | selectattr('prompt.placement') | list %} data-explicit-placement="true"{% endif %}>{% for card in cards %}{% set prompt = card.prompt %}{% set prompt_no = card.number %}{% include 'prompt.html' %}{% endfor %}</div>{% endif %}
+{%- endmacro %}
+<div id="flow" aria-hidden="true" data-pause-plan="{{ pause_plan | tojson | forceescape }}">
+  <section class="flow-section" data-new-page="true" data-label="{{ text.overview }}" data-role="overview">
+    <div class="row full keep-next"><div class="main" id="overview"><h1>{{ lesson.title | mdi }}</h1><p class="subtitle">{{ lesson.subtitle | mdi }}</p><p class="scope">{{ lesson.scope_note | mdi }}</p></div></div>
+    <div class="row full"><div class="main"><h2>{{ text.global_view }}</h2>{{ lesson.overview.summary | md }}</div></div>
+    {% for concept in lesson.overview.concepts %}<div class="row"><div class="main"><h3>{{ concept.name | mdi }}</h3>{{ concept.explanation | md }}</div><aside class="concept-relation"><span class="card-kind">{{ text.concept_relations }}</span>{{ concept.connections | md }}</aside></div>{% endfor %}
+    <div class="row"><div class="main"><h2>{{ text.learning_path }}</h2><ol>{% for step in lesson.overview.learning_path %}<li>{{ step | md }}</li>{% endfor %}</ol></div><aside><div class="study-card"><span class="card-kind">{{ text.study_rhythm }}</span><p>{{ text.rhythm_note }}</p></div></aside></div>
+    {% if lesson.overview.prerequisites %}<div class="row full"><div class="main"><h3>{{ text.prerequisites }}</h3><ul>{% for prerequisite in lesson.overview.prerequisites %}<li>{{ prerequisite | md }}</li>{% endfor %}</ul></div></div>{% endif %}
+    <div class="row full keep-next toc-row"><div class="main"><h3>{{ text.contents }}</h3></div></div>
+    {% for section in lesson.sections %}<div class="row full toc-row"><div class="main"><a href="#section-{{ loop.index }}">{{ loop.index }} / {{ section.title | mdi }}</a></div></div>{% endfor %}
+    {% if has_answers %}<div class="row full toc-row"><div class="main"><a href="#answers">{{ text.answers }}</a></div></div>{% endif %}
+    <div class="row full toc-row"><div class="main"><a href="#review">{{ text.review_sources }}</a></div></div>
+  </section>
+  {% for section in lesson.sections %}{% set section_no = loop.index %}{% set selected_pauses = pause_cards.get(section_no, {}) %}
+  <section class="flow-section" data-new-page="true" data-label="{{ section.title }}" data-section="{{ section_no }}">
+    <div class="row full keep-next"><div class="main" id="section-{{ section_no }}"><p class="eyebrow">{{ text.section }} {{ section_no }}</p><h2 class="section-title">{{ section.title | mdi }}</h2><p class="references">{{ text.material }}: {% for ref in section.source_refs %}{% set source_no = source_refs[ref] %}{% set source = lesson.sources[source_no - 1] %}<a href="#source-{{ source_no }}">[{{ source_no }}] {{ source.document }} · {{ source.label }}</a> <button type="button" class="web-source-button" data-source-ref="{{ ref }}" aria-label="{{ text.view_source }}: {{ source.document }}，{{ source.label }}">{{ text.view_source }}</button>{% if not loop.last %}；{% endif %}{% endfor %}</p></div></div>
+    <div class="row splittable{% if selected_pauses.get('explanation') %} pause-attached{% endif %}{% if prompt_cards.get(section_no, {}).get('explanation', {}).get('end') %} study-end-attached{% endif %}" data-boundary="explanation"><div class="main">{{ section.explanation | md }}</div><aside>{{ study_cards(section_no, 'explanation', 'start') }}{{ study_cards(section_no, 'explanation', 'end') }}{{ pause_card(section_no, 'explanation') }}</aside></div>
+    {% if section.source_notes %}
+    <div class="row full keep-next"><div class="main"><h3 class="block-label">{{ text.source_comparison }}</h3></div></div>
+    {% for note in section.source_notes %}{% set source_no = source_refs[note.ref] %}{% set source = lesson.sources[source_no - 1] %}
+    <div class="row full splittable"><div class="main source-note"><p class="source-note-label"><span class="source-role">{{ role_labels[source.role] }}</span> <a href="#source-{{ source_no }}">[{{ source_no }}] {{ source.document }} · {{ source.label }}</a> <button type="button" class="web-source-button" data-source-ref="{{ note.ref }}" aria-label="{{ text.view_source }}: {{ source.document }}，{{ source.label }}">{{ text.view_source }}</button></p>{{ note.explanation | md }}{% if note.relation %}<div class="source-relation">{{ note.relation | md }}</div>{% endif %}</div></div>
+    {% endfor %}{% endif %}
+    <div class="row keep-next"><div class="main"><h3 class="block-label">{{ text.worked_example }}</h3></div><aside></aside></div>
+    <div class="row splittable{% if selected_pauses.get('example') %} pause-attached{% endif %}{% if prompt_cards.get(section_no, {}).get('example', {}).get('end') %} study-end-attached{% endif %}" data-boundary="example"><div class="main worked-example">{{ section.worked_example | md }}</div><aside>{{ study_cards(section_no, 'example', 'start') }}{{ study_cards(section_no, 'example', 'end') }}{{ pause_card(section_no, 'example') }}</aside></div>
+    {% for practice in section.practice %}
+    {% set boundary = 'practice-' ~ loop.index %}<div class="row practice splittable{% if selected_pauses.get(boundary) %} pause-attached{% endif %}{% if prompt_cards.get(section_no, {}).get(boundary, {}).get('end') %} study-end-attached{% endif %}" data-boundary="{{ boundary }}"><div class="main" id="practice-{{ section_no }}-{{ loop.index }}"><h3>{{ text.practice }} {{ practice.id }}</h3>{{ practice.prompt | md }}<div class="hint"><span>{{ text.hint }}</span>{{ practice.hint | md }}</div><p><a href="#answer-{{ section_no }}-{{ loop.index }}">{{ text.try_then_answer }} →</a></p></div><aside>{{ study_cards(section_no, boundary, 'start') }}{{ study_cards(section_no, boundary, 'end') }}{{ pause_card(section_no, boundary) }}</aside></div>
+    {% endfor %}
+  </section>
+  {% endfor %}
+  {% if has_answers %}<section class="flow-section answers" data-new-page="true" data-label="{{ text.answers }}" data-role="answers">
+    <div class="row full keep-next"><div class="main" id="answers"><h2 class="section-title">{{ text.answers }}</h2><p>{{ text.answer_note }}</p></div></div>
+    {% for section in lesson.sections %}{% set section_no = loop.index %}{% for practice in section.practice %}
+    <div class="row full splittable"><div class="main" id="answer-{{ section_no }}-{{ loop.index }}"><h3>{{ practice.id }} · {{ section.title | mdi }}</h3>{{ practice.answer | md }}<p><a href="#practice-{{ section_no }}-{{ loop.index }}">← {{ text.return_question }}</a></p></div></div>
+    {% endfor %}{% for prompt in section.study_prompts %}{% if prompt.answer %}
+    <div class="row full splittable"><div class="main" id="prompt-answer-{{ section_no }}-{{ loop.index }}"><h3>{{ text.sidebar }} {{ prompt.id }} · {{ section.title | mdi }}</h3>{{ prompt.answer | md }}{% if prompt.check %}<div class="check">{{ prompt.check | md }}</div>{% endif %}<p><a class="nav-button" href="#prompt-{{ section_no }}-{{ loop.index }}">← {{ text.return_prompt }}</a></p></div></div>
+    {% endif %}{% endfor %}{% endfor %}
+  </section>{% endif %}
+  <section class="flow-section" data-new-page="true" data-label="{{ text.review_sources }}" data-role="review">
+    <div class="row full keep-next"><div class="main" id="review"><h2 class="section-title">{{ text.review_sources }}</h2></div></div>
+    {% for step in lesson.review_plan %}<div class="row full"><div class="main review-step"><span class="card-kind">{{ text.review_step }} {{ loop.index }}</span>{{ step | md }}</div></div>{% endfor %}
+    <div class="row full"><div class="main"><h3>{{ text.method_basis }}</h3><p>{{ text.method_note }}</p><p>{{ text.method_chapters }}: {{ lesson.method_chapters | join(', ') }}</p></div></div>
+    {% for source in lesson.sources %}<div class="row full"><div class="main source-entry" id="source-{{ loop.index }}"><strong>[{{ loop.index }}] {{ source.document }}</strong><p><span class="source-role">{{ role_labels[source.role] }}</span> · {{ source.label }} <button type="button" class="web-source-button" data-source-ref="{{ source.ref }}" aria-label="{{ text.view_source }}: {{ source.document }}，{{ source.label }}">{{ text.view_source }}</button></p></div></div>{% endfor %}
+    {% if lesson.warnings %}<div class="row full"><div class="main"><h3>{{ text.material_notes }}</h3><ul>{% for warning in lesson.warnings %}<li>{{ warning }}</li>{% endfor %}</ul></div></div>{% endif %}
+    <div class="row full"><div class="main"><a href="#overview">↑ {{ text.return_overview }}</a></div></div>
+  </section>
+</div>
+<script>{{ katex_script }}</script>
+<script>{{ paginator }}</script>
+</body>
+</html>

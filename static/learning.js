@@ -189,6 +189,7 @@
     await mutate('draft', {lesson_id:lesson.id, text, confidence, ...(demo ? {choice_id} : {})}, {renderPage:false});
   }
   $('themeButton').onclick = () => { GraphTheme.toggle(); home?.theme(); };
+  $('handoutLink').href = `/course-reader?${query}`;
   $('graphLink').href = `/knowledge?${query}`;
   $('authorLink').href = `/author?${query}`;
   $('roleLink').href = `${teacher ? '/learn' : '/review'}?${query}`;

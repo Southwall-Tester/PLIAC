@@ -10,3 +10,6 @@
 - Preserve raw evidence separately from diagnoses and derived learner state. System completion, model inference, interests and auxiliary behavioral/emotional clues cannot independently prove mastery.
 - Only prerequisite edges constrain order. Confusable and related relations are non-directional for learning order.
 - Use UTF-8 and pathlib; store runtime data under outputs and test in isolated temporary directories.
+
+- Course handouts reuse the LearnMargin core from snapshot 63dba8f. Keep the integration course-scoped: read existing linked course materials; do not add a second upload/library workflow. Generated concept graphs link to evidence paragraphs and detailed lessons; no chapter-order edges or inferred mastery. Preserve immutable acceptance-course v1 data.
+- Fix graph-generation defects in the reusable pipeline, not only one saved graph: build an evidence-backed term vocabulary, explicitly audit atomicity/domain status, then generate relations only among admitted terms. Keep audit decisions and policy version; regression-test unrelated subjects. No title-order or co-occurrence edges, one-off name blacklists, or manual graph patches presented as a generator fix.
