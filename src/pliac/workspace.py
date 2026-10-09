@@ -12,6 +12,8 @@ from learning_agent.course_graph import (
     CourseGraphError, _dict, _fingerprint, _integer, _list, _text, safe_id, student_graph,
 )
 from learning_agent.recommendation import recommend_resources
+from .study import StudyActivities, study_view, confidence
+from .rhythm import course_rhythm
 
 SELF_LABELS = {"new": "尚未学过", "unsure": "学过但不确定", "confident": "能够独立解释和应用"}
 
@@ -21,7 +23,7 @@ def empty_workspace():
             "current_lesson_id": None, "drafts": {}, "events": [], "reports": [], "exposures": {}, "receipts": {}}
 
 
-class LearningWorkspace:
+class LearningWorkspace(StudyActivities):
     def __init__(self, course_store):
         self.store = course_store
 
@@ -38,7 +40,8 @@ class LearningWorkspace:
                 "learner": {k: v for k, v in learner.items() if k != "workspace"}, "workspace": workspace,
                 "current_lesson": current, "course_changed": bool(current and graph and current["course_version"] != graph["version"]),
                 "chapters": self.chapter_reports(graph, learner) if graph else [],
-                "handbook": self.handbook(graph, learner) if graph else []}
+                "handbook": self.handbook(graph, learner) if graph else [],
+                "study_activities": study_view(graph, workspace), "rhythm": course_rhythm(graph, workspace)}
 
     def _mutate(self, payload, operation, apply):
         _dict(payload, "学习请求")
@@ -159,6 +162,10 @@ class LearningWorkspace:
                       "state_snapshot": copy.deepcopy(learner["states"]), "learner_revision": learner["version"],
                       "policy_version": selection["rule_version"], "selection_trace": selection,
                       "responses": [], "annotations": [], "status": "active"}
+            if payload.get("study_protocol") == 1:
+                lesson["study"] = {"mode": "recall" if state["due"] else "reading",
+                                   "recall_started": bool(state["due"]), "material_reopened": False,
+                                   "support_viewed": False}
             if demo:
                 lesson.update(paragraphs=copy.deepcopy(node["lesson_content"]), options=copy.deepcopy(task["options"]),
                               sources=[copy.deepcopy(s) for s in graph["sources"] if s["id"] in node["source_ids"]])
@@ -183,6 +190,9 @@ class LearningWorkspace:
             lesson = self._lesson(payload, graph, workspace)
             text = _text(payload.get("text", ""), "作答草稿", 4000, False)
             workspace["drafts"][lesson["id"]] = {"text": text, "saved_at": self.store._stamp()}
+            if "confidence" in payload:
+                value = payload["confidence"]
+                workspace["drafts"][lesson["id"]]["confidence"] = confidence(value) if value else ""
             if lesson.get("options"):
                 choice = self._choice(lesson, payload, required=False)
                 workspace["drafts"][lesson["id"]]["choice_id"] = choice
@@ -222,6 +232,9 @@ class LearningWorkspace:
             level = workspace["exposures"].get(lesson["task_key"], 0)
             task = lesson["task"]
             context = {"turn_id": len(lesson["responses"]) + 1}
+            if lesson.get("study"):
+                context["study"] = copy.deepcopy(lesson["study"])
+                context["confidence"] = confidence(payload.get("confidence"))
             if task:
                 context.update(task_id=task["id"], task_version=task["version"])
             text = payload.get("text")
@@ -234,7 +247,7 @@ class LearningWorkspace:
                 reasoning = _text(payload.get("text", ""), "作答思路", 3500, False)
                 text = f"{choice}. {option['text']}" + (f"\n我的思路：{reasoning}" if reasoning else "")
             record = self._evidence(graph, learner, node, text, "quiz" if task else "dialog", level, context)
-            lesson["responses"].append({"evidence_id": record["id"], "text": record["text"], "prompt_level": level, "created_at": record["created_at"]})
+            lesson["responses"].append({"evidence_id": record["id"], "text": record["text"], "prompt_level": level, "created_at": record["created_at"], "context": copy.deepcopy(context)})
             lesson["status"] = "awaiting_review"
             if demo:
                 lesson["responses"][-1]["judgement"] = self.store.grade(graph, learner, workspace, lesson, node, record, choice)
@@ -260,6 +273,8 @@ class LearningWorkspace:
         """Persist a learner question and grounded course support, separate from grading."""
         def apply(graph, learner, workspace):
             lesson = self._lesson(payload, graph, workspace)
+            if lesson.get("study", {}).get("recall_started"):
+                lesson["study"]["support_viewed"] = True
             question = _text(payload.get("text"), "本节问题", 1200)
             node = self.store._node(graph, lesson["node_id"])
             discussions = lesson.setdefault("discussions", [])

@@ -46,6 +46,11 @@
     $('sceneTitle').textContent=scene.title; $('mission').textContent=`你是${scene.role}。${scene.mission}`;
     $('mode').textContent=`${s.mode==='transfer'?'迁移复测':'实操练习'} · 第 ${state.lab.sessions.length} 轮`;
     $('progress').textContent=`${s.step} / 5`;
+    const pause=state.rhythm?.current;
+    $('labRest').hidden=!pause;
+    $('labRestText').textContent=pause?`这段实验可以告一段落。可以休息约 ${pause.break_minutes} 分钟，回来后${pause.resume}也可以直接继续。`:'';
+    $('dismissLabRest').onclick=()=>operate('rest',{point_id:pause.id,choice:'continue'});
+    $('takeLabRest').onclick=()=>operate('rest',{point_id:pause.id,choice:'rest'});
     $('taskList').innerHTML=state.tasks.map((t,i)=>`<div class="task-row ${i===s.step?'active':i<s.step?'done':''}" ${i===s.step?'aria-current="step"':''}><span class="task-index">${i<s.step?'✓':i+1}</span>${esc(t.title)}</div>`).join('');
     $('knowledge').innerHTML=[['训练、验证与测试','训练集用来拟合模型；验证集比较候选方案；测试集在方案确定后评估最终表现。','roles'],['模型复杂度','浅树表达能力较弱；深树能够拟合更细的局部变化。比较训练和验证表现，判断复杂度是否合适。','complexity'],['数据泄漏','输入特征应在实际预测时就能取得。结果产生后的回执会把答案的信息带进模型。','leakage']].map(([title,text,node])=>`<details><summary>${title}</summary><p>${text}</p><a href="/learn?course_id=ml_acceptance_demo&student_id=${encodeURIComponent(state.student_id)}&node_id=${node}">进入相关小节</a></details>`).join('');
     $('taskPanel').hidden=!task;

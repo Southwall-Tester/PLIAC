@@ -21,7 +21,7 @@
     return text.replace('这只是教学算例，不是实际训练产出的性能承诺。', '')
       .replace('这里只报告实际观察，不宣称它对所有数据都成立。', '');
   }
-  let state, draftGraph, studentId = '', busy = false, annotationId, saveTimer, failedRequest, home;
+  let state, draftGraph, studentId = '', busy = false, annotationId, saveTimer, failedRequest, home, study;
   const storageKey = `pliac.student.${courseId}`;
   function error(message = '') { $('workspaceError').textContent = message; $('workspaceError').hidden = !message; }
   async function api(path, body, method = 'POST') {
@@ -54,13 +54,14 @@
     if (demo && current?.status === 'assessed') {
       $('answerForm').querySelectorAll('button,input,textarea').forEach(b => b.disabled = true);
     }
+    if (study) for (const id of ['recallToggle','takeBreak','skipBreak']) $(id).disabled = !!state.course_changed;
     const complete = state.chapters.length > 0 && state.chapters.every(c => c.passed);
     $('nextLesson').disabled = !state.workspace.onboarded || complete;
     if(!teacher)$('studyTab').disabled=!state.workspace.onboarded;
     $('nextLesson').textContent = complete ? '本课程当前已完成' : demo && current && state.learner.states[current.node_id].status !== 'mastered' ? '安排补学 / 复测' : '安排下一小节';
   }
   async function mutate(operation, values = {}, {renderPage = true} = {}) {
-    const data = {student_id:studentId, course_version:state.course.version, ...values};
+    const data = {student_id:studentId, course_version:state.course.version, ...(operation === "next" ? {study_protocol:1} : {}), ...values};
     const signature = JSON.stringify({operation, data});
     const requestId = failedRequest?.signature === signature ? failedRequest.id : crypto.randomUUID();
     failedRequest = {signature, id:requestId};
@@ -97,7 +98,7 @@
       if (select) select.value = item.value;
     }
     $('nodeList').innerHTML = state.course.chapters.map(c => `<h3>${esc(c.title)}</h3>${state.course.nodes.filter(n => n.chapter_id === c.id).map(n => `<button class="node-button ${state.current_lesson?.node_id === n.id ? 'active' : ''}" data-node="${esc(n.id)}" title="${esc(labels[state.learner.states[n.id].status])}"><span class="state-dot ${esc(state.learner.states[n.id].status)}"></span>${esc(n.title)}</button>`).join('')}`).join('');
-    renderLesson(); renderReports(); renderHandbook(); home?.render(state); setAvailability();
+    renderLesson(); renderReports(); renderHandbook(); home?.render(state); study?.render(state); setAvailability();
   }
   function renderLesson() {
     const lesson = state.current_lesson;
@@ -179,11 +180,13 @@
   async function saveDraft() {
     clearTimeout(saveTimer);
     if (!state?.current_lesson || state.course_changed) return;
+    await study?.saveCard();
     const lesson = state.current_lesson;
+    const confidence = $("answerConfidence")?.value || "";
     const text = $('answerText').value;
     const choice_id = choiceValue();
-    if (text === (state.workspace.drafts[lesson.id]?.text || '') && choice_id === (state.workspace.drafts[lesson.id]?.choice_id || '')) return;
-    await mutate('draft', {lesson_id:lesson.id, text, ...(demo ? {choice_id} : {})}, {renderPage:false});
+    if (confidence === (state.workspace.drafts[lesson.id]?.confidence || '') && text === (state.workspace.drafts[lesson.id]?.text || '') && choice_id === (state.workspace.drafts[lesson.id]?.choice_id || '')) return;
+    await mutate('draft', {lesson_id:lesson.id, text, confidence, ...(demo ? {choice_id} : {})}, {renderPage:false});
   }
   $('themeButton').onclick = () => { GraphTheme.toggle(); home?.theme(); };
   $('graphLink').href = `/knowledge?${query}`;
@@ -208,7 +211,7 @@
   $('answerText').oninput = () => { $('saveStatus').textContent = '正在编辑'; scheduleSave(); };
   $('answerChoices').onchange = () => { $('saveStatus').textContent = '正在编辑'; scheduleSave(); };
   $('saveDraftButton').onclick = () => run(saveDraft);
-  $('answerForm').onsubmit = event => { event.preventDefault(); clearTimeout(saveTimer); const text = $('answerText').value, choice_id = choiceValue(); if (demo ? !choice_id : !text.trim()) { error(demo ? '请先选择一个选项。' : '请先写下你的思路。'); return; } run(() => mutate('answer', {lesson_id:state.current_lesson.id, text, ...(demo ? {choice_id} : {})})); };
+  $('answerForm').onsubmit = event => { event.preventDefault(); clearTimeout(saveTimer); const text = $('answerText').value, choice_id = choiceValue(); if (demo ? !choice_id : !text.trim()) { error(demo ? '请先选择一个选项。' : '请先写下你的思路。'); return; } run(() => mutate('answer', {lesson_id:state.current_lesson.id, text, confidence:$('answerConfidence')?.value, ...(demo ? {choice_id} : {})})); };
   $('hintButton').onclick = () => run(async () => { await saveDraft(); await mutate('hint', {lesson_id:state.current_lesson.id}); });
   $('lessonContent').onclick = event => {
     const paragraph = event.target.closest('[data-paragraph]');
@@ -222,7 +225,7 @@
   $('lessonLabLink').onclick = event => {event.preventDefault();run(async()=>{await saveDraft();location.assign($('lessonLabLink').href);});};
   $('chapterReports').onclick = event => { const button = event.target.closest('[data-report]'); if (button) run(async () => { await saveDraft(); await mutate('report', {chapter_id:button.dataset.report}); }); };
   $('exportButton').onclick = () => run(async () => { if (!teacher) await saveDraft(); const data = await api(`/api/course-graph/learner/export?${studentQuery()}`); download(`PLIAC-${studentId}.json`, JSON.stringify(data,null,2)); });
-  $('exportHandbook').onclick = () => download('个人知识手册.txt', state.handbook.map(h => `${h.title} · ${labels[h.status]}\n${displayReason(h.reason)}\n${h.concept}\n下一步：${h.next_step}\n证据：${h.evidence_ids.join(', ')}\n`).join('\n'), 'text/plain');
+  $('exportHandbook').onclick = () => run(async()=>{ await saveDraft(); render(); download('个人知识手册.txt', state.handbook.map(h => `${h.title} · ${labels[h.status]}\n${displayReason(h.reason)}\n${h.concept}\n下一步：${h.next_step}\n证据：${h.evidence_ids.join(', ')}\n`).join('\n') + '\n' + (study?.exportCards() || ''), 'text/plain'); });
   $('reviewNode').onchange = renderEvidence;
   $('policyChapter').onchange = renderPolicy;
   $('taskNode').onchange = renderTask;
@@ -241,8 +244,10 @@
     const result = await api('/api/learning/teacher/chapter-policy', {chapter_id:$('policyChapter').value, required_node_ids:[...document.querySelectorAll('[data-policy-node]:checked')].map(x => x.dataset.policyNode), configured_by:$('policyAuthor').value, basis:$('policyBasis').value, expected_version:draftGraph.version});
     draftGraph = result.graph; renderPolicy(); $('saveStatus').textContent = '规则草稿已保存，请审核发布';
   }); };
-  window.addEventListener('beforeunload', event => { if (state?.current_lesson && !teacher && ($('answerText').value !== (state.workspace.drafts[state.current_lesson.id]?.text || '') || choiceValue() !== (state.workspace.drafts[state.current_lesson.id]?.choice_id || ''))) { event.preventDefault(); event.returnValue = ''; } });
+  window.addEventListener('beforeunload', event => { if (state?.current_lesson && !teacher && (study?.cardDrafts.size || $('answerText').value !== (state.workspace.drafts[state.current_lesson.id]?.text || '') || choiceValue() !== (state.workspace.drafts[state.current_lesson.id]?.choice_id || ''))) { event.preventDefault(); event.returnValue = ''; } });
   if(!teacher){
+    study=new StudyPanel({run,mutate,save:saveDraft,refresh:render});
+    $('answerConfidence').onchange=scheduleSave;
     home=new LearningHome({error,displayReason,changeView:mode=>run(async()=>{await saveDraft();home.show(mode);}),study:id=>run(async()=>{await saveDraft();if(!state.current_lesson||state.current_lesson.node_id!==id)await mutate('next',{node_id:id});home.show('study');})});
     run(async()=>{studentId=$('studentId').value.trim();await load();try{localStorage.setItem(storageKey,studentId);}catch{}});
   }else{

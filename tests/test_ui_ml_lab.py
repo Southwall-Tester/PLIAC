@@ -70,6 +70,15 @@ def main():
                 page.locator("#interpretation").select_option("gap")
                 page.locator("#checkButton").click()
                 expect(page.locator("#progress")).to_have_text("3 / 5")
+                expect(page.locator(".lab-grid > aside #labRest")).to_be_visible()
+                assert page.locator("#recallToggle, #mixedPanel, #answerConfidence").count() == 0
+                assert not page.locator("#runButton").is_disabled()
+                page.screenshot(path=str(OUTPUT / "ml-lab-rhythm-sidebar.png"), full_page=True)
+                page.locator("#dismissLabRest").click()
+                expect(page.locator("#labRest")).to_be_hidden()
+                page.reload()
+                expect(page.locator("#labRest")).to_be_hidden()
+                passed("Workload-planned sidebar pause is optional and stays dismissed; Lab has no recall or mixed-practice branch")
                 experiment(4, 4)
                 data = page.request.get(base + "/api/ml-lab?student_id=synthetic-ml-ui").json()
                 valid = [r for r in data["active"]["runs"] if r["config"]["split"] == "separate"]

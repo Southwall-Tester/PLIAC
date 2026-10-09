@@ -8,6 +8,7 @@ from learning_agent.course_graph import CourseGraphError, _text
 from .workspace import LearningWorkspace
 from .ml_contract import SCENES, TASKS, VERSION, public_tasks
 from .ml_engine import execute, preview, reproduction
+from .rhythm import lab_rhythm
 
 
 class MLLab(LearningWorkspace):
@@ -18,7 +19,7 @@ class MLLab(LearningWorkspace):
         return {"student_id": student_id, "version": learner["version"], "course_version": 1,
                 "scenes": SCENES, "tasks": public_tasks(), "lab": lab, "active": active,
                 "preview": preview(active["seed"]) if active else [],
-                "course_id": self.store.load_graph()["id"]}
+                "course_id": self.store.load_graph()["id"], "rhythm": lab_rhythm(TASKS, active, learner.get("workspace", {}))}
 
     def act(self, operation, payload):
         def apply(graph, learner, workspace):
@@ -48,6 +49,16 @@ class MLLab(LearningWorkspace):
             session = next((s for s in lab["sessions"] if s["id"] == lab["active_id"]), None)
             if not session or payload.get("session_id") != session["id"]:
                 raise CourseGraphError("实验已切换，请重新载入。", 409)
+            if operation == "rest":
+                point = lab_rhythm(TASKS, session, workspace)["current"]
+                if not point or point["id"] != payload.get("point_id"):
+                    raise CourseGraphError("休息位置已更新，请刷新实验。", 409)
+                choice = payload.get("choice")
+                if choice not in {"rest", "continue"}:
+                    raise CourseGraphError("请选择休息或继续实验。")
+                workspace.setdefault("rhythm_marks", {})[point["id"]] = {"choice": choice, "plan": point, "created_at": self.store._stamp()}
+                self._event(workspace, "rest_choice", point_id=point["id"], choice=choice)
+                return
             if session["step"] >= len(TASKS):
                 raise CourseGraphError("本轮实验已完成，可导出报告或开始迁移复测。", 409)
             task = TASKS[session["step"]]

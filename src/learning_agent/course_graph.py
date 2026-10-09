@@ -528,7 +528,10 @@ class CourseGraphStore:
 
     @staticmethod
     def _independent(evidence):
-        return (CourseGraphStore._actual(evidence) and evidence["prompt_level"] == 0
+        study = evidence.get("context", {}).get("study")
+        recalled = study is None or (study.get("mode") == "recall" and study.get("recall_started")
+                                     and not study.get("material_reopened") and not study.get("support_viewed"))
+        return (recalled and CourseGraphStore._actual(evidence) and evidence["prompt_level"] == 0
                 and evidence["source_type"] not in {"self_assessment", "annotation"})
 
     @staticmethod

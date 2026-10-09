@@ -45,12 +45,18 @@ def main():
                 page.locator("#identityForm button[type=submit]").click()
                 expect(page.locator('[name=answerChoice][value="A"]')).to_be_checked()
                 passed("Reload restores active lesson and selected answer")
+                if page.locator("#recallToggle").inner_text().startswith("收起"):
+                    page.locator("#recallToggle").click()
+                page.locator("#answerConfidence").select_option("sure")
                 page.locator("#answerForm button[type=submit]").click()
                 expect(page.locator("#responses")).to_contain_text("需要再想一想")
                 expect(page.locator('[data-node="sample"] .state-dot')).to_have_class("state-dot needs_review")
                 page.locator("#nextLesson").click()
                 expect(page.locator("#questionText")).to_contain_text("违约")
                 page.locator('[name=answerChoice][value="D"]').check()
+                if page.locator("#recallToggle").inner_text().startswith("收起"):
+                    page.locator("#recallToggle").click()
+                page.locator("#answerConfidence").select_option("sure")
                 page.locator("#answerForm button[type=submit]").click()
                 expect(page.locator('[data-node="sample"] .state-dot')).to_have_class("state-dot mastered")
                 passed("Wrong answer leads to remediation and a different retest, then mastery")
@@ -63,6 +69,9 @@ def main():
                         page.locator("#hintButton").click()
                         expect(page.locator("#hintList")).to_contain_text("提示 1")
                     page.locator(f'[name=answerChoice][value="{task["answer_key"]}"]').check()
+                    if page.locator("#recallToggle").inner_text().startswith("收起"):
+                        page.locator("#recallToggle").click()
+                    page.locator("#answerConfidence").select_option("sure")
                     page.locator("#answerForm button[type=submit]").click()
                     expect(page.locator("#responses")).to_contain_text("回答正确")
                     if index == 1:
@@ -70,6 +79,9 @@ def main():
                         page.locator("#nextLesson").click()
                         expect(page.locator("#questionText")).to_contain_text("200")
                         page.locator(f'[name=answerChoice][value="{node["retest_tasks"][0]["answer_key"]}"]').check()
+                        if page.locator("#recallToggle").inner_text().startswith("收起"):
+                            page.locator("#recallToggle").click()
+                        page.locator("#answerConfidence").select_option("sure")
                         page.locator("#answerForm button[type=submit]").click()
                         expect(page.locator('[data-node="partition"] .state-dot')).to_have_class("state-dot mastered")
                         passed("Hint-assisted success requires an independent alternate question")

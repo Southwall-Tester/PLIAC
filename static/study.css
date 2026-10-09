@@ -1,0 +1,6 @@
+.study-tools{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin:12px 0 20px}.study-tools span{font-size:.85rem;color:var(--muted)}
+.rest-prompt{border-left:3px solid var(--control-border,#bac9bd);background:var(--hover);padding:14px 18px;margin:20px 0;line-height:1.7}.rest-prompt p{margin:0 0 10px}
+.rest-prompt label,.chunk-editor label,.confidence-label,#mixedForm label{display:block;margin:12px 0}.chunk-editor{border-top:1px solid var(--control-border);margin-top:24px;padding-top:16px}.chunk-editor summary{cursor:pointer}.chunk-editor textarea,#mixedReason{width:100%;box-sizing:border-box}#mixedHistory article{border-top:1px solid var(--control-border);padding:12px 0}#chunkLibrary p{white-space:pre-wrap}
+.network-dark .rest-prompt{background:#252c2b}#answerConfidence,#mixedConfidence{max-width:100%}
+
+#mixedDialog{width:min(620px,90vw);max-height:85vh;overflow:auto;border:1px solid var(--control-border);border-radius:12px;background:var(--paper);color:var(--ink);padding:20px}#mixedDialog::backdrop{background:#0006}.network-dark #mixedDialog{background:#202727}

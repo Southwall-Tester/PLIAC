@@ -6,8 +6,8 @@
   <script src="/static/theme.js?v=28"></script>
   <link rel="stylesheet" href="/static/theme.css?v=1">
   <link rel="stylesheet" href="/static/courses.css?v=18">
-  <link rel="stylesheet" href="/static/ml-lab.css?v=1">
-  <script defer src="/static/ml-lab.js?v=2"></script>
+  <link rel="stylesheet" href="/static/ml-lab.css?v=3">
+  <script defer src="/static/ml-lab.js?v=5"></script>
 </head>
 <body>
   <header class="toolbar"><a href="/courses">PLIAC · 课程</a><a id="learnLink" href="/learn?course_id=ml_acceptance_demo">课程学习</a><a id="graphLink" href="/knowledge?course_id=ml_acceptance_demo">知识图谱</a><button id="exportLab">导出实验包</button><button id="themeButton">深色</button></header>
@@ -19,9 +19,10 @@
     <div id="workbench" hidden>
       <section class="scene-banner"><div><span id="mode" class="eyebrow"></span><h2 id="sceneTitle"></h2><p id="mission"></p></div><span id="progress" class="progress"></span></section>
       <div class="lab-grid">
-        <aside><nav id="taskList" class="panel" aria-label="实验步骤"></nav><section class="panel"><h2>知识速查</h2><div id="knowledge"></div><a id="reviewLink" href="/review?course_id=ml_acceptance_demo">查看作答与复核</a></section></aside>
+        <aside><nav id="taskList" class="panel" aria-label="实验步骤"></nav><aside id="labRest" class="lab-rest" hidden><p id="labRestText"></p><button type="button" id="takeLabRest">休息一下</button><button type="button" id="dismissLabRest">继续实验</button></aside><section class="panel"><h2>知识速查</h2><div id="knowledge"></div><a id="reviewLink" href="/review?course_id=ml_acceptance_demo">查看作答与复核</a></section></aside>
         <div class="lab-column">
           <section id="taskPanel" class="panel"><div class="heading"><h2 id="taskTitle"></h2><button id="hintButton">给我一级提示</button></div><p id="taskGoal"></p><p id="acceptance" class="criterion"></p><div id="hints"></div><form id="checkForm"><div id="answerFields" class="fields"></div><label id="noteLabel">我的观察与判断<textarea id="note" rows="3" maxlength="2000" placeholder="引用实验编号和实际结果，解释你的选择。"></textarea></label><button class="primary" type="submit" id="checkButton">检查本步成果</button></form><div id="feedback" role="status"></div></section>
+
           <section class="panel"><div class="heading"><h2>数据观察</h2><span class="muted">模拟双传感器数据 · 600 条</span></div><p id="dataDescription"></p><div class="data-grid"><svg id="scatter" viewBox="0 0 440 290" role="img" aria-label="开发数据的二维散点图"></svg><div class="table-scroll"><table><caption>开发数据预览</caption><thead id="dataHead"></thead><tbody id="dataRows"></tbody></table></div></div><p class="muted">圆点颜色表示实际类别。回执在处理结束后产生；两路读数在预测时可用。</p></section>
           <section id="experimentPanel" class="panel"><h2>运行实验</h2><form id="runForm"><div class="fields four"><label>训练集比例<select id="trainPercent"><option value="50">50%</option><option value="60" selected>60%</option><option value="70">70%</option></select></label><label>最大树深度<input id="depth" type="number" value="1" min="0" max="12" required><small>0 表示自由生长</small></label><label>输入特征<select id="features"><option value="sensors">两路传感器 x1 + x2</option><option value="receipt">两路传感器 + 事后回执</option></select></label><label>验证方式<select id="split"><option value="separate">独立划分</option><option value="reuse">复用训练样本</option></select></label></div><div class="actions"><button id="runButton" class="primary" type="submit">训练并验证</button><span id="runStatus" class="muted"></span></div></form><div id="latestResult"></div><div class="table-scroll"><table id="runsTable"><caption>实验记录</caption><thead><tr><th>实验</th><th>深度</th><th>特征 / 划分</th><th>训练</th><th>验证</th><th>样本重叠</th></tr></thead><tbody id="runs"></tbody></table></div><details><summary>本次实验的 Python 代码</summary><pre id="codePreview">运行实验后可查看与导出复现代码。</pre></details></section>
           <section id="reportPanel" class="panel" hidden><h2>实验报告</h2><div id="report"></div><button id="transferButton">换一批数据，独立复测</button></section>

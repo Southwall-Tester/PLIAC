@@ -96,6 +96,7 @@ def main():
                 page.screenshot(path=str(OUTPUT / 'course-reading-desktop.png'), full_page=True)
                 passed('Question provenance, draft, learner identity and lesson survive contextual lab round trip')
                 page.locator('[name=answerChoice][value="A"]').check()
+                page.locator('#answerConfidence').select_option('unsure')
                 page.locator('#answerForm button[type=submit]').click()
                 expect(page.locator('#responses')).to_contain_text('需要再想一想')
                 # A still-unreviewed question keeps the aggregate state uncertain,

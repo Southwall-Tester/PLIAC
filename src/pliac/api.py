@@ -62,7 +62,7 @@ async def task(request: Request, course_store=Depends(resolve_course_store)):
 
 @router.post("/{operation}")
 async def mutate(operation: str, request: Request, course_store=Depends(resolve_course_store)):
-    if operation not in {"onboard", "next", "draft", "hint", "answer", "ask", "annotate", "resource", "report"}:
+    if operation not in {"onboard", "next", "draft", "hint", "answer", "ask", "annotate", "resource", "report", "study", "card", "mixed", "rest"}:
         raise CourseGraphError("不支持的学习操作。", 404)
     body = _dict(await _body(request), "学习请求")
     method = "next_lesson" if operation == "next" else operation

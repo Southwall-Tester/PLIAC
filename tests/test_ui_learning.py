@@ -72,6 +72,7 @@ def main():
                     page.locator('#hintButton').click()
                     expect(page.locator('#promptBadge')).to_have_text('已使用 1 级提示')
                     page.locator('#answerText').fill('温度和振动属于预测时可取得的特征，是否故障属于类别标签。')
+                    page.locator('#answerConfidence').select_option('sure')
                     page.locator('#answerForm button[type=submit]').click()
                     expect(page.locator('#responses')).to_contain_text('等待复核')
                     expect(page.locator('#answerText')).to_have_value('')
@@ -107,7 +108,9 @@ def main():
 
                     page.locator('[data-node="b"]').click()
                     expect(page.locator('#questionText')).to_contain_text('测试集')
+                    page.locator('#recallToggle').click()
                     page.locator('#answerText').fill('验证集用于选择设置，测试集只在最终评估时使用，否则会把测试信息带入模型选择。')
+                    page.locator('#answerConfidence').select_option('sure')
                     page.locator('#answerForm button[type=submit]').click()
                     expect(page.locator('#responses')).to_contain_text('等待复核')
                     review.locator('#refreshButton').click()

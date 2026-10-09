@@ -96,7 +96,7 @@ class AcceptanceCourseStore(CourseGraphStore):
         independent = self._independent(record)
         status = "mastered" if passed and independent else "uncertain" if passed else "needs_review"
         basis = ("本题独立作答通过。" if status == "mastered" else
-                 "提示或解析后答对，需换题独立复测；若两题均已看过，请教师复核。" if passed else
+                 "参考材料、提示或解析后答对，请换题收起讲义后复测；题目用尽时请教师补题。" if passed else
                  "先看方向提示，修改判断后再提交。")
         previous = [d for d in learner["diagnoses"] if d["node_id"] == node["id"]
                     and d.get("assessment_origin") == "objective_rule"]
@@ -108,6 +108,10 @@ class AcceptanceCourseStore(CourseGraphStore):
             "assessment_origin": "objective_rule", "rule_id": "demo-choice-v1", "evidence_ids": refs,
             "resolves_diagnosis_ids": [d["id"] for d in previous], "created_at": self._stamp(), "review_stage": 0}
         if status == "mastered":
+            prior = [d for d in previous if d["status"] == "mastered"]
+            if lesson.get("mode") == "retest" and prior:
+                diagnosis["review_stage"] = min(prior[-1].get("review_stage", 0) + 1,
+                                                len(graph["review_policy"]["intervals_days"]) - 1)
             diagnosis["mastered_at"] = record["created_at"]
         learner["diagnoses"].append(diagnosis)
         # Increase support after a wrong answer without exposing the solution early.
