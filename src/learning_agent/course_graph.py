@@ -322,6 +322,8 @@ def student_graph(graph):
         return value
 
     result["nodes"] = [clean(n) for n in result["nodes"]]
+    # Mixed-practice keys and explanations are server-side teaching material.
+    result.pop("study", None)
     return result
 
 
@@ -332,6 +334,28 @@ class CourseGraphStore:
     files. Only replacing HEAD makes a complete revision visible. Failed writes
     leave the previous revision readable, and never overwrite raw history.
     """
+    content_editable = True
+    assessment = None
+
+    @staticmethod
+    def tasks(node):
+        return ([node["check_task"]] if node.get("check_task") else []) + node.get("retest_tasks", [])
+
+    def choose_task(self, node, workspace):
+        tasks = self.tasks(node)
+        attempted = {old["task"]["id"] for old in workspace["lessons"] if old["node_id"] == node["id"]
+                     and old.get("task") and (old["responses"] or old["prompt_level"])}
+        return next((task for task in tasks if task["id"] not in attempted), tasks[-1] if tasks else None)
+
+    def lesson_task(self, node, lesson):
+        return next(task for task in self.tasks(node) if task["id"] == lesson["task"]["id"])
+
+    def ensure_handouts(self):
+        return self.output_dir / "handouts"
+
+    def material_documents(self, documents):
+        return documents
+
     def __init__(self, seed_path=None, output_dir=None, clock=None):
         self.seed_path = Path(seed_path or ROOT / "data/courses/ml_classification.json")
         self.output_dir = Path(output_dir or ROOT / "outputs/course_graph").resolve()
@@ -543,7 +567,7 @@ class CourseGraphStore:
                 or bool(context.get("skeleton_id") and context.get("skeleton_version")))
 
     def _confirmed(self, diagnosis):
-        return diagnosis["review_status"] == "reviewed"
+        return diagnosis["review_status"] == "reviewed" or bool(self.assessment and self.assessment.confirms(diagnosis))
 
     def _published_history(self):
         publication = _read_json(self.output_dir / "publication.json")

@@ -117,7 +117,7 @@ def course_rhythm(graph, workspace):
     if not graph:
         return _result([], workspace, set())
     nodes = {n["id"]: n for n in graph["nodes"]}
-    authored = profiles()["course"] if graph.get("delivery_mode") == "acceptance_demo" else {}
+    authored = graph.get("study", {}).get("load_profiles", {})
     lessons = [l for l in workspace["lessons"] if l["course_version"] == graph["version"]
                and (l["responses"] or l["id"] == workspace["current_lesson_id"])]
     visited = {l["node_id"] for l in lessons}

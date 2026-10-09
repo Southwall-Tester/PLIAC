@@ -27,7 +27,7 @@ def main():
                 page = browser.new_page(viewport={"width": 1440, "height": 1000})
                 page.on("pageerror", lambda e: report["page_errors"].append(str(e)))
                 page.goto(base + "/courses")
-                page.locator("#startDemo").click()
+                page.locator("[data-course-id=ml_acceptance_demo] .learning-course").click()
                 page.locator("#studentId").fill("synthetic-course-acceptance")
                 page.locator("#identityForm button[type=submit]").click()
                 expect(page.locator("#notice")).to_be_hidden()

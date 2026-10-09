@@ -46,7 +46,7 @@ def main():
                     page = browser.new_page(viewport={"width":1440, "height":1000})
                     page.on("pageerror", lambda e: report["page_errors"].append(str(e)))
                     page.goto(base + '/courses')
-                    page.locator('.learning-course').click()
+                    page.locator(f'[data-course-id="{graph["id"]}"] .learning-course').click()
                     page.locator('#studentId').fill('synthetic-ui')
                     page.locator('#identityForm button[type=submit]').click()
                     expect(page.locator('#onboarding')).to_be_visible()

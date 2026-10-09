@@ -1,0 +1,528 @@
+{
+  "schema_version": 1,
+  "id": "ml_acceptance_demo",
+  "version": 1,
+  "graph": "course.json",
+  "runtime_path": "acceptance_demo/v1",
+  "delivery_mode": "acceptance_demo",
+  "notice": "",
+  "presentation": {
+    "label": "示范课程",
+    "description": "学习样本与特征、数据划分、模型选择和结果评估。"
+  },
+  "assessment": {
+    "engine": "objective_choice",
+    "rule_id": "demo-choice-v1"
+  },
+  "concept_map": "../../acceptance_concepts.json",
+  "study": {
+    "mixed_tasks": [
+      {
+        "id": "roles-a",
+        "nodes": [
+          "roles",
+          "partition"
+        ],
+        "question": "已经准备好三份互不重叠的数据。现在要比较深度不同的模型，应依据哪份数据的成绩选择方案？",
+        "options": [
+          "训练集",
+          "验证集",
+          "测试集"
+        ],
+        "key": 1,
+        "explanation": "验证集用于比较候选方案；训练集用于拟合，测试集留到方案确定之后。",
+        "requires_confusable": false
+      },
+      {
+        "id": "fit-a",
+        "nodes": [
+          "underfit",
+          "overfit",
+          "leakage"
+        ],
+        "question": "在相同且无泄漏的划分上，深树的训练准确率为 99%，验证准确率为 69%；中等深度分别为 87% 和 84%。深树更值得检查什么？",
+        "options": [
+          "欠拟合",
+          "过拟合",
+          "事后信息泄漏"
+        ],
+        "key": 1,
+        "explanation": "训练表现改善而验证表现下降，支持检查过拟合。这个现象本身不能证明数据泄漏。",
+        "requires_confusable": true
+      },
+      {
+        "id": "roles-b",
+        "nodes": [
+          "roles",
+          "partition"
+        ],
+        "question": "某份数据的标签被训练算法用来调整模型参数。这份数据承担什么职责？",
+        "options": [
+          "验证集",
+          "测试集",
+          "训练集"
+        ],
+        "key": 2,
+        "explanation": "参与拟合参数的是训练集。验证集提供选择依据，测试集评估已经确定的方案。",
+        "requires_confusable": false
+      },
+      {
+        "id": "fit-b",
+        "nodes": [
+          "underfit",
+          "overfit",
+          "leakage"
+        ],
+        "question": "划分与特征相同，一层树的训练和验证准确率都约 60%；增加适当深度后，两者均明显提高。原模型更符合哪种情况？",
+        "options": [
+          "欠拟合",
+          "过拟合",
+          "事后信息泄漏"
+        ],
+        "key": 0,
+        "explanation": "浅树在训练数据上也难以拟合，增加表达能力后两者改善，支持欠拟合判断。",
+        "requires_confusable": true
+      },
+      {
+        "id": "roles-c",
+        "nodes": [
+          "roles",
+          "partition"
+        ],
+        "question": "参数已封存，现在要报告模型对未参与拟合和选型的数据的表现，应使用哪份数据？",
+        "options": [
+          "测试集",
+          "训练集",
+          "验证集"
+        ],
+        "key": 0,
+        "explanation": "测试集用于最终评估；看过测试成绩再据此调参，会改变这份数据的用途。",
+        "requires_confusable": false
+      },
+      {
+        "id": "fit-c",
+        "nodes": [
+          "underfit",
+          "overfit",
+          "leakage"
+        ],
+        "question": "模型加入检修完成后才产生的回执，验证准确率从 80% 升到 99%，但任务要求提前预测是否需要检修。首先应检查什么？",
+        "options": [
+          "欠拟合",
+          "过拟合",
+          "事后信息泄漏"
+        ],
+        "key": 2,
+        "explanation": "回执在预测时尚不可用，属于事后信息泄漏。判断依据是信息产生时间，而非单看分数。",
+        "requires_confusable": true
+      }
+    ],
+    "load_profiles": {
+      "sample": {
+        "content_fingerprint": "4f032baf3decb16c",
+        "blocks": [
+          {
+            "boundary": "concept",
+            "load": {
+              "units": {
+                "concepts": 3
+              },
+              "rationale": "区分样本、特征、标签；从设备案例识别预测输入和目标。"
+            },
+            "resume": "接着阅读本节例子。"
+          },
+          {
+            "boundary": "pitfall",
+            "load": {
+              "units": {
+                "decisions": 2
+              },
+              "rationale": "区分样本、特征、标签；从设备案例识别预测输入和目标。"
+            },
+            "resume": "接着完成本节练习。"
+          },
+          {
+            "boundary": "practice",
+            "load": {
+              "units": {
+                "questions": 1,
+                "checks": 1
+              },
+              "rationale": "完成一题判断并核对反馈；多道轻量题共同归入练习组。"
+            },
+            "resume": "从本节反馈或下一小节继续。"
+          }
+        ]
+      },
+      "partition": {
+        "content_fingerprint": "4c977870dc959f76",
+        "blocks": [
+          {
+            "boundary": "concept",
+            "load": {
+              "units": {
+                "concepts": 3
+              },
+              "rationale": "理解三份划分，计算样本数并检查重叠和类别分布。"
+            },
+            "resume": "接着阅读本节例子。"
+          },
+          {
+            "boundary": "pitfall",
+            "load": {
+              "units": {
+                "calculations": 2,
+                "checks": 2
+              },
+              "rationale": "理解三份划分，计算样本数并检查重叠和类别分布。"
+            },
+            "resume": "接着完成本节练习。"
+          },
+          {
+            "boundary": "practice",
+            "load": {
+              "units": {
+                "questions": 1,
+                "checks": 1
+              },
+              "rationale": "完成一题判断并核对反馈；多道轻量题共同归入练习组。"
+            },
+            "resume": "从本节反馈或下一小节继续。"
+          }
+        ]
+      },
+      "roles": {
+        "content_fingerprint": "79c573988318413c",
+        "blocks": [
+          {
+            "boundary": "concept",
+            "load": {
+              "units": {
+                "concepts": 3
+              },
+              "rationale": "理解拟合、选型和评估三个阶段，对照不同数据职责。"
+            },
+            "resume": "接着阅读本节例子。"
+          },
+          {
+            "boundary": "pitfall",
+            "load": {
+              "units": {
+                "comparisons": 2
+              },
+              "rationale": "理解拟合、选型和评估三个阶段，对照不同数据职责。"
+            },
+            "resume": "接着完成本节练习。"
+          },
+          {
+            "boundary": "practice",
+            "load": {
+              "units": {
+                "questions": 1,
+                "checks": 1
+              },
+              "rationale": "完成一题判断并核对反馈；多道轻量题共同归入练习组。"
+            },
+            "resume": "从本节反馈或下一小节继续。"
+          }
+        ]
+      },
+      "accuracy": {
+        "content_fingerprint": "db63c0d0d9de8bf9",
+        "blocks": [
+          {
+            "boundary": "concept",
+            "load": {
+              "units": {
+                "concepts": 2
+              },
+              "rationale": "计算两个准确率并对照不平衡类别下的遗漏。"
+            },
+            "resume": "接着阅读本节例子。"
+          },
+          {
+            "boundary": "pitfall",
+            "load": {
+              "units": {
+                "calculations": 2,
+                "comparisons": 1
+              },
+              "rationale": "计算两个准确率并对照不平衡类别下的遗漏。"
+            },
+            "resume": "接着完成本节练习。"
+          },
+          {
+            "boundary": "practice",
+            "load": {
+              "units": {
+                "questions": 1,
+                "checks": 1
+              },
+              "rationale": "完成一题判断并核对反馈；多道轻量题共同归入练习组。"
+            },
+            "resume": "从本节反馈或下一小节继续。"
+          }
+        ]
+      },
+      "leakage": {
+        "content_fingerprint": "a1c5b3abce4a7c23",
+        "blocks": [
+          {
+            "boundary": "concept",
+            "load": {
+              "units": {
+                "concepts": 2
+              },
+              "rationale": "计算训练均值，检查预处理与交叉验证中的信息边界。"
+            },
+            "resume": "接着阅读本节例子。"
+          },
+          {
+            "boundary": "pitfall",
+            "load": {
+              "units": {
+                "calculations": 1,
+                "checks": 2
+              },
+              "rationale": "计算训练均值，检查预处理与交叉验证中的信息边界。"
+            },
+            "resume": "接着完成本节练习。"
+          },
+          {
+            "boundary": "practice",
+            "load": {
+              "units": {
+                "questions": 1,
+                "checks": 1
+              },
+              "rationale": "完成一题判断并核对反馈；多道轻量题共同归入练习组。"
+            },
+            "resume": "从本节反馈或下一小节继续。"
+          }
+        ]
+      },
+      "complexity": {
+        "content_fingerprint": "cde1b936f3128c19",
+        "blocks": [
+          {
+            "boundary": "concept",
+            "load": {
+              "units": {
+                "concepts": 2
+              },
+              "rationale": "理解复杂度与泛化，逐项比较三组训练和验证结果。"
+            },
+            "resume": "接着阅读本节例子。"
+          },
+          {
+            "boundary": "pitfall",
+            "load": {
+              "units": {
+                "comparisons": 3
+              },
+              "rationale": "理解复杂度与泛化，逐项比较三组训练和验证结果。"
+            },
+            "resume": "接着完成本节练习。"
+          },
+          {
+            "boundary": "practice",
+            "load": {
+              "units": {
+                "questions": 1,
+                "checks": 1
+              },
+              "rationale": "完成一题判断并核对反馈；多道轻量题共同归入练习组。"
+            },
+            "resume": "从本节反馈或下一小节继续。"
+          }
+        ]
+      },
+      "underfit": {
+        "content_fingerprint": "aa580fef131f2baa",
+        "blocks": [
+          {
+            "boundary": "concept",
+            "load": {
+              "units": {
+                "concepts": 2
+              },
+              "rationale": "把训练和验证成绩与基线比较，选择排查方向。"
+            },
+            "resume": "接着阅读本节例子。"
+          },
+          {
+            "boundary": "pitfall",
+            "load": {
+              "units": {
+                "comparisons": 1,
+                "decisions": 1
+              },
+              "rationale": "把训练和验证成绩与基线比较，选择排查方向。"
+            },
+            "resume": "接着完成本节练习。"
+          },
+          {
+            "boundary": "practice",
+            "load": {
+              "units": {
+                "questions": 1,
+                "checks": 1
+              },
+              "rationale": "完成一题判断并核对反馈；多道轻量题共同归入练习组。"
+            },
+            "resume": "从本节反馈或下一小节继续。"
+          }
+        ]
+      },
+      "overfit": {
+        "content_fingerprint": "41250396ea6258d1",
+        "blocks": [
+          {
+            "boundary": "concept",
+            "load": {
+              "units": {
+                "concepts": 2
+              },
+              "rationale": "比较限制深度前后的两项成绩，区别线索与原因。"
+            },
+            "resume": "接着阅读本节例子。"
+          },
+          {
+            "boundary": "pitfall",
+            "load": {
+              "units": {
+                "comparisons": 2
+              },
+              "rationale": "比较限制深度前后的两项成绩，区别线索与原因。"
+            },
+            "resume": "接着完成本节练习。"
+          },
+          {
+            "boundary": "practice",
+            "load": {
+              "units": {
+                "questions": 1,
+                "checks": 1
+              },
+              "rationale": "完成一题判断并核对反馈；多道轻量题共同归入练习组。"
+            },
+            "resume": "从本节反馈或下一小节继续。"
+          }
+        ]
+      },
+      "selection": {
+        "content_fingerprint": "73784a68cf88fab5",
+        "blocks": [
+          {
+            "boundary": "concept",
+            "load": {
+              "units": {
+                "concepts": 3
+              },
+              "rationale": "计算容差下限、筛选入围模型，再按复杂度决策。"
+            },
+            "resume": "接着阅读本节例子。"
+          },
+          {
+            "boundary": "pitfall",
+            "load": {
+              "units": {
+                "calculations": 2,
+                "decisions": 2
+              },
+              "rationale": "计算容差下限、筛选入围模型，再按复杂度决策。"
+            },
+            "resume": "接着完成本节练习。"
+          },
+          {
+            "boundary": "practice",
+            "load": {
+              "units": {
+                "questions": 1,
+                "checks": 1
+              },
+              "rationale": "完成一题判断并核对反馈；多道轻量题共同归入练习组。"
+            },
+            "resume": "从本节反馈或下一小节继续。"
+          }
+        ]
+      },
+      "final": {
+        "content_fingerprint": "60367be596b05f2a",
+        "blocks": [
+          {
+            "boundary": "concept",
+            "load": {
+              "units": {
+                "concepts": 3
+              },
+              "rationale": "计算最终准确率，核对版本、划分和封存配置。"
+            },
+            "resume": "接着阅读本节例子。"
+          },
+          {
+            "boundary": "pitfall",
+            "load": {
+              "units": {
+                "calculations": 1,
+                "checks": 3
+              },
+              "rationale": "计算最终准确率，核对版本、划分和封存配置。"
+            },
+            "resume": "接着完成本节练习。"
+          },
+          {
+            "boundary": "practice",
+            "load": {
+              "units": {
+                "questions": 1,
+                "checks": 1
+              },
+              "rationale": "完成一题判断并核对反馈；多道轻量题共同归入练习组。"
+            },
+            "resume": "从本节反馈或下一小节继续。"
+          }
+        ]
+      }
+    }
+  },
+  "activities": [
+    {
+      "id": "classification_lab",
+      "engine": "classification_lab",
+      "title": "机器学习 Lab",
+      "description": "检查数据、训练分类模型、比较方案并提交测试结果。",
+      "href": "/ml-lab",
+      "node_prompts": {
+        "sample": "检查每一列数据，确定特征与预测目标。",
+        "partition": "改变训练比例，观察样本划分与重叠情况。",
+        "roles": "在实际训练中区分训练、验证和测试的职责。",
+        "accuracy": "比较准确率与混淆矩阵，查看判断正确的样本。",
+        "leakage": "观察加入事后回执怎样改变验证分数。",
+        "complexity": "修改树深度，观察训练和验证表现。",
+        "underfit": "比较浅树与较复杂模型的表现。",
+        "overfit": "比较训练与验证之间的差距。",
+        "selection": "依据验证结果选择并封存模型。",
+        "final": "对封存后的模型完成一次最终测试。"
+      },
+      "knowledge_node_ids": [
+        "roles",
+        "complexity",
+        "leakage"
+      ],
+      "default_entry": true,
+      "node_bindings": {
+        "sample": "sample",
+        "leakage": "leakage",
+        "partition": "partition",
+        "roles": "roles",
+        "complexity": "complexity",
+        "underfit": "underfit",
+        "overfit": "overfit",
+        "selection": "selection",
+        "accuracy": "accuracy",
+        "final": "final"
+      }
+    }
+  ]
+}

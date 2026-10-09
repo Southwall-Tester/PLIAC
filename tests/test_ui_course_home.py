@@ -97,7 +97,7 @@ def main():
                 expect(page.locator('#progress')).to_have_text('0 / 5')
                 page.locator('#learnLink').click()
                 expect(page.locator('#readingWorkspace')).to_be_visible()
-                expect(page.locator('#labReturnSummary')).to_contain_text('0 / 5')
+                expect(page.locator('#labReturnSummary')).to_contain_text('已完成 0 步')
                 expect(page.locator('#answerText')).to_have_value('我的实验前思考')
                 assert state()['current_lesson']['id'] == current
                 expect(page.locator('#discussionHistory')).to_contain_text('举一个例子')

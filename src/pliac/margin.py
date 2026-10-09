@@ -25,12 +25,12 @@ ARTIFACTS = {"lesson.json":"application/json", "knowledge-map.json":"application
 
 
 def storage(course):
-    return Store(course.output_dir / "handouts")
+    return Store(course.ensure_handouts())
 
 
 def graph_for(course):
     graph = course.load_graph()
-    return (graph, "acceptance_demo" if getattr(course, "is_demo", False) else "published") if graph else (course.load_graph("draft"), "draft")
+    return (graph, graph.get("delivery_mode", "published")) if graph else (course.load_graph("draft"), "draft")
 
 
 def materials(graph, chapter_id="", documents=None):
@@ -64,7 +64,8 @@ def materials(graph, chapter_id="", documents=None):
                 raise CourseGraphError(f"《{job['title']}》第 {index} 个资料单元尚无可读文本，请先完成识读。", 409)
             label = ("第 " + str(index) + " 页") if job.get("page_kind") == "pdf" else ("原文段 " + str(index))
             units.append(SourceUnit(index=index, label=label, text=text))
-            origins[f"{ident}:{index}"] = {"url": f"/api/documents/{ident}/source" + (f"#page={index}" if job.get("page_kind") == "pdf" else ""), "kind": "uploaded_document"}
+            if not job.get("archived_text"):
+                origins[f"{ident}:{index}"] = {"url": f"/api/documents/{ident}/source" + (f"#page={index}" if job.get("page_kind") == "pdf" else ""), "kind": "uploaded_document"}
         if units:
             result.append(Document(id=ident, name=job["title"], kind="course_material", unit_label="资料单元", units=units))
     if authored:
@@ -175,7 +176,9 @@ def listing(course_store=Depends(resolve_course_store)):
             job.update(status="failed", stage="任务已中断", error="服务已重启，请重新生成。")
             store.save_job(job)
     return {"course_id":graph["id"], "title":graph["title"], "version":graph["version"], "source_view":view,
-            "chapters":graph["chapters"], "jobs":jobs}
+            "chapters":graph["chapters"], "jobs":jobs,
+            "capabilities":{"generate_handouts":True},
+            "snapshot_summary":course_store.source_summary() if hasattr(course_store,"source_summary") else None}
 
 
 @router.post("")
@@ -191,7 +194,7 @@ async def generate(request: Request, course_store=Depends(resolve_course_store))
             return job
     if len(TASKS) >= 2:
         raise CourseGraphError("已有讲义正在生成，请完成后重试。", 429)
-    docs, origins = materials(graph, chapter)
+    docs, origins = materials(graph, chapter, course_store.material_documents(document_api.document_store))
     api = configured_api()
     try:
         validate_material(make_units(docs), store, api.vision)

@@ -13,11 +13,18 @@
   }
   async function loadCourses(){
     const {courses}=await api();
-    $('courseList').innerHTML=courses.filter(course=>managing||course.published_version).map(course=>{
-      const query=new URLSearchParams({course_id:course.id}).toString();
-      if(!managing)return `<article class="course-card" data-course-id="${esc(course.id)}"><h2>${esc(course.title)}</h2><p class="course-counts">${Number(course.chapter_count)} 章 · ${Number(course.node_count)} 个知识点</p><div class="course-actions"><a class="handout-course" href="/course-reader?${query}">讲义与知识图谱</a><a class="learning-course" href="/learn?${query}">课程练习</a></div></article>`;
-      return `<article class="course-card" data-course-id="${esc(course.id)}"><div><h2>${esc(course.title)}</h2><div class="course-status"><span>草稿 v${esc(course.draft_version)}</span>${course.published_version?`<span>已发布 v${esc(course.published_version)}</span>`:'<span>待发布</span>'}</div></div><p class="course-counts"><span>${Number(course.chapter_count)} 章</span><span>${Number(course.node_count)} 个知识点</span><span>${Number(course.edge_count)} 条关系</span></p><div class="course-actions"><a class="handout-course" href="/course-reader?${query}">讲义与知识图谱</a><a class="learning-course" href="/learn?${query}">学习工作台</a><a class="edit-course" href="/author?${query}">编辑图谱</a>${course.published_version?`<a class="published-course" href="/knowledge?${query}">查看发布版</a>`:''}<a class="review-course" href="/review?${query}">教学复核</a></div></article>`;
-    }).join('')||'<p class="muted">暂无课程</p>';
+    $('courseList').innerHTML=courses.filter(course=>managing||course.capabilities.learn).map(course=>{
+      const query=new URLSearchParams({course_id:course.id}).toString(),view=course.presentation;
+      const actions=[['handout','/course-reader','讲义与知识图谱']];
+      if(course.capabilities.learn)actions.push(['learning','/learn','课程练习']);
+      if(managing){
+        if(course.capabilities.edit)actions.push(['edit','/author','编辑图谱']);
+        if(course.published_version)actions.push(['published','/knowledge','查看发布版']);
+        if(course.capabilities.learn)actions.push(['review','/review','教学复核']);
+      }
+      return `<article class="course-card" data-course-id="${esc(course.id)}"><div class="course-status"><span>${esc(view.label)}</span>${managing?`<span>v${esc(course.published_version||course.draft_version)}</span>`:''}</div><h2>${esc(course.title)}</h2><p class="muted">${esc(view.description)}</p><p class="course-counts">${view.stats.map(stat=>`<span>${Number(stat.value)} ${esc(stat.label)}</span>`).join('')}</p><div class="course-actions">${actions.map(([kind,path,label])=>`<a class="${kind}-course" href="${path}?${query}">${label}</a>`).join('')}</div></article>`;
+    }).join('')||'<p class="muted">暂无可学习的课程。</p>';
+
   }
   $('themeButton').onclick=()=>GraphTheme.toggle();
   $('newCourseButton').onclick=()=>{error('createCourseError','');$('createCourseForm').reset();$('createCourseDialog').showModal();$('newCourseTitle').focus();};
@@ -28,5 +35,5 @@
     try{const value=await api({method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({title})});location.assign(`${method==='book'?'/documents':'/author'}?${new URLSearchParams({course_id:value.course.id,new:'1'})}`);}
     catch(failure){error('createCourseError',failure.message);$('createCourseSubmit').disabled=false;}
   };
-  loadCourses().catch(failure=>{error('courseError',failure.message);$('courseList').innerHTML='';});
+  loadCourses().catch(failure=>{error('courseError',failure.message);document.querySelector('.course-loading')?.remove();});
 })();

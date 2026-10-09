@@ -25,3 +25,6 @@
 /* The graph panel determines the row height; detail text never sizes the row. */
 #detail{contain:size;min-height:0;overflow-y:auto;overscroll-behavior-y:contain;scrollbar-gutter:stable}
 @media(max-width:800px){#detail{height:clamp(240px,50vh,420px)}}
+
+#snapshotSummary,#graphNotice{font-size:13px;color:var(--text,#23352f);opacity:.85}#graphNotice{padding:0 14px;margin:0}
+#conceptSources{display:flex;flex-wrap:wrap;gap:6px;margin:12px 0}#conceptSources button{font-size:12px}

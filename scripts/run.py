@@ -20,9 +20,10 @@ def existing(port):
             health = json.load(response)
             if health.get("app") != "learning-agent" or "learnmargin_graph" not in health.get("capabilities", []):
                 return False
-        # An older server may share the assets while lacking the course catalog API.
+        # Static assets update immediately; do not reuse an incompatible old API.
         with urllib.request.urlopen(f"http://127.0.0.1:{port}/api/courses", timeout=2) as response:
-            return isinstance(json.load(response).get("courses"), list)
+            courses = json.load(response).get("courses")
+            return isinstance(courses, list) and all("capabilities" in c and "presentation" in c for c in courses)
     except (OSError, ValueError):
         return False
 

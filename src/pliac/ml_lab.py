@@ -13,13 +13,16 @@ from .rhythm import lab_rhythm
 
 class MLLab(LearningWorkspace):
     def view(self, student_id):
-        learner = self.store.load_learner(student_id, self.store.load_graph())
+        graph = self.store.load_graph()
+        activity = next((a for a in graph.get("activities", []) if a.get("engine") == "classification_lab"), {})
+        learner = self.store.load_learner(student_id, graph)
         lab = copy.deepcopy(learner.get("workspace", {}).get("ml_lab", {"sessions": [], "active_id": None}))
         active = next((s for s in lab["sessions"] if s["id"] == lab["active_id"]), None)
-        return {"student_id": student_id, "version": learner["version"], "course_version": 1,
+        return {"student_id": student_id, "version": learner["version"], "course_version": graph["version"],
                 "scenes": SCENES, "tasks": public_tasks(), "lab": lab, "active": active,
                 "preview": preview(active["seed"]) if active else [],
-                "course_id": self.store.load_graph()["id"], "rhythm": lab_rhythm(TASKS, active, learner.get("workspace", {}))}
+                "course_id": graph["id"],
+                "knowledge": [{"node_id": n["id"], "title": n["title"], "text": n.get("description", "")} for n in graph["nodes"] if n["id"] in activity.get("knowledge_node_ids", [])], "rhythm": lab_rhythm(TASKS, active, learner.get("workspace", {}))}
 
     def act(self, operation, payload):
         def apply(graph, learner, workspace):
@@ -126,7 +129,12 @@ class MLLab(LearningWorkspace):
                    "skeleton_id": "ml_tree_lab", "skeleton_version": VERSION,
                    "lab_session_id": session["id"], "experiment_evidence_ids": refs}
         records = []
-        for node_id in task["nodes"]:
+        activity = next((a for a in graph.get("activities", []) if a.get("engine") == "classification_lab"), {})
+        bindings = activity.get("node_bindings", {})
+        for concept in task["nodes"]:
+            node_id = bindings.get(concept)
+            if not node_id:
+                raise CourseGraphError("实验知识点关联尚未配置。", 409)
             record = self._evidence(graph, learner, self.store._node(graph, node_id),
                                     json.dumps(answer, ensure_ascii=False), "practice", level, context)
             records.append(record["id"])

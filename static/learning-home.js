@@ -8,8 +8,6 @@
     constructor(actions){
       this.actions=actions;this.mode=new URLSearchParams(location.search).get('view')==='study'?'study':'overview';this.selected=null;this.state=null;this.chapter='';this.renderVersion=0;
       document.body.classList.add('student-home');
-      this.activities={};
-      fetch('/static/course-activities.json',{cache:'no-store'}).then(response=>{if(!response.ok)throw new Error('课程实验入口加载失败，请刷新重试。');return response.json();}).then(data=>{this.activities=data;this.activitiesLoaded=true;this.renderActivities();}).catch(error=>actions.error(error.message));
       $('onboardSlot').appendChild($('onboarding'));
       $('overviewTab').onclick=()=>actions.changeView('overview');
       $('studyTab').onclick=()=>actions.changeView('study');
@@ -56,7 +54,7 @@
     }
     renderActivities(){
       const s=this.state;if(!s?.course)return;
-      const configured=this.activities[s.course.id];
+      const configured=s.course.activities;
       const labs=(Array.isArray(configured)?configured:[]).filter(lab=>typeof lab.href==='string'&&lab.href.startsWith('/')&&!lab.href.startsWith('//'));
       $('courseLabs').hidden=!labs.length;
       $('courseLabList').innerHTML=labs.map(lab=>{
@@ -65,7 +63,7 @@
         url.searchParams.set('course_id',s.course.id);url.searchParams.set('student_id',s.learner.student_id);
         return `<article><h3>${esc(lab.title)}</h3><p>${esc(lab.description)}</p><a href="${esc(url.pathname+url.search)}">进入实验</a></article>`;
       }).join('');
-      $('courseLabs').dataset.ready=String(!!this.activitiesLoaded);
+      $('courseLabs').dataset.ready='true';
     }
     select(id,focus=true){
       const s=this.state,n=s?.course.nodes.find(n=>n.id===id);if(!n)return;
@@ -163,13 +161,16 @@
       const s=this.state,l=s.current_lesson;
       $('discussionPanel').hidden=!l;
       $('discussionHistory').innerHTML=(l?.discussions||[]).map(turn=>`<article class="discussion-turn"><p class="student-question">${esc(turn.question)}</p><div class="support-text">${esc(turn.response)}</div><small>课程讲解 · ${esc(turn.source_heading)}</small></article>`).join('');
-      const demo=s.course.id==='ml_acceptance_demo';$('contextualLab').hidden=!demo||!l;
-      if(demo&&l){
-        const names={sample:'检查每一列数据，确定特征与预测目标。',partition:'改变训练比例，观察样本划分与重叠情况。',roles:'在实际训练中区分训练、验证和测试的职责。',accuracy:'比较准确率与混淆矩阵，查看判断正确的样本。',leakage:'观察加入事后回执怎样改变验证分数。',complexity:'修改树深度，观察训练和验证表现。',underfit:'比较浅树与较复杂模型的表现。',overfit:'比较训练与验证之间的差距。',selection:'依据验证结果选择并封存模型。',final:'对封存后的模型完成一次最终测试。'};
-        $('contextualLabText').textContent=names[l.node_id]||'用本节知识完成分类实验。';
-        $('lessonLabLink').href=`/ml-lab?student_id=${encodeURIComponent(s.learner.student_id)}&node_id=${encodeURIComponent(l.node_id)}`;
+      const activity=(s.course.activities||[]).find(a=>a.node_prompts?.[l?.node_id]);
+      $('contextualLab').hidden=!activity||!l;
+      if(activity&&l){
+        $('contextualLabText').textContent=activity.node_prompts[l.node_id];
+        const url=new URL(activity.href,location.origin);
+        if(url.origin!==location.origin)return;
+        url.searchParams.set('course_id',s.course.id);url.searchParams.set('student_id',s.learner.student_id);url.searchParams.set('node_id',l.node_id);
+        $('lessonLabLink').href=url.pathname+url.search;
         const lab=s.workspace.ml_lab,active=lab?.sessions.find(x=>x.id===lab.active_id);
-        $('labReturnSummary').textContent=active?`当前实验已完成 ${active.step} / 5 步，保存了 ${active.runs.length} 次训练结果。`:'';
+        $('labReturnSummary').textContent=active?`当前实验已完成 ${active.step} 步，保存了 ${active.runs.length} 次训练结果。`:'';
       }
     }
     theme(){this.mapSignature=null;if(this.mode==='overview')this.drawMap();}

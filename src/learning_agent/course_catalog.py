@@ -24,9 +24,10 @@ def _directory(default_store, course_id):
 def resolve_course(default_store, course_id=""):
     if course_id == "":
         return default_store
-    from .acceptance_course import AcceptanceCourseStore, DEMO_ID
-    if course_id == DEMO_ID:
-        return AcceptanceCourseStore(default_store)
+    from .course_package import PackagedCourseStore, packages
+    package = packages().get(course_id)
+    if package:
+        return PackagedCourseStore(default_store, package)
     safe_id(course_id, "课程 ID")
     if course_id == default_store.load_graph("draft")["id"]:
         return default_store
@@ -48,6 +49,16 @@ def metadata(course_store, *, is_default=False):
     graph = course_store.load_graph("draft")
     publication = course_store.publication()
     summary = graph_summary(graph)
+    presentation = getattr(course_store, "config", {}).get("presentation", graph.get("presentation", {}))
+    available = publication["published_version"] is not None or not course_store.content_editable
+    overview = graph.get("overview", "")
+    description = presentation.get("description", overview if isinstance(overview, str) else "")
+    stats = [{"value": summary[key], "label": label} for key, label in
+             (("chapter_count", "章"), ("node_count", "个知识点"), ("edge_count", "条关系"))]
+    source = course_store.source_summary() if hasattr(course_store, "source_summary") else None
+    if source:
+        stats += [{"value": source[key], "label": label} for key, label in
+                  (("source_pages", "页资料"), ("candidate_nodes", "个候选术语"), ("candidate_edges", "条候选关系")) if key in source]
     return {
         "id": graph["id"], "title": graph["title"], "is_default": is_default,
         "node_count": summary["node_count"], "edge_count": summary["edge_count"],
@@ -55,11 +66,19 @@ def metadata(course_store, *, is_default=False):
         "draft_version": graph["version"], "published_version": publication["published_version"],
         "status": "published" if publication["published_version"] is not None else "draft",
         "has_drafts": summary["has_drafts"], "created_at": graph.get("created_at"),
+        "delivery_mode": graph.get("delivery_mode", "formal"),
+        "presentation": {"description": description, "label": presentation.get("label", "已发布" if available else "待发布"), "stats": stats},
+        "capabilities": {"learn": available, "edit": course_store.content_editable, "generate_handouts": True,
+                         "objective_assessment": bool(course_store.assessment)},
+        "source_summary": source,
     }
+
 
 
 def list_courses(default_store):
     result = [metadata(default_store, is_default=True)]
+    from .course_package import PackagedCourseStore, packages
+    result.extend(metadata(PackagedCourseStore(default_store, path)) for path in packages().values())
     root = default_store.output_dir / "courses"
     if root.is_dir():
         for directory in sorted(root.iterdir()):
