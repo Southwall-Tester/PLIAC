@@ -33,6 +33,13 @@ def main():
                 expect(page.locator('#readingWorkspace')).to_be_hidden()
                 student = page.locator('#studentId').input_value()
                 assert student.startswith('learner-')
+                expect(page.locator('#labLink')).to_be_visible()
+                page.locator('#labLink').click()
+                expect(page.locator('#setup')).to_be_visible()
+                expect(page.locator('#studentId')).to_have_value(student)
+                page.locator('#learnLink').click()
+                expect(page.locator('#courseOverview')).to_be_visible()
+                passed('Visible toolbar Lab entry works before starting a lesson and preserves learner identity')
                 def state():
                     return page.request.get(base + '/api/learning', params={
                         'course_id': 'ml_acceptance_demo', 'student_id': student}).json()
