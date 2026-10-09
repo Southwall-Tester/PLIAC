@@ -204,7 +204,6 @@
     await mutate('onboard', {goals:$('goals').value, background:$('background').value, interests:$('interests').value.split(/[,，]/).map(x => x.trim()).filter(Boolean), self_assessments:selfAssessments});
     await openRequestedNode();
   }); };
-  $('profileButton').onclick = () => { home?.show('overview'); $('onboarding').hidden = false; $('onboarding').scrollIntoView({behavior:'smooth'}); };
   $('nextLesson').onclick = () => run(async () => { await saveDraft(); await mutate('next'); home?.show('study'); });
   $('nodeList').onclick = event => { const button = event.target.closest('[data-node]'); if (button) { if(home?.mode==='overview'){home.select(button.dataset.node);return;} run(async () => { await saveDraft(); await mutate('next', {node_id:button.dataset.node}); home?.show('study'); }); } };
   function scheduleSave() { clearTimeout(saveTimer); saveTimer = setTimeout(() => { if (busy) scheduleSave(); else run(saveDraft); }, 900); }

@@ -16,7 +16,7 @@
   <script defer src="/static/learning-home.js?v=4"></script>
   <link rel="stylesheet" href="/static/study.css?v=2">
   <script defer src="/static/study.js?v=2"></script>
-  <script defer src="/static/learning.js?v=9"></script>
+  <script defer src="/static/learning.js?v=10"></script>
 </head>
 <body>
   <header class="toolbar"><a href="/courses">PLIAC · 课程</a><nav id="learningTabs" aria-label="课程视图"><button id="overviewTab" type="button" aria-pressed="true">课程总览</button><button id="studyTab" type="button" aria-pressed="false">正在学习</button></nav><a id="graphLink" href="/knowledge">完整图谱</a><a href="/documents">资料图谱</a><details class="management-menu"><summary>管理</summary><div><a href="/manage/courses">课程管理</a><a id="roleLink" href="/review">教师复核</a><a href="/documents">资料库</a></div></details><button id="themeButton">深色</button></header>
@@ -30,7 +30,7 @@
     </section>
     <p id="courseProgress" class="notice" hidden></p>
     <section id="studentWorkspace" class="workspace-grid" hidden>
-      <aside class="panel navigation"><div class="section-heading"><h2>课程目录</h2><button id="profileButton">起点</button></div><div id="nodeList"></div><div class="navigation-footer"><button id="reportsLink">章节报告</button><button id="handbookLink">知识手册</button></div></aside>
+      <aside class="panel navigation"><div class="section-heading"><h2>课程目录</h2></div><div id="nodeList"></div><div class="navigation-footer"><button id="reportsLink">章节报告</button><button id="handbookLink">知识手册</button></div></aside>
       <div class="learning-column">
         <section id="courseOverview" hidden><div class="overview-heading"><div><h2>知识点图谱</h2><p id="courseOverviewText" class="muted"></p></div><label>章节<select id="overviewChapter"><option value="">全部章节</option></select></label></div><section id="courseLabs" class="panel course-labs" hidden><h2>课程实验</h2><div id="courseLabList"></div></section><div class="overview-grid"><section class="panel map-panel"><div class="map-heading"><h3>知识关系</h3><label class="map-color-label">颜色<select id="mapColorMode"><option value="family">知识分组</option><option value="mastery">掌握状态</option></select></label><button id="fitCourseMap" type="button">适应画布</button></div><div id="courseMap" role="img" aria-label="课程知识点与关系，知识点也可从左侧目录选择"></div><div id="mapLegend" class="map-legend"></div><p class="map-relations-legend">箭头：前置、包含　虚线：关联、易混淆</p></section><aside class="panel next-card"><p id="selectedChapter" class="muted"></p><h2 id="selectedTitle"></h2><p id="selectedDescription"></p><p id="selectedState"></p><p id="selectedReason" class="muted"></p><button id="continueLesson" class="primary">确认学习起点</button><div id="overviewAdvance"></div><details id="selectedEvidence"><summary>查看学习依据</summary><div id="selectedEvidenceBody"></div></details><div id="selectedPrerequisites"></div><section id="knowledgeRelations"></section><section id="relationDetail" hidden></section></aside></div><div id="onboardSlot"></div></section>
         <div id="readingWorkspace" class="reading-grid" hidden>
