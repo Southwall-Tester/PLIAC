@@ -93,9 +93,11 @@
 双击 [`启动课程图谱.cmd`](启动课程图谱.cmd)，自动打开课程列表。命令行入口：
 
 ```powershell
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
 python scripts/run.py
 ```
+
+双击入口依次检查项目 `.venv`、当前 Python 和 PATH 中的其他 Python，使用依赖齐全的环境，并显示其路径。如果 PowerShell 的 `(base)` 中依赖已安装、双击却提示缺少依赖，启动器会自动尝试 PATH 中的 Anaconda Python。安装依赖时使用 `python -m pip`，确保安装和运行使用同一环境。
 
 默认地址：
 

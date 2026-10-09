@@ -38,7 +38,10 @@ def main():
         import uvicorn
         from pliac.main import app
     except ImportError as exc:
-        print(f"缺少依赖 {exc.name}，请在项目目录运行：pip install -r requirements.txt")
+        print(f"依赖加载失败：{exc}")
+        print(f"当前 Python：{sys.executable}")
+        print("请在项目目录的 PowerShell 中使用同一 Python 安装依赖：")
+        print(f'& "{sys.executable}" -m pip install -r requirements.txt')
         return 1
     listener = None
     for port in range(args.port, args.port + 10):

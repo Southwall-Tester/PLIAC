@@ -3,3 +3,25 @@
 #generationControls{display:flex;flex-wrap:wrap;gap:14px;align-items:center;margin-bottom:20px}#chapter{font:inherit;padding:7px;border:1px solid #ccd6d0;border-radius:7px;max-width:260px}#generate{background:#305e50;color:white}#jobStatus{font-size:13px}#courseExperiments a{margin-left:10px}
 
 .network-dark{--bg:#17211e;--panel:#212f29;--text:#e0ebe5;--line:#3e5047}html.network-dark #chapter{background:#212f29;color:#e0ebe5}.network-dark dialog{background:#212f29;color:#e0ebe5}
+
+#conceptList button{transition:background-color .18s,border-color .18s,box-shadow .18s}
+#conceptList button[aria-pressed=true]{background:#e0efe7;color:#234b3e;border-color:#305e50;box-shadow:0 0 0 2px #305e5030}
+.network-dark #conceptList button[aria-pressed=true]{background:#355647;color:#effff7;border-color:#a5dfc4;box-shadow:0 0 0 2px #a5dfc435}
+#conceptList button:focus-visible{outline:2px solid currentColor;outline-offset:4px}
+@media(prefers-reduced-motion:reduce){#conceptList button{transition:none}}
+
+#conceptList{max-height:180px;overflow-y:auto;overscroll-behavior-y:contain;scrollbar-gutter:stable;align-content:flex-start}
+#conceptList button{flex:0 0 auto;max-width:100%;overflow-wrap:anywhere;text-align:left}
+.concept-list-heading{display:flex;justify-content:space-between;gap:12px;padding:10px 14px 0;border-top:1px solid var(--line,#dce4df);font-size:12px}
+#conceptCount{opacity:.75}#conceptEmpty{padding:0 14px 12px;margin:0;font-size:13px}
+@media(max-width:800px){#conceptList{max-height:150px}}
+
+#readingScreen nav{max-height:82vh;overflow:auto;overscroll-behavior:contain;scrollbar-gutter:stable;padding:4px}
+#readingScreen nav button[aria-current=location]{background:#e0efe7;color:#234b3e;border-color:#305e50;box-shadow:inset 3px 0 #305e50}
+.network-dark #readingScreen nav button[aria-current=location]{background:#355647;color:#effff7;border-color:#a5dfc4;box-shadow:inset 3px 0 #a5dfc4}
+#readingScreen nav button:focus-visible{outline:2px solid currentColor;outline-offset:2px}
+@media(max-width:800px){#readingScreen nav{max-height:150px}#readingScreen nav>button,#outline{flex-shrink:0}}
+
+/* The graph panel determines the row height; detail text never sizes the row. */
+#detail{contain:size;min-height:0;overflow-y:auto;overscroll-behavior-y:contain;scrollbar-gutter:stable}
+@media(max-width:800px){#detail{height:clamp(240px,50vh,420px)}}
