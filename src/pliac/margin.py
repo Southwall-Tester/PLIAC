@@ -11,12 +11,13 @@ from learning_agent.api import ChineseRoute, _body, resolve_course_store
 from learning_agent.course_graph import CourseGraphError, ROOT
 from learning_agent import document_api
 from learnmargin.config import default_api, resolve_api
-from learnmargin.models import APIConfig, Document, SourceUnit, GenerateRequest, Lesson, LessonPlan, LessonSection
+from learnmargin.models import APIConfig, Document, SourceUnit, GenerateRequest, Scope, Lesson, LessonPlan, LessonSection
 from learnmargin.pipeline import generate_lesson, validate_material, make_units
 from learnmargin.provider import Provider
 from learnmargin.rendering import render_lesson
 from learnmargin.storage import Store, atomic_json, new_id, now
 from .margin_graph import generate_map
+from . import learning_scope, handout_practice
 
 router = APIRouter(prefix="/api/handouts", route_class=ChineseRoute)
 TASKS = {}
@@ -33,19 +34,28 @@ def graph_for(course):
     return (graph, graph.get("delivery_mode", "published")) if graph else (course.load_graph("draft"), "draft")
 
 
-def materials(graph, chapter_id="", documents=None):
+def materials(graph, chapter_id="", documents=None, scope=None):
     """Snapshot complete cached source units explicitly linked to this course scope."""
     documents = documents or document_api.document_store
     if chapter_id and chapter_id not in {c["id"] for c in graph["chapters"]}:
         raise CourseGraphError("课程章节不存在。", 404)
     nodes = [n for n in graph["nodes"] if not chapter_id or n["chapter_id"] == chapter_id]
+    if scope:
+        nodes = [n for n in nodes if n["id"] in scope["node_ids"]]
     pages, authored = {}, []
+    for entry in (scope or {}).get("source_ranges", []):
+        start, end = entry.get("start_page"), entry.get("end_page")
+        if type(start) is not int or type(end) is not int or not 1 <= start <= end or end-start > 2000:
+            raise CourseGraphError("章节资料页码范围无效。", 409)
+        pages.setdefault(entry["document_id"], set()).update(range(start, end+1))
+    bounded_documents = set(pages)
     for node in nodes:
         ident = node.get("document_id")
         evidence = node.get("document_evidence", [])
         if ident and evidence:
             selected = pages.setdefault(ident, set())
-            selected.update(e["page"] for e in evidence if type(e.get("page")) is int)
+            if ident not in bounded_documents:
+                selected.update(e["page"] for e in evidence if type(e.get("page")) is int)
         else:
             content = [node["title"], node.get("description", "")]
             content += [p.get("heading", "")+"\n"+p.get("text", "") for p in node.get("lesson_content", [])]
@@ -130,12 +140,16 @@ async def run_job(store, job, request, docs, origins):
         atomic_json(output / "materials.json", {"documents":[doc.model_dump() for doc in docs], "origins":origins})
         async with Provider(request.api) as provider:
             checkpoint = output / "lesson.json"
+            lesson = None
             if checkpoint.is_file():
                 lesson = Lesson.model_validate_json(checkpoint.read_text(encoding="utf-8"))
-            else:
+                if job.get("scope") and not any(section.practice for section in lesson.sections):
+                    lesson = None
+            if lesson is None:
                 lesson = await generate_lesson(request, docs, store, output, provider, progress)
-                atomic_json(checkpoint, lesson.model_dump())
             lesson = readable_guidance(lesson)
+            if job.get("scope") and not any(section.practice for section in lesson.sections):
+                raise ValueError("这次讲义没有生成范围内练习，请重新生成完整学习单元。")
             atomic_json(checkpoint, lesson.model_dump())
             progress("生成知识概念及关系", 83)
             concept_map = await generate_map(lesson, provider)
@@ -143,8 +157,8 @@ async def run_job(store, job, request, docs, origins):
         atomic_json(output / "knowledge-map.json", concept_map)
         progress("排版详细讲义", 88)
         rendered = await render_lesson(lesson, output, layout="a4")
-        atomic_json(output / "generation.json", {"engine":"LearnMargin 63dba8f", "course_id":job["course_id"], "course_version":job["course_version"], "api_usage":usage})
-        job.update(status="completed", stage="讲义与知识图谱已生成", progress=100, title=lesson.title, page_count=rendered["page_count"])
+        atomic_json(output / "generation.json", {"engine":"LearnMargin 63dba8f", "course_id":job["course_id"], "course_version":job["course_version"], "scope":job.get("scope"), "api_usage":usage})
+        job.update(status="completed", stage="图谱、讲义与习题已生成", progress=100, title=lesson.title, page_count=rendered["page_count"])
     except asyncio.CancelledError:
         job.update(status="cancelled", stage="已取消")
         raise
@@ -167,16 +181,25 @@ async def close_jobs():
 
 
 @router.get("")
-def listing(course_store=Depends(resolve_course_store)):
+def listing(course_store=Depends(resolve_course_store), chapter_id: str = "", node_id: str = "",
+            source_job_id: str = "", concept_id: str = "", section_id: str = ""):
     graph, view = graph_for(course_store)
     store = storage(course_store)
+    scope = learning_scope.resolve(graph, dict(chapter_id=chapter_id, node_id=node_id,
+        source_job_id=source_job_id, concept_id=concept_id, section_id=section_id), store)
+    section_nodes = learning_scope.resolve(graph, dict(chapter_id=scope["chapter_id"], section_id=section_id), store)["node_ids"] if section_id else None
     jobs = store.jobs()
     for job in jobs:
         if job["status"] in {"running", "queued"} and job["id"] not in TASKS:
             job.update(status="failed", stage="任务已中断", error="服务已重启，请重新生成。")
             store.save_job(job)
     return {"course_id":graph["id"], "title":graph["title"], "version":graph["version"], "source_view":view,
-            "chapters":graph["chapters"], "jobs":jobs,
+            "chapters":graph["chapters"], "jobs":jobs, "scope":scope,
+            "scope_jobs":[j for j in jobs if learning_scope.key(learning_scope.job_scope(j)) == scope["key"]],
+            "nodes":[{"id":n["id"], "title":n["title"], "chapter_id":n["chapter_id"]} for n in graph["nodes"]
+                     if (not scope["chapter_id"] or n["chapter_id"] == scope["chapter_id"])
+                     and (section_nodes is None or n["id"] in section_nodes)],
+            "activities":graph.get("activities", []),
             "capabilities":{"generate_handouts":True},
             "snapshot_summary":course_store.source_summary() if hasattr(course_store,"source_summary") else None}
 
@@ -185,16 +208,19 @@ def listing(course_store=Depends(resolve_course_store)):
 async def generate(request: Request, course_store=Depends(resolve_course_store)):
     body = await _body(request)
     graph, view = graph_for(course_store)
-    chapter = body.get("chapter_id", "")
-    if not isinstance(chapter, str):
-        raise CourseGraphError("章节编号无效。")
     store = storage(course_store)
+    selection = body.get("scope", body)
+    if not isinstance(selection, dict):
+        raise CourseGraphError("学习范围无效。")
+    scope = learning_scope.resolve(graph, selection, store)
+    chapter = scope["chapter_id"]
     for job in store.jobs():
-        if job["id"] in TASKS and job.get("chapter_id") == chapter:
+        if job["id"] in TASKS and learning_scope.key(learning_scope.job_scope(job)) == scope["key"] and job["course_version"] == graph["version"]:
             return job
     if len(TASKS) >= 2:
         raise CourseGraphError("已有讲义正在生成，请完成后重试。", 429)
-    docs, origins = materials(graph, chapter, course_store.material_documents(document_api.document_store))
+    docs, origins = (learning_scope.concept_materials(scope, store) if scope["kind"] == "concept" else
+                     materials(graph, chapter, course_store.material_documents(document_api.document_store), scope))
     api = configured_api()
     try:
         validate_material(make_units(docs), store, api.vision)
@@ -203,8 +229,13 @@ async def generate(request: Request, course_store=Depends(resolve_course_store))
     if len(docs) > 8:
         raise CourseGraphError("当前范围关联的资料超过 8 份，请选择具体课程章节。", 400)
     request_data = GenerateRequest(document_ids=[d.id for d in docs], api=api,
-        learner_notes="以课程现有资料为依据，讲清概念含义、条件与推理，提供完整例题。休息由内容负荷决定，用户自主选择，不使用计时限制。", language="简体中文")
-    previous = next((j for j in store.jobs() if j.get("chapter_id") == chapter and j["status"] == "failed"), None)
+        scope=Scope(mode="topics", topics=scope["title"]) if scope["kind"] in {"node", "concept"} else Scope(),
+        learner_notes=f"本次独立学习单元：{scope['title']}。只讲本范围内的内容，必要前置知识单列说明，不扩展为整门课程。"
+            "以课程已有资料为依据，包含学习目标、前置说明、详细讲解、完整例题、范围内习题、提示、参考答案和复习建议。"
+            "知识点虽小也要形成完整学习单元，至少提供一道可作答习题。休息由内容负荷决定，用户自主选择，不使用计时限制。"
+            + ("当前知识点的原图谱定义：" + scope["focus"][:500] if scope["focus"] else ""), language="简体中文")
+    previous = next((j for j in store.jobs() if learning_scope.key(learning_scope.job_scope(j)) == scope["key"]
+                     and j["course_version"] == graph["version"] and j["status"] == "failed"), None)
     if previous:
         output = store.directory("jobs", previous["id"])
         snapshot = output / "materials.json"
@@ -224,14 +255,14 @@ async def generate(request: Request, course_store=Depends(resolve_course_store))
                             sources=selection["sources"], scope_note=selection["scope_note"])
                         atomic_json(checkpoint, lesson.model_dump())
                 if checkpoint.exists():
-                    previous.update(status="queued", stage="继续生成知识图谱", progress=82, error=None)
+                    previous.update(status="queued", stage="继续生成知识图谱", progress=82, error=None, scope=scope)
                     store.save_job(previous)
                     task = asyncio.create_task(run_job(store, previous, request_data, docs, origins))
                     TASKS[previous["id"]] = task
                     task.add_done_callback(lambda _: TASKS.pop(previous["id"], None))
                     return previous
     job = dict(id=new_id(), status="queued", stage="等待生成", progress=0, created_at=now(), course_id=graph["id"],
-               course_version=graph["version"], source_view=view, chapter_id=chapter, title=graph["title"], error=None)
+               course_version=graph["version"], source_view=view, chapter_id=chapter, scope=scope, title=scope["title"], error=None)
     store.save_job(job)
     task = asyncio.create_task(run_job(store, job, request_data, docs, origins))
     TASKS[job["id"]] = task
@@ -246,6 +277,18 @@ def artifact(job_id: str, name: str, course_store=Depends(resolve_course_store))
         raise CourseGraphError("讲义尚未生成完成。", 404)
     path = job_path(store, job_id, name)
     return FileResponse(path, media_type=ARTIFACTS[name], headers={"X-Content-Type-Options":"nosniff"})
+
+
+@router.get("/{job_id}/practice")
+def practice_view(job_id: str, student_id: str, course_store=Depends(resolve_course_store)):
+    return handout_practice.view(course_store, storage(course_store), job_id, student_id)
+
+
+@router.post("/{job_id}/practice")
+async def practice_write(job_id: str, request: Request, course_store=Depends(resolve_course_store)):
+    from starlette.concurrency import run_in_threadpool
+    payload = await _body(request)
+    return await run_in_threadpool(handout_practice.mutate, course_store, storage(course_store), job_id, payload)
 
 
 @router.get("/{job_id}/sources/{document_id}/{index}")

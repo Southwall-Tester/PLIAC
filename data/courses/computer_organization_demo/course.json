@@ -11,37 +11,86 @@
     {
       "id": "chapter_1",
       "title": "第1章 计算机抽象及相关技术",
-      "description": "用执行时间和 CPU 性能公式解释机器的快慢。"
+      "description": "用执行时间和 CPU 性能公式解释机器的快慢。",
+      "source_ranges": [
+        {
+          "document_id": "1430eae9d93742068badc82af0bddff9",
+          "start_page": 20,
+          "end_page": 64
+        }
+      ]
     },
     {
       "id": "chapter_2",
       "title": "第2章 指令：计算机的语言",
-      "description": "区分寄存器计算、内存寻址与数据传输。"
+      "description": "区分寄存器计算、内存寻址与数据传输。",
+      "source_ranges": [
+        {
+          "document_id": "1430eae9d93742068badc82af0bddff9",
+          "start_page": 65,
+          "end_page": 148
+        }
+      ]
     },
     {
       "id": "chapter_3",
       "title": "第3章 计算机的算术运算",
-      "description": "根据位宽和数值解释区分进位、截断与有符号溢出。"
+      "description": "根据位宽和数值解释区分进位、截断与有符号溢出。",
+      "source_ranges": [
+        {
+          "document_id": "1430eae9d93742068badc82af0bddff9",
+          "start_page": 149,
+          "end_page": 191
+        }
+      ]
     },
     {
       "id": "chapter_4",
       "title": "第4章 处理器",
-      "description": "解释数据通路、控制和流水线吞吐率之间的关系。"
+      "description": "解释数据通路、控制和流水线吞吐率之间的关系。",
+      "source_ranges": [
+        {
+          "document_id": "1430eae9d93742068badc82af0bddff9",
+          "start_page": 192,
+          "end_page": 289
+        }
+      ]
     },
     {
       "id": "chapter_5",
       "title": "第5章 大而快：层次化存储",
-      "description": "用局部性与平均访存时间解释 cache 的收益和代价。"
+      "description": "用局部性与平均访存时间解释 cache 的收益和代价。",
+      "source_ranges": [
+        {
+          "document_id": "1430eae9d93742068badc82af0bddff9",
+          "start_page": 290,
+          "end_page": 382
+        }
+      ]
     },
     {
       "id": "chapter_6",
       "title": "第6章 并行处理器：从客户端到云",
-      "description": "用串行比例解释并行加速上限，并辨别不同并行形式。"
+      "description": "用串行比例解释并行加速上限，并辨别不同并行形式。",
+      "source_ranges": [
+        {
+          "document_id": "1430eae9d93742068badc82af0bddff9",
+          "start_page": 383,
+          "end_page": 443
+        }
+      ]
     },
     {
       "id": "appendix_a",
       "title": "附录 A 逻辑设计基础",
-      "description": "区分组合逻辑与保存状态的时序逻辑。"
+      "description": "区分组合逻辑与保存状态的时序逻辑。",
+      "source_ranges": [
+        {
+          "document_id": "1430eae9d93742068badc82af0bddff9",
+          "start_page": 444,
+          "end_page": 513
+        }
+      ]
     }
   ],
   "sources": [

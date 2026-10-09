@@ -17,12 +17,14 @@ import run as runner
 
 class LauncherTests(unittest.TestCase):
     def test_reuse_requires_current_course_api_contract(self):
-        health = {"app": "learning-agent", "capabilities": ["learnmargin_graph"]}
+        health = {"app": "learning-agent", "capabilities": ["learnmargin_graph", "scoped_learning_units"]}
         for course, accepted in [({"id": "old"}, False),
                                  ({"id": "current", "capabilities": {}, "presentation": {}}, True)]:
             replies = [io.BytesIO(json.dumps(value).encode()) for value in [health, {"courses": [course]}]]
             with patch.object(runner.urllib.request, "urlopen", side_effect=replies):
                 self.assertEqual(runner.existing(8010), accepted)
+        with patch.object(runner.urllib.request, "urlopen", return_value=io.BytesIO(json.dumps({"app": "learning-agent", "capabilities": ["learnmargin_graph"]}).encode())):
+            self.assertFalse(runner.existing(8010))
 
     def test_project_environment_then_current_then_path_without_duplicates(self):
         with tempfile.TemporaryDirectory() as folder:

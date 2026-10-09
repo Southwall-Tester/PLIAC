@@ -18,7 +18,7 @@ def existing(port):
     try:
         with urllib.request.urlopen(f"http://127.0.0.1:{port}/health", timeout=1) as response:
             health = json.load(response)
-            if health.get("app") != "learning-agent" or "learnmargin_graph" not in health.get("capabilities", []):
+            if health.get("app") != "learning-agent" or "scoped_learning_units" not in health.get("capabilities", []):
                 return False
         # Static assets update immediately; do not reuse an incompatible old API.
         with urllib.request.urlopen(f"http://127.0.0.1:{port}/api/courses", timeout=2) as response:

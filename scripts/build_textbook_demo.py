@@ -81,7 +81,8 @@ def course_graph(guide, document_id):
     sections = guide["sections"]
     graph = dict(schema_version=1, id=guide["id"], version=1, title=guide["title"],
                  overview=guide["overview"], delivery_mode="source_demo", resources=[], edges=[],
-                 chapters=[dict(id=s["id"], title=s["title"], description=s["objective"]) for s in sections],
+                 chapters=[dict(id=s["id"], title=s["title"], description=s["objective"],
+                     source_ranges=[dict(document_id=document_id,start_page=s["start_page"],end_page=s["end_page"])]) for s in sections],
                  sources=[dict(id="textbook", title=guide["source_title"], kind="uploaded_textbook", url="", locator="上传教材的 PDF 物理页码；OCR 原文随课程快照保存。")],
                  review_policy={"intervals_days": [1, 7, 30]}, nodes=[])
     for section in sections:

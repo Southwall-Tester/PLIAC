@@ -66,7 +66,7 @@ def workbench():
 
 @app.get("/health")
 def health():
-    return {"app": "learning-agent", "platform": "PLIAC", "capabilities": ["knowledge_graph", "learning_workspace", "acceptance_course", "ml_lab", "course_home", "study_rhythm", "learnmargin_graph"],
+    return {"app": "learning-agent", "platform": "PLIAC", "capabilities": ["knowledge_graph", "learning_workspace", "acceptance_course", "ml_lab", "course_home", "study_rhythm", "learnmargin_graph", "scoped_learning_units"],
             "version": app.version, "specification": "v7_20261008", "ocr_threads": ocr_threads()}
 
 
