@@ -37,25 +37,33 @@ def main():
                     return page.request.get(base + '/api/learning', params={
                         'course_id': 'ml_acceptance_demo', 'student_id': student}).json()
                 initial = state()
-                assert len(page.evaluate('__network.data.nodes')) == 10
+                assert len(page.evaluate('__network.data.nodes')) == 30
+                assert len(initial['course']['nodes']) == 10
+                assert not set(page.evaluate('__network.data.nodes.map(n=>n.id)')) & {n['id'] for n in initial['course']['nodes']}
                 assert page.evaluate(r'__network.data.nodes.every(n=>n.data.kind==="concept" && !/^\d/.test(n.data.title))')
-                assert page.evaluate('__network.data.edges.some(e=>e.source==="underfit" && e.target==="overfit" && e.data.type==="confusable" && !e.style.endArrow)')
-                assert page.evaluate('__network.data.edges.filter(e=>e.source==="complexity" && e.data.type==="prerequisite").length === 2')
+                assert page.evaluate('__network.data.edges.some(e=>e.source==="concept_train" && e.target==="concept_tree" && e.data.label==="用于拟合")')
+                assert page.evaluate('__network.data.nodes.filter(n=>["训练集","验证集","测试集"].includes(n.data.title)).length === 3')
+                at=page.evaluate('__network.graph.getViewportByCanvas(__network.graph.getElementPosition("concept_train"))')
+                page.locator('#courseMap').click(position={'x':at[0],'y':at[1]})
+                expect(page.locator('#selectedTitle')).to_have_text('训练集')
+                expect(page.locator('[data-lesson]')).to_have_count(3)
                 page.locator('[data-node="underfit"]').click()
-                page.locator('[data-relation="knowledge_underfit_overfit_confusable"]').click()
-                expect(page.locator('#relationDetail')).to_contain_text('训练表现')
+                page.locator('[data-relation="concept_relation_28"]').click()
+                expect(page.locator('#relationDetail')).to_contain_text('表达能力不足')
                 expect(page.locator('#relationDetail a')).to_have_count(1)
                 before_positions = page.evaluate('__network.force.positions()')
-                page.locator('#mapColorMode').select_option('mastery')
-                page.wait_for_function('__network.data.nodes.every(n=>n.style.fill === "#a8b0b8") && !__network.busy')
+                page.locator('#mapColorMode').select_option('active')
+                page.wait_for_function('__network.data.nodes.every(n=>n.style.fill === "#c4c8cc") && !__network.busy')
                 assert before_positions == page.evaluate('__network.force.positions()')
                 page.locator('#mapColorMode').select_option('family')
                 assert all(v['status'] == 'unknown' for v in initial['learner']['states'].values())
                 page.locator('#overviewChapter').select_option('data')
-                page.wait_for_function('__network.data.nodes.length === 5 && !__network.busy')
+                allowed={n['id'] for n in initial['course']['nodes'] if n['chapter_id']=='data'}
+                expected=sum(bool(allowed & set(n['lesson_ids'])) for n in initial['concept_map']['nodes'])
+                page.wait_for_function(f'__network.data.nodes.length === {expected} && !__network.busy')
                 assert page.evaluate('__network.data.edges.every(e=>__network.data.nodes.some(n=>n.id===e.source)&&__network.data.nodes.some(n=>n.id===e.target))')
                 page.locator('#overviewChapter').select_option('')
-                page.wait_for_function('__network.data.nodes.length === 10 && !__network.busy')
+                page.wait_for_function('__network.data.nodes.length === 30 && !__network.busy')
                 page.locator('[data-node="partition"]').click()
                 expect(page.locator('#selectedTitle')).to_contain_text('划分')
                 assert state()['current_lesson'] is None
@@ -95,7 +103,7 @@ def main():
                 expect(page.locator('[data-node="sample"] .state-dot')).to_have_class('state-dot uncertain')
                 assert state()['learner']['diagnoses'][-1]['status'] == 'needs_review'
                 page.locator('#overviewTab').click()
-                expect(page.locator('#selectedState')).to_have_text('待核验')
+                expect(page.locator('#selectedReason')).to_contain_text('小节学习状态：待核验')
                 page.locator('#selectedEvidence summary').click()
                 expect(page.locator('#selectedEvidenceBody')).to_contain_text('我的实验前思考')
                 page.locator('#continueLesson').click()

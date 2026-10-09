@@ -1,0 +1,914 @@
+{
+  "revision": 1,
+  "groups": [
+    {
+      "id": "data",
+      "title": "数据"
+    },
+    {
+      "id": "model",
+      "title": "模型"
+    },
+    {
+      "id": "evaluation",
+      "title": "评价"
+    },
+    {
+      "id": "diagnosis",
+      "title": "拟合与泛化"
+    }
+  ],
+  "entry_concepts": {
+    "sample": "concept_sample",
+    "partition": "concept_split",
+    "roles": "concept_train",
+    "accuracy": "concept_accuracy",
+    "leakage": "concept_leakage",
+    "complexity": "concept_complexity",
+    "underfit": "concept_underfit",
+    "overfit": "concept_overfit",
+    "selection": "concept_selection",
+    "final": "concept_generalization_error"
+  },
+  "nodes": [
+    {
+      "id": "concept_sample",
+      "title": "样本",
+      "group_id": "data",
+      "lesson_ids": [
+        "sample",
+        "partition"
+      ],
+      "description": "一次独立观测或预测对象，例如一次设备巡检。",
+      "source_ids": [
+        "split"
+      ]
+    },
+    {
+      "id": "concept_feature",
+      "title": "特征",
+      "group_id": "data",
+      "lesson_ids": [
+        "sample",
+        "complexity"
+      ],
+      "description": "在做预测的时刻可以取得的输入变量，例如温度和振动。",
+      "source_ids": [
+        "split"
+      ]
+    },
+    {
+      "id": "concept_label",
+      "title": "标签",
+      "group_id": "data",
+      "lesson_ids": [
+        "sample",
+        "accuracy"
+      ],
+      "description": "希望模型预测的真实类别，例如设备是否发生故障。",
+      "source_ids": [
+        "split"
+      ]
+    },
+    {
+      "id": "concept_prediction",
+      "title": "预测类别",
+      "group_id": "model",
+      "lesson_ids": [
+        "sample",
+        "accuracy"
+      ],
+      "description": "模型根据输入特征给出的类别，与真实标签比较后才能评价对错。",
+      "source_ids": [
+        "metrics"
+      ]
+    },
+    {
+      "id": "concept_train",
+      "title": "训练集",
+      "group_id": "data",
+      "lesson_ids": [
+        "roles",
+        "partition",
+        "leakage"
+      ],
+      "description": "参与模型拟合的数据；预处理需要学习的参数也在训练部分估计。",
+      "source_ids": [
+        "split"
+      ]
+    },
+    {
+      "id": "concept_validation",
+      "title": "验证集",
+      "group_id": "data",
+      "lesson_ids": [
+        "roles",
+        "selection",
+        "overfit"
+      ],
+      "description": "用来比较候选模型或超参数的数据，其结果参与模型选择。",
+      "source_ids": [
+        "split"
+      ]
+    },
+    {
+      "id": "concept_test",
+      "title": "测试集",
+      "group_id": "data",
+      "lesson_ids": [
+        "roles",
+        "final"
+      ],
+      "description": "在模型配置确定后用于最终评估的保留数据。",
+      "source_ids": [
+        "split"
+      ]
+    },
+    {
+      "id": "concept_split",
+      "title": "数据划分",
+      "group_id": "data",
+      "lesson_ids": [
+        "partition",
+        "roles"
+      ],
+      "description": "将样本分配到训练、验证和测试部分，并检查样本交集。",
+      "source_ids": [
+        "split"
+      ]
+    },
+    {
+      "id": "concept_seed",
+      "title": "随机种子",
+      "group_id": "data",
+      "lesson_ids": [
+        "partition"
+      ],
+      "description": "在相同数据、顺序与划分设置下，用固定整数种子复现划分结果。",
+      "source_ids": [
+        "split"
+      ]
+    },
+    {
+      "id": "concept_preprocessing",
+      "title": "预处理参数",
+      "group_id": "data",
+      "lesson_ids": [
+        "leakage"
+      ],
+      "description": "从数据估计的均值、尺度等处理参数，应在训练部分拟合，再应用于其他数据。",
+      "source_ids": [
+        "leakage"
+      ]
+    },
+    {
+      "id": "concept_leakage",
+      "title": "数据泄漏",
+      "group_id": "diagnosis",
+      "lesson_ids": [
+        "leakage",
+        "final"
+      ],
+      "description": "预测时不可用的信息，或本应保留的验证、测试信息进入训练和选择过程，使评价偏乐观。",
+      "source_ids": [
+        "leakage"
+      ]
+    },
+    {
+      "id": "concept_tree",
+      "title": "决策树",
+      "group_id": "model",
+      "lesson_ids": [
+        "complexity"
+      ],
+      "description": "通过特征条件逐层划分样本，预测时沿分支到达叶节点并输出类别。",
+      "source_ids": [
+        "trees"
+      ]
+    },
+    {
+      "id": "concept_depth",
+      "title": "树深度",
+      "group_id": "model",
+      "lesson_ids": [
+        "complexity",
+        "selection"
+      ],
+      "description": "从树根到叶节点的路径深度；最大深度约束允许学习的规则复杂程度。",
+      "source_ids": [
+        "trees"
+      ]
+    },
+    {
+      "id": "concept_hyperparameter",
+      "title": "超参数",
+      "group_id": "model",
+      "lesson_ids": [
+        "complexity",
+        "selection"
+      ],
+      "description": "在拟合前设定的模型或训练规则，例如最大树深度，通过验证结果比较候选值。",
+      "source_ids": [
+        "split"
+      ]
+    },
+    {
+      "id": "concept_complexity",
+      "title": "模型复杂度",
+      "group_id": "model",
+      "lesson_ids": [
+        "complexity",
+        "underfit",
+        "overfit"
+      ],
+      "description": "模型表达规则的灵活程度。本课程通过树深度观察其变化。",
+      "source_ids": [
+        "curves"
+      ]
+    },
+    {
+      "id": "concept_selection",
+      "title": "模型选择",
+      "group_id": "model",
+      "lesson_ids": [
+        "selection",
+        "final"
+      ],
+      "description": "根据验证结果比较候选配置，确定用于最终评估的模型。",
+      "source_ids": [
+        "split"
+      ]
+    },
+    {
+      "id": "concept_accuracy",
+      "title": "准确率",
+      "group_id": "evaluation",
+      "lesson_ids": [
+        "accuracy",
+        "selection"
+      ],
+      "description": "预测正确的样本数占评估样本总数的比例。",
+      "source_ids": [
+        "metrics"
+      ]
+    },
+    {
+      "id": "concept_error_rate",
+      "title": "错误率",
+      "group_id": "evaluation",
+      "lesson_ids": [
+        "accuracy"
+      ],
+      "description": "在单标签、等权分类中，错误率等于 1 减准确率。",
+      "source_ids": [
+        "metrics"
+      ]
+    },
+    {
+      "id": "concept_confusion",
+      "title": "混淆矩阵",
+      "group_id": "evaluation",
+      "lesson_ids": [
+        "accuracy"
+      ],
+      "description": "按真实类别和预测类别统计样本数，展示哪些类别之间容易发生误判。",
+      "source_ids": [
+        "metrics"
+      ]
+    },
+    {
+      "id": "concept_imbalance",
+      "title": "类别不均衡",
+      "group_id": "data",
+      "lesson_ids": [
+        "accuracy"
+      ],
+      "description": "不同类别的样本数量差异较大；总准确率可能掩盖少数类别的识别问题。",
+      "source_ids": [
+        "metrics"
+      ]
+    },
+    {
+      "id": "concept_train_error",
+      "title": "训练误差",
+      "group_id": "evaluation",
+      "lesson_ids": [
+        "underfit",
+        "overfit"
+      ],
+      "description": "在参与拟合的训练数据上计算的误差。",
+      "source_ids": [
+        "curves"
+      ]
+    },
+    {
+      "id": "concept_validation_error",
+      "title": "验证误差",
+      "group_id": "evaluation",
+      "lesson_ids": [
+        "underfit",
+        "overfit",
+        "selection"
+      ],
+      "description": "在验证数据上计算的误差，用于观察和比较候选设置。",
+      "source_ids": [
+        "curves"
+      ]
+    },
+    {
+      "id": "concept_gap",
+      "title": "训练—验证差距",
+      "group_id": "evaluation",
+      "lesson_ids": [
+        "overfit",
+        "underfit"
+      ],
+      "description": "用同一个指标、在可比的数据条件下比较训练与验证表现的差异。",
+      "source_ids": [
+        "curves"
+      ]
+    },
+    {
+      "id": "concept_underfit",
+      "title": "欠拟合",
+      "group_id": "diagnosis",
+      "lesson_ids": [
+        "underfit",
+        "complexity"
+      ],
+      "description": "模型尚未充分描述任务规律，训练表现也较差，应检查表达能力和拟合情况。",
+      "source_ids": [
+        "curves"
+      ]
+    },
+    {
+      "id": "concept_overfit",
+      "title": "过拟合",
+      "group_id": "diagnosis",
+      "lesson_ids": [
+        "overfit",
+        "complexity"
+      ],
+      "description": "模型过度适应训练样本细节，在可比较的新数据上表现明显变差。",
+      "source_ids": [
+        "curves"
+      ]
+    },
+    {
+      "id": "concept_generalization",
+      "title": "泛化能力",
+      "group_id": "diagnosis",
+      "lesson_ids": [
+        "overfit",
+        "final"
+      ],
+      "description": "模型对未参与训练和选择的新样本保持有效预测的能力。",
+      "source_ids": [
+        "split"
+      ]
+    },
+    {
+      "id": "concept_generalization_error",
+      "title": "泛化误差",
+      "group_id": "evaluation",
+      "lesson_ids": [
+        "final"
+      ],
+      "description": "模型在目标数据分布上的预测误差，独立测试结果提供其估计。",
+      "source_ids": [
+        "split"
+      ]
+    },
+    {
+      "id": "concept_test_error",
+      "title": "测试误差",
+      "group_id": "evaluation",
+      "lesson_ids": [
+        "final",
+        "accuracy"
+      ],
+      "description": "模型配置确定后，在保留测试集上实际计算出的误差。",
+      "source_ids": [
+        "split"
+      ]
+    },
+    {
+      "id": "concept_distribution",
+      "title": "数据分布",
+      "group_id": "data",
+      "lesson_ids": [
+        "final",
+        "overfit"
+      ],
+      "description": "样本特征与类别在目标场景中的分布；分布变化会影响评价结果的适用性。",
+      "source_ids": [
+        "split"
+      ]
+    },
+    {
+      "id": "concept_noise",
+      "title": "样本噪声",
+      "group_id": "data",
+      "lesson_ids": [
+        "overfit"
+      ],
+      "description": "观测波动或标签错误等样本细节，模型可能将这些细节拟合成规则。",
+      "source_ids": [
+        "curves"
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "id": "concept_relation_1",
+      "source": "concept_sample",
+      "target": "concept_feature",
+      "predicate": "具有输入",
+      "reason": "样本通过特征描述预测时已知的条件。",
+      "directed": true,
+      "source_ids": [
+        "split"
+      ]
+    },
+    {
+      "id": "concept_relation_2",
+      "source": "concept_sample",
+      "target": "concept_label",
+      "predicate": "具有目标",
+      "reason": "带标签的训练样本同时包含输入与希望预测的类别。",
+      "directed": true,
+      "source_ids": [
+        "split"
+      ]
+    },
+    {
+      "id": "concept_relation_3",
+      "source": "concept_feature",
+      "target": "concept_tree",
+      "predicate": "作为输入",
+      "reason": "决策树依据特征条件判断分支。",
+      "directed": true,
+      "source_ids": [
+        "trees"
+      ]
+    },
+    {
+      "id": "concept_relation_4",
+      "source": "concept_tree",
+      "target": "concept_prediction",
+      "predicate": "输出",
+      "reason": "分类树在叶节点给出预测类别。",
+      "directed": true,
+      "source_ids": [
+        "trees"
+      ]
+    },
+    {
+      "id": "concept_relation_5",
+      "source": "concept_prediction",
+      "target": "concept_label",
+      "predicate": "比较对错",
+      "reason": "预测类别与真实标签的比较决定该样本是否分类正确。",
+      "directed": true,
+      "source_ids": [
+        "metrics"
+      ]
+    },
+    {
+      "id": "concept_relation_6",
+      "source": "concept_split",
+      "target": "concept_train",
+      "predicate": "划出",
+      "reason": "数据划分为模型拟合保留训练部分。",
+      "directed": true,
+      "source_ids": [
+        "split"
+      ]
+    },
+    {
+      "id": "concept_relation_7",
+      "source": "concept_split",
+      "target": "concept_validation",
+      "predicate": "划出",
+      "reason": "数据划分为模型选择保留验证部分。",
+      "directed": true,
+      "source_ids": [
+        "split"
+      ]
+    },
+    {
+      "id": "concept_relation_8",
+      "source": "concept_split",
+      "target": "concept_test",
+      "predicate": "划出",
+      "reason": "数据划分为最终独立评估保留测试部分。",
+      "directed": true,
+      "source_ids": [
+        "split"
+      ]
+    },
+    {
+      "id": "concept_relation_9",
+      "source": "concept_seed",
+      "target": "concept_split",
+      "predicate": "帮助复现",
+      "reason": "相同输入和设置下，固定整数随机种子帮助复现随机划分。",
+      "directed": true,
+      "source_ids": [
+        "split"
+      ]
+    },
+    {
+      "id": "concept_relation_10",
+      "source": "concept_train",
+      "target": "concept_tree",
+      "predicate": "用于拟合",
+      "reason": "决策树从训练样本学习分裂规则。",
+      "directed": true,
+      "source_ids": [
+        "trees"
+      ]
+    },
+    {
+      "id": "concept_relation_11",
+      "source": "concept_train",
+      "target": "concept_preprocessing",
+      "predicate": "用于估计",
+      "reason": "预处理中的均值、尺度等参数应由训练部分估计。",
+      "directed": true,
+      "source_ids": [
+        "leakage"
+      ]
+    },
+    {
+      "id": "concept_relation_12",
+      "source": "concept_preprocessing",
+      "target": "concept_leakage",
+      "predicate": "越界拟合会引入",
+      "reason": "用全部数据估计预处理参数，会将保留数据的信息带入训练。",
+      "directed": true,
+      "source_ids": [
+        "leakage"
+      ]
+    },
+    {
+      "id": "concept_relation_13",
+      "source": "concept_validation",
+      "target": "concept_selection",
+      "predicate": "提供比较依据",
+      "reason": "验证表现用于比较候选模型与配置。",
+      "directed": true,
+      "source_ids": [
+        "split"
+      ]
+    },
+    {
+      "id": "concept_relation_14",
+      "source": "concept_selection",
+      "target": "concept_hyperparameter",
+      "predicate": "确定取值",
+      "reason": "模型选择可以比较并确定超参数值。",
+      "directed": true,
+      "source_ids": [
+        "split"
+      ]
+    },
+    {
+      "id": "concept_relation_15",
+      "source": "concept_depth",
+      "target": "concept_hyperparameter",
+      "predicate": "属于",
+      "reason": "最大树深度是分类树的一项超参数。",
+      "directed": true,
+      "source_ids": [
+        "trees"
+      ]
+    },
+    {
+      "id": "concept_relation_16",
+      "source": "concept_depth",
+      "target": "concept_complexity",
+      "predicate": "控制",
+      "reason": "更大的最大深度允许学习更复杂的树结构。",
+      "directed": true,
+      "source_ids": [
+        "trees"
+      ]
+    },
+    {
+      "id": "concept_relation_17",
+      "source": "concept_tree",
+      "target": "concept_depth",
+      "predicate": "具有结构属性",
+      "reason": "树深度描述决策树的层级深度。",
+      "directed": true,
+      "source_ids": [
+        "trees"
+      ]
+    },
+    {
+      "id": "concept_relation_18",
+      "source": "concept_complexity",
+      "target": "concept_underfit",
+      "predicate": "过低可能导致",
+      "reason": "表达能力过于受限时，模型可能无法拟合任务规律。",
+      "directed": true,
+      "source_ids": [
+        "curves"
+      ]
+    },
+    {
+      "id": "concept_relation_19",
+      "source": "concept_complexity",
+      "target": "concept_overfit",
+      "predicate": "过高可能导致",
+      "reason": "较灵活的模型可能过度适应训练细节，需要用验证结果判断。",
+      "directed": true,
+      "source_ids": [
+        "curves"
+      ]
+    },
+    {
+      "id": "concept_relation_20",
+      "source": "concept_noise",
+      "target": "concept_overfit",
+      "predicate": "被拟合时增加风险",
+      "reason": "对样本噪声的过度适应可能损害模型的新数据表现。",
+      "directed": true,
+      "source_ids": [
+        "curves"
+      ]
+    },
+    {
+      "id": "concept_relation_21",
+      "source": "concept_underfit",
+      "target": "concept_train_error",
+      "predicate": "通常较高",
+      "reason": "欠拟合时，模型在训练数据上也难以准确描述规律。",
+      "directed": true,
+      "source_ids": [
+        "curves"
+      ]
+    },
+    {
+      "id": "concept_relation_22",
+      "source": "concept_underfit",
+      "target": "concept_validation_error",
+      "predicate": "通常较高",
+      "reason": "欠拟合时，验证误差通常也较高。",
+      "directed": true,
+      "source_ids": [
+        "curves"
+      ]
+    },
+    {
+      "id": "concept_relation_23",
+      "source": "concept_overfit",
+      "target": "concept_train_error",
+      "predicate": "可能很低",
+      "reason": "过度适应训练数据的模型可以获得很低的训练误差。",
+      "directed": true,
+      "source_ids": [
+        "curves"
+      ]
+    },
+    {
+      "id": "concept_relation_24",
+      "source": "concept_overfit",
+      "target": "concept_validation_error",
+      "predicate": "相对训练误差较高",
+      "reason": "在可比较的数据条件下，过拟合常表现为验证误差高于训练误差。",
+      "directed": true,
+      "source_ids": [
+        "curves"
+      ]
+    },
+    {
+      "id": "concept_relation_25",
+      "source": "concept_train_error",
+      "target": "concept_gap",
+      "predicate": "参与比较",
+      "reason": "训练误差是比较训练与验证差距的一侧。",
+      "directed": true,
+      "source_ids": [
+        "curves"
+      ]
+    },
+    {
+      "id": "concept_relation_26",
+      "source": "concept_validation_error",
+      "target": "concept_gap",
+      "predicate": "参与比较",
+      "reason": "验证误差是比较训练与验证差距的另一侧。",
+      "directed": true,
+      "source_ids": [
+        "curves"
+      ]
+    },
+    {
+      "id": "concept_relation_27",
+      "source": "concept_gap",
+      "target": "concept_overfit",
+      "predicate": "提供诊断线索",
+      "reason": "差距增大提示检查过拟合，同时需排查数据分布和处理差异。",
+      "directed": true,
+      "source_ids": [
+        "curves"
+      ]
+    },
+    {
+      "id": "concept_relation_28",
+      "source": "concept_underfit",
+      "target": "concept_overfit",
+      "predicate": "需要区分",
+      "reason": "结合训练和验证两侧表现，区分表达能力不足与过度适应训练数据。",
+      "directed": false,
+      "source_ids": [
+        "curves"
+      ]
+    },
+    {
+      "id": "concept_relation_29",
+      "source": "concept_overfit",
+      "target": "concept_generalization",
+      "predicate": "可能削弱",
+      "reason": "对训练细节过度适应，可能降低在新样本上的表现。",
+      "directed": true,
+      "source_ids": [
+        "curves"
+      ]
+    },
+    {
+      "id": "concept_relation_30",
+      "source": "concept_test",
+      "target": "concept_test_error",
+      "predicate": "用于计算",
+      "reason": "在保留测试数据上比较预测与真实标签，计算测试误差。",
+      "directed": true,
+      "source_ids": [
+        "split"
+      ]
+    },
+    {
+      "id": "concept_relation_31",
+      "source": "concept_test_error",
+      "target": "concept_generalization_error",
+      "predicate": "估计",
+      "reason": "测试数据代表目标场景且保持独立时，测试误差用于估计泛化误差。",
+      "directed": true,
+      "source_ids": [
+        "split"
+      ]
+    },
+    {
+      "id": "concept_relation_32",
+      "source": "concept_generalization_error",
+      "target": "concept_generalization",
+      "predicate": "用于评价",
+      "reason": "目标分布上的泛化误差描述模型对新样本的预测表现。",
+      "directed": true,
+      "source_ids": [
+        "split"
+      ]
+    },
+    {
+      "id": "concept_relation_33",
+      "source": "concept_distribution",
+      "target": "concept_generalization_error",
+      "predicate": "影响适用范围",
+      "reason": "测试分布与目标使用场景不一致时，误差估计的适用范围会改变。",
+      "directed": true,
+      "source_ids": [
+        "split"
+      ]
+    },
+    {
+      "id": "concept_relation_34",
+      "source": "concept_distribution",
+      "target": "concept_gap",
+      "predicate": "变化可能影响",
+      "reason": "训练和验证数据分布不同，也可能造成两侧表现差距。",
+      "directed": true,
+      "source_ids": [
+        "curves"
+      ]
+    },
+    {
+      "id": "concept_relation_35",
+      "source": "concept_accuracy",
+      "target": "concept_error_rate",
+      "predicate": "互补",
+      "reason": "单标签、等权分类时，二者之和为 1。",
+      "directed": false,
+      "source_ids": [
+        "metrics"
+      ]
+    },
+    {
+      "id": "concept_relation_36",
+      "source": "concept_prediction",
+      "target": "concept_confusion",
+      "predicate": "提供预测类别",
+      "reason": "混淆矩阵按预测类别和真实类别共同计数。",
+      "directed": true,
+      "source_ids": [
+        "metrics"
+      ]
+    },
+    {
+      "id": "concept_relation_37",
+      "source": "concept_label",
+      "target": "concept_confusion",
+      "predicate": "提供真实类别",
+      "reason": "混淆矩阵用真实类别与预测类别定位每个样本的格子。",
+      "directed": true,
+      "source_ids": [
+        "metrics"
+      ]
+    },
+    {
+      "id": "concept_relation_38",
+      "source": "concept_confusion",
+      "target": "concept_accuracy",
+      "predicate": "可计算",
+      "reason": "矩阵对角线上的正确分类数除以样本总数，得到准确率。",
+      "directed": true,
+      "source_ids": [
+        "metrics"
+      ]
+    },
+    {
+      "id": "concept_relation_39",
+      "source": "concept_imbalance",
+      "target": "concept_accuracy",
+      "predicate": "影响解读",
+      "reason": "类别不均衡时，总准确率可能被多数类主导。",
+      "directed": true,
+      "source_ids": [
+        "metrics"
+      ]
+    },
+    {
+      "id": "concept_relation_40",
+      "source": "concept_confusion",
+      "target": "concept_imbalance",
+      "predicate": "帮助检查类别表现",
+      "reason": "按类查看矩阵，可发现总准确率掩盖的少数类误判。",
+      "directed": true,
+      "source_ids": [
+        "metrics"
+      ]
+    },
+    {
+      "id": "concept_relation_41",
+      "source": "concept_accuracy",
+      "target": "concept_selection",
+      "predicate": "作为评价指标",
+      "reason": "本课程用验证准确率比较候选配置。",
+      "directed": true,
+      "source_ids": [
+        "metrics"
+      ]
+    },
+    {
+      "id": "concept_relation_42",
+      "source": "concept_leakage",
+      "target": "concept_test_error",
+      "predicate": "可能使结果偏乐观",
+      "reason": "测试信息进入训练或选择后，测试误差可能低估新数据上的误差。",
+      "directed": true,
+      "source_ids": [
+        "leakage"
+      ]
+    },
+    {
+      "id": "concept_relation_43",
+      "source": "concept_test",
+      "target": "concept_selection",
+      "predicate": "应保持独立",
+      "reason": "依据测试表现反复调参，会让测试数据参与模型选择。",
+      "directed": true,
+      "source_ids": [
+        "split"
+      ]
+    },
+    {
+      "id": "concept_relation_44",
+      "source": "concept_feature",
+      "target": "concept_leakage",
+      "predicate": "未来信息会引入",
+      "reason": "使用预测时不可获得的未来特征，会使评价失真。",
+      "directed": true,
+      "source_ids": [
+        "leakage"
+      ]
+    }
+  ],
+  "sources": [
+    {
+      "id": "trees",
+      "title": "scikit-learn：决策树",
+      "url": "https://scikit-learn.org/stable/modules/tree.html"
+    }
+  ]
+}

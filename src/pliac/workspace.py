@@ -34,6 +34,7 @@ class LearningWorkspace:
         workspace.pop("exposures", None)
         current = next((x for x in workspace["lessons"] if x["id"] == workspace["current_lesson_id"]), None)
         return {"course": student_graph(graph), "publication": self.store.publication(),
+                "concept_map": self.store.concept_map() if hasattr(self.store, "concept_map") else None,
                 "learner": {k: v for k, v in learner.items() if k != "workspace"}, "workspace": workspace,
                 "current_lesson": current, "course_changed": bool(current and graph and current["course_version"] != graph["version"]),
                 "chapters": self.chapter_reports(graph, learner) if graph else [],

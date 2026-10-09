@@ -77,6 +77,28 @@ class AcceptanceTests(unittest.TestCase):
             self.assertTrue(edge['source_ids'])
             self.assertTrue(set(edge['source_ids']) <= {s['id'] for s in graph['sources']})
 
+    def test_atomic_concepts_and_lesson_mapping_are_separate(self):
+        course=self.store.load_graph()
+        concepts=self.store.concept_map()
+        lesson_ids={n['id'] for n in course['nodes']}
+        ids={n['id'] for n in concepts['nodes']}
+        self.assertFalse(ids & lesson_ids)
+        self.assertEqual(len(concepts['nodes']),30)
+        self.assertTrue({'训练集','验证集','测试集','特征','标签','训练误差','验证误差'} <= {n['title'] for n in concepts['nodes']})
+        sources={s['id'] for s in concepts['sources']}
+        for node in concepts['nodes']:
+            self.assertTrue(node['lesson_ids'])
+            self.assertTrue(set(node['lesson_ids']) <= lesson_ids)
+            self.assertTrue(set(node['source_ids']) <= sources)
+        self.assertTrue(any(len(n['lesson_ids'])>1 for n in concepts['nodes']))
+        for edge in concepts['edges']:
+            self.assertTrue({edge['source'],edge['target']} <= ids)
+            self.assertTrue(edge['predicate'] and edge['reason'])
+            self.assertTrue(set(edge['source_ids']) <= sources)
+        # Topic coverage is not a separate diagnosis for each atomic concept.
+        view=self.workspace.view('synthetic-demo')
+        self.assertFalse(ids & set(view['learner']['states']))
+
     def test_full_course_reports_and_resume(self):
         self.mutate("onboard", self_assessments={"sample": "confident"})
         for node in build_graph()["nodes"]:

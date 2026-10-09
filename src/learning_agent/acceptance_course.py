@@ -59,6 +59,11 @@ class AcceptanceCourseStore(CourseGraphStore):
         return {"draft_version": 1, "published_version": None, "demo_version": 1,
                 "delivery_mode": "acceptance_demo", "notice": NOTICE}
 
+    def concept_map(self):
+        result = json.loads((ROOT / "data/acceptance_concepts.json").read_text(encoding="utf-8"))
+        result["sources"] = [*self.load_graph()["sources"], *result["sources"]]
+        return result
+
     def save_graph(self, *args, **kwargs):
         raise CourseGraphError("内置示范课程是只读样本，请在独立课程中编辑教学内容。", 409)
 
