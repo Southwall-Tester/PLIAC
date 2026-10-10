@@ -2,6 +2,8 @@
 
 PLIAC 复用 LearnMargin 的规划、章节生成、审校、负荷休息规划和离线 HTML/PDF 排版。上游来源为 https://github.com/Southwall-Tester/LearnMargin ，快照 `63dba8f37ce17ff59c41765264beba07c9cf0ea1`（0.2.1），许可见 [MIT 授权](third-party/LearnMargin-LICENSE.txt)。源代码保留在 `src/learnmargin`；只保留生成与排版依赖及共享方法参考，没有接入上游独立 Web 应用、上传入口或任务库。
 
+2026-10-10 选择性同步 [v0.3.0 / `49f1f5e5f9cdad05d30982978f715f399416559f`](https://github.com/Southwall-Tester/LearnMargin/commit/49f1f5e5f9cdad05d30982978f715f399416559f) 的模型思考参数、请求 token 字段和超时诊断，并将失败阶段记录移植到 PLIAC 任务层。`reasoning.py` 保留上游能力表；`provider.py` 的超时文案按课程入口调整，不承诺尚未接入的扫描页续读。没有升级整个核心：逐页多模态缓存、转录优先的图片规划、上游 Web 应用和独立 Skill 更新均未引入。原快照已包含自动分章、内容相邻侧栏和生成核心安全加固。新任务元数据记录 `LearnMargin 63dba8f + model controls 49f1f5e`；历史产物不改写。
+
 ## 数据流
 
 课程列表 → `/course-reader?course_id=...` → `/api/handouts` → 课程已有资料快照 → LearnMargin 完整生成与审校 → 概念及语义关系提取 → HTML/PDF → 图谱节点定位讲义。
@@ -26,10 +28,18 @@ PLIAC 复用 LearnMargin 的规划、章节生成、审校、负荷休息规划�
 
 `pip install -r requirements.txt` 后安装浏览器：`python -m playwright install chromium`。现有课程模型配置 `config/models.json` 优先；没有文件时沿用 `LEARNMARGIN_BASE_URL`、`LEARNMARGIN_MODEL`、`LEARNMARGIN_API_KEY` / `DEEPSEEK_API_KEY` 的上游规则。用户在课程内只选择已有章节、生成或取消，无需重新输入材料。
 
+模型项现在接收 `protocol`、`reasoning_effort`、`timeout_seconds`、`vision` 和 `json_mode`，示例见 `config/models.example.json`。不填写思考档位或设置为 JSON `null` 表示使用服务默认行为，不发送思考参数；这与旧代码隐式关闭 DeepSeek 思考不同，可能改变耗时和费用。DeepSeek 已登记的官方模型可用 `"none"` 明确关闭，或选择 `"low"`、`"high"`、`"max"`。其他模型可用选项来自 `src/learnmargin/reasoning.py`，按规范化服务地址、协议和完整模型 ID 匹配；未知网关或模型只能不指定，不猜测转发服务能力。不支持的显式设置会在发送请求前给出中文配置错误，不自动降级或更换模型。能力表来源与边界见[上游适配说明](https://github.com/Southwall-Tester/LearnMargin/blob/49f1f5e5f9cdad05d30982978f715f399416559f/docs/REASONING.md)。
+
+没有配置文件时，可设置 `LEARNMARGIN_REASONING_EFFORT`（省略或空值表示不指定）和 `LEARNMARGIN_TIMEOUT_SECONDS`。超时默认 180 秒，可设 10～600 秒，约束单次请求及其重试和响应读取，不是整份讲义总时限。有配置文件时，以文件选中的模型项为准。这些设置用于课程讲义及其概念图谱共用的 LearnMargin Provider，不改变旧资料候选提取模块的调用方式。
+
 启动入口检查 `scoped_learning_units` 能力，避免复用不支持独立学习单元接口的旧服务。首次生成调用模型，完成后再次打开直接读取已保存讲义。失败时已完成讲义作为检查点保存；相同资料的图谱失败可重试剩余阶段。重新生成不会覆盖既有成品或学习记录。
+
+任务失败时保留 `failed_stage`，阅读器直接显示“阶段：原因”，例如“生成知识概念及关系：模型响应超时……”。重新执行任务会清除旧失败阶段与错误；已有讲义检查点仍按原规则复用。配置或代码更新后需重启后端，单独刷新页面不会更新进程内代码。
 
 ## 验证
 
 `tests/test_margin.py` 检查课程范围、完整原文、跨课程资料隔离、可定位图谱依据与真实 LearnMargin PDF 排版。`test_learning_scopes.py` 检查范围与练习的资料隔离、幂等、冲突和证据边界；`test_ui_learning_scopes.py` 使用合成模型输出走通章节、知识点、图谱概念的真实生成与排版、版本切换、练习保存、刷新恢复和移动端 PDF 下载入口。测试夹具中的模型替身用于验证链路，不能冒充真实模型生成或学习效果。
 
 当前源代码适配点：生成系统约束要求面向读者使用自然语言字段名称，侧栏模板隐藏内部提示 ID；PLIAC 适配层对提示中的内部字段引用做显示名称转换。保留原始模型章节检查点。
+
+`tests/test_margin_model_controls.py` 覆盖配置文件与环境变量、非法档位及超时、请求参数与连接测试、失败阶段持久化及检查点重试；使用本地模拟 HTTP，不调用付费模型。可运行 `python -X utf8 -m unittest discover -s tests -p "test_margin*.py"`，并运行 `python -X utf8 tests/test_ui_learning_scopes.py` 验证课程阅读器、生成失败提示和原有学习记录流程。

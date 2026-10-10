@@ -8,7 +8,7 @@ jieba>=0.42,<1
 setuptools>=70,<81
 scikit-learn>=1.7,<1.8
 
-# LearnMargin source snapshot 63dba8f: document pipeline and renderer.
+# LearnMargin 63dba8f core + 49f1f5e model controls; no new dependencies.
 pydantic>=2.10,<3
 httpx>=0.28,<1
 pypdf>=6.19,<7

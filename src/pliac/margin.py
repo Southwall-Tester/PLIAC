@@ -7,6 +7,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import FileResponse
+from pydantic import ValidationError
 from learning_agent.api import ChineseRoute, _body, resolve_course_store
 from learning_agent.course_graph import CourseGraphError, ROOT
 from learning_agent import document_api
@@ -21,6 +22,7 @@ from . import learning_scope, handout_practice
 
 router = APIRouter(prefix="/api/handouts", route_class=ChineseRoute)
 TASKS = {}
+ENGINE = "LearnMargin 63dba8f + model controls 49f1f5e"
 ARTIFACTS = {"lesson.json":"application/json", "knowledge-map.json":"application/json",
              "lesson.html":"text/html", "lesson.pdf":"application/pdf", "validation.json":"application/json"}
 
@@ -88,12 +90,19 @@ def materials(graph, chapter_id="", documents=None, scope=None):
 
 def configured_api():
     path = ROOT / "config/models.json"
-    if path.exists():
-        from learning_agent.llm import load_model_config
-        config = load_model_config(path)
-        return resolve_api(APIConfig(base_url=config["base_url"], model=config["model"], api_key=config["api_key"],
-                                     protocol=config.get("protocol", "chat_completions")))
-    config = resolve_api(default_api())
+    try:
+        if path.exists():
+            from learning_agent.llm import load_model_config
+            values = load_model_config(path)
+            # Only forward API fields; shared config may contain other module settings.
+            config = resolve_api(APIConfig(**{key: values[key] for key in APIConfig.model_fields if key in values}))
+        else:
+            config = resolve_api(default_api())
+    except ValidationError:
+        # Pydantic errors include input values: never expose credentials or raw config.
+        raise CourseGraphError("课程模型配置无效。请检查协议、思考档位和请求超时（10～600 秒）等设置。", 503) from None
+    except ValueError as exc:
+        raise CourseGraphError(str(exc), 503) from None
     if not config.api_key.get_secret_value():
         raise CourseGraphError("课程模型尚未配置。", 503)
     return config
@@ -134,6 +143,8 @@ async def run_job(store, job, request, docs, origins):
         store.save_job(job)
     try:
         job["status"] = "running"
+        job.pop("failed_stage", None)
+        job["error"] = None
         progress("读取课程资料", 3)
         for doc in docs:
             store.save_document(doc)
@@ -157,7 +168,7 @@ async def run_job(store, job, request, docs, origins):
         atomic_json(output / "knowledge-map.json", concept_map)
         progress("排版详细讲义", 88)
         rendered = await render_lesson(lesson, output, layout="a4")
-        atomic_json(output / "generation.json", {"engine":"LearnMargin 63dba8f", "course_id":job["course_id"], "course_version":job["course_version"], "scope":job.get("scope"), "api_usage":usage})
+        atomic_json(output / "generation.json", {"engine":ENGINE, "course_id":job["course_id"], "course_version":job["course_version"], "scope":job.get("scope"), "api_usage":usage})
         job.update(status="completed", stage="图谱、讲义与习题已生成", progress=100, title=lesson.title, page_count=rendered["page_count"])
     except asyncio.CancelledError:
         job.update(status="cancelled", stage="已取消")
@@ -167,7 +178,8 @@ async def run_job(store, job, request, docs, origins):
         while isinstance(error, BaseExceptionGroup):
             error = error.exceptions[0]
         detail = str(error)[:700] if isinstance(error, (ValueError, RuntimeError)) else "讲义生成未完成，请重试。"
-        job.update(status="failed", stage="生成失败", error=detail)
+        failed_stage = job.get("stage", "生成讲义")
+        job.update(status="failed", stage="生成失败", failed_stage=failed_stage, error=f"{failed_stage}：{detail}")
     finally:
         store.save_job(job)
 

@@ -10,6 +10,7 @@ from test_ui_documents import isolated_application
 from learning_agent.acceptance_course import AcceptanceCourseStore
 from learnmargin.demo import demo_lesson
 from learnmargin.models import APIConfig
+from learnmargin.provider import ProviderError
 from pliac import margin
 from pliac.margin_graph import overview_map
 
@@ -131,10 +132,25 @@ def main():
             raw = course._read_learner(student)
             assert len(raw["evidence"]) == 1 and raw["evidence"][0]["prompt_level"] == 1
             assert raw["diagnoses"] == []
+            # A new scope failure must show the original stage in the actual reader.
+            other = next(n for n in graph["nodes"] if n["id"] != node["id"])
+            page.goto(base + "/course-reader?course_id=ml_acceptance_demo&node_id=" + other["id"])
+            expect(page.locator("#scopeEmpty")).to_be_visible()
+            async def failed_lesson(*args):
+                args[-1]("整理内容总览与学习路线", 24)
+                raise ProviderError("合成模型响应超时（单次请求限时 180 秒）")
+            with patch.object(margin, "generate_lesson", side_effect=failed_lesson):
+                page.locator("#generate").click()
+                expect(page.locator("#jobStatus")).to_contain_text(
+                    "整理内容总览与学习路线：合成模型响应超时", timeout=20000)
+            failed = next(j for j in margin.storage(course).jobs() if j["status"] == "failed")
+            assert failed["failed_stage"] == "整理内容总览与学习路线"
+            page.screenshot(path=str(OUT / "scoped-unit-failed-stage.png"), full_page=True)
             assert errors == [], errors
             browser.close()
         report = {"scopes": [chapter_job["scope"]["kind"], node_job["scope"]["kind"], concept_job["scope"]["kind"]],
-                  "versions": 2, "saved_attempts": 1, "live_model_calls": 0, "page_errors": errors}
+                  "versions": 2, "saved_attempts": 1, "failed_stage": failed["failed_stage"],
+                  "live_model_calls": 0, "page_errors": errors}
         (OUT / "learning-scopes.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
         print(json.dumps(report))
 

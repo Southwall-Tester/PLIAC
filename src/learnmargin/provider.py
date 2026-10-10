@@ -15,6 +15,7 @@ from pydantic import BaseModel, ValidationError
 
 from .config import validate_api_config
 from .models import APIConfig, ConnectionTestResult
+from .reasoning import reasoning_parameters, reasoning_profile
 
 T = TypeVar("T", bound=BaseModel)
 MAX_RESPONSE_BYTES = 8 * 1024 * 1024
@@ -162,7 +163,10 @@ class Provider:
         except (TimeoutError, httpx.TimeoutException):
             if timeout_seconds is not None:
                 raise ProviderError("连接测试超时，请检查服务状态和网络连接后重试。") from None
-            raise ProviderError("模型响应超时。请缩小学习范围或提高超时时间后重新生成。") from None
+            raise ProviderError(
+                f"模型响应超时（单次请求限时 {limit:g} 秒，包含服务重试与响应读取）。"
+                "请缩小学习范围，或请维护者提高模型请求超时后重试。"
+            ) from None
         except httpx.HTTPError:
             raise ProviderError("无法连接 API，请检查服务地址和网络连接。") from None
 
@@ -239,7 +243,8 @@ class Provider:
         instruction = ('Return only this JSON object: {"ok":true}.' if self.config.json_mode
                        else "Reply only OK.")
         payload = self._payload("You are testing an API connection.", instruction, [])
-        limit_key = "max_output_tokens" if self.config.protocol == "responses" else "max_tokens"
+        limit_key = ("max_output_tokens" if self.config.protocol == "responses" else
+                     "max_completion_tokens" if "max_completion_tokens" in payload else "max_tokens")
         payload[limit_key] = 256
         timeout_seconds = min(self.config.timeout_seconds, 30)
         started = perf_counter()
@@ -274,8 +279,11 @@ class Provider:
                       {"role": "user", "content": content if encoded else user}], "max_tokens": 12000}
             if self.config.json_mode:
                 result["response_format"] = {"type": "json_object"}
-            if urlsplit(self.config.base_url).hostname == "api.deepseek.com":
-                result["thinking"] = {"type": "disabled"}
+        result.update(reasoning_parameters(self.config))
+        if (self.config.protocol == "chat_completions"
+                and self.config.base_url == "https://api.openai.com/v1"
+                and reasoning_profile(self.config) is not None):
+            result["max_completion_tokens"] = result.pop("max_tokens")
         return result
 
     def _text(self, response: dict) -> str:
