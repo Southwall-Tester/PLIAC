@@ -58,8 +58,14 @@ class MLLab(LearningWorkspace):
         config = graph.get("ml_lab", {})
         if not isinstance(config, dict):
             raise CourseGraphError("ML Lab 配置须为知识映射对象。", 409)
-        mapping = ({node: node for node in required} if graph.get("delivery_mode") == "acceptance_demo"
-                   else config.get("node_mapping", {}))
+        # Course packages (main, 2026-10-09) bind lab skills through a classification_lab activity.
+        activity = next((a for a in graph.get("activities", []) if a.get("engine") == "classification_lab"), None)
+        if activity and activity.get("node_bindings"):
+            mapping = {node: activity["node_bindings"].get(node) for node in required}
+        elif graph.get("delivery_mode") == "acceptance_demo":
+            mapping = {node: node for node in required}
+        else:
+            mapping = config.get("node_mapping", {})
         nodes = {node["id"] for node in graph["nodes"]}
         if not isinstance(mapping, dict) or set(mapping) != required or any(not isinstance(value, str) or value not in nodes for value in mapping.values()):
             raise CourseGraphError("本课程尚未配置完整的 ML Lab 知识映射，不能将实验记入其他课程。", 409)
@@ -68,6 +74,7 @@ class MLLab(LearningWorkspace):
     def view(self, student_id):
         graph = self.store._require_graph()
         mapping = self.binding(graph)
+        activity = next((a for a in graph.get("activities", []) if a.get("engine") == "classification_lab"), {})
         learner = self.store.load_learner(student_id, graph)
         lab = copy.deepcopy(learner.get("workspace", {}).get("ml_lab", {"sessions": [], "active_id": None}))
         active = next((s for s in lab["sessions"] if s["id"] == lab["active_id"]), None)
@@ -80,7 +87,8 @@ class MLLab(LearningWorkspace):
                 "restart_required": restart_required,
                 "support_offer": support_offer(active) if active and not restart_required else None,
                 "preview": preview(active["seed"]) if active else [],
-                "course_id": self.store.load_graph()["id"], "rhythm": lab_rhythm(TASKS, active, learner.get("workspace", {}))}
+                "course_id": graph["id"],
+                "knowledge": [{"node_id": n["id"], "title": n["title"], "text": n.get("description", "")} for n in graph["nodes"] if n["id"] in activity.get("knowledge_node_ids", [])], "rhythm": lab_rhythm(TASKS, active, learner.get("workspace", {}))}
 
     def act(self, operation, payload):
         def apply(graph, learner, workspace):

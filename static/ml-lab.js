@@ -3,14 +3,15 @@
   const $ = id => document.getElementById(id);
   const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const pct = value => `${(value * 100).toFixed(1)}%`;
+  const courseId=new URLSearchParams(location.search).get('course_id')||'';
   let state = null, busy = false, lastStep = '', receipt = null;
   $('themeButton').onclick = () => GraphTheme.toggle();
   $('studentId').value = new URLSearchParams(location.search).get('student_id') || localStorage.getItem('pliac-ml-student') || '';
   function error(message='') { $('labError').textContent = message; $('labError').hidden = !message; }
-  const courseId = new URLSearchParams(location.search).get('course_id') || 'ml_acceptance_demo';
   async function request(path, body) {
-    path += `${path.includes('?') ? '&' : '?'}course_id=${encodeURIComponent(courseId)}`;
-    const response = await fetch(`/api/ml-lab${path}`, body ? {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)} : {});
+    const url=new URL(`/api/ml-lab${path}`,location.origin);
+    url.searchParams.set('course_id',courseId);
+    const response = await fetch(url, body ? {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)} : {});
     const data = await response.json();
     if (!response.ok) throw new Error(data.detail || '请求未完成，请重试。');
     return data;
@@ -34,13 +35,13 @@
   function lockControls() {
     $('exportLab').disabled = !state?.active;
     $('runButton').disabled = !state?.active || state.active.step >= 4;
-    $('hintButton').disabled = !state?.active || state.active.step >= 5 || (state.active.hints[state.tasks[state.active.step]?.id] || 0) >= 3;
+    $('hintButton').disabled = !state?.active || state.active.step >= state.tasks.length || (state.active.hints[state.tasks[state.active.step]?.id] || 0) >= 3;
   }
   function select(id,label,options) { return `<label>${esc(label)}<select id="${id}"><option value="">请选择</option>${options.map(([v,t])=>`<option value="${esc(v)}">${esc(t)}</option>`).join('')}</select></label>`; }
   function render() {
     const s=state.active;
     $('setup').hidden = !!s; $('workbench').hidden = !s;
-    for(const [id,path] of [['learnLink','learn'],['graphLink','knowledge'],['reviewLink','review']]) $(id).href=`/${path}?course_id=${encodeURIComponent(courseId)}&student_id=${encodeURIComponent(state.student_id)}`;
+    for(const [id,path] of [['learnLink','learn'],['graphLink','knowledge'],['reviewLink','review']]) $(id).href=`/${path}?course_id=${encodeURIComponent(state.course_id)}&student_id=${encodeURIComponent(state.student_id)}`;
     const originNode=new URLSearchParams(location.search).get('node_id');
     if(originNode){$('learnLink').href+=`&node_id=${encodeURIComponent(originNode)}&view=study`;$('learnLink').textContent='返回讲义';}
     const returnPath = new URLSearchParams(location.search).get('return_to');
@@ -50,18 +51,18 @@
         $('learnLink').href = target.href; $('learnLink').textContent = '返回学习工作台';
       }
     }
-    if (!s) {lockControls();return;}
+    if (!s) {const chosen=$('scene').value;$('scene').innerHTML=Object.entries(state.scenes).map(([id,scene])=>`<option value="${esc(id)}">${esc(scene.title)}</option>`).join('');if(state.scenes[chosen])$('scene').value=chosen;lockControls();return;}
     const scene=s.presentation || state.scenes[s.scene], task=state.tasks[s.step];
     $('sceneTitle').textContent=scene.title; $('mission').textContent=`你是${scene.role}。${scene.mission}`;
     $('mode').textContent=`${s.mode==='transfer'?'迁移复测':'实操练习'} · 第 ${state.lab.sessions.length} 轮`;
-    $('progress').textContent=`${s.step} / 5`;
+    $('progress').textContent=`${s.step} / ${state.tasks.length}`;
     const pause=state.rhythm?.current;
     $('labRest').hidden=!pause;
     $('labRestText').textContent=pause?`这段实验可以告一段落。可以休息约 ${pause.break_minutes} 分钟，回来后${pause.resume}也可以直接继续。`:'';
     $('dismissLabRest').onclick=()=>operate('rest',{point_id:pause.id,choice:'continue'});
     $('takeLabRest').onclick=()=>operate('rest',{point_id:pause.id,choice:'rest'});
     $('taskList').innerHTML=state.tasks.map((t,i)=>`<div class="task-row ${i===s.step?'active':i<s.step?'done':''}" ${i===s.step?'aria-current="step"':''}><span class="task-index">${i<s.step?'✓':i+1}</span>${esc(t.title)}</div>`).join('');
-    $('knowledge').innerHTML=[['训练、验证与测试','训练集用来拟合模型；验证集比较候选方案；测试集在方案确定后评估最终表现。','roles'],['模型复杂度','浅树表达能力较弱；深树能够拟合更细的局部变化。比较训练和验证表现，判断复杂度是否合适。','complexity'],['数据泄漏','输入特征应在实际预测时就能取得。结果产生后的回执会把答案的信息带进模型。','leakage']].map(([title,text,node])=>`<details><summary>${title}</summary><p>${text}</p><a href="/learn?course_id=${encodeURIComponent(courseId)}&student_id=${encodeURIComponent(state.student_id)}&node_id=${encodeURIComponent(state.node_mapping[node] || node)}">进入相关小节</a></details>`).join('');
+    $('knowledge').innerHTML=(state.knowledge||[]).map(item=>`<details><summary>${esc(item.title)}</summary><p>${esc(item.text)}</p><a href="/learn?${new URLSearchParams({course_id:state.course_id,student_id:state.student_id,node_id:item.node_id})}">进入相关小节</a></details>`).join('');
     $('taskPanel').hidden=!task;
     if(task){
       $('taskTitle').textContent=`${s.step+1}. ${task.title}`; $('taskGoal').textContent=task.goal; $('acceptance').textContent=`验收目标：${task.acceptance}`;
@@ -96,7 +97,7 @@
       $('trainPercent').value=latest.config.train_percent; $('depth').value=latest.config.depth; $('features').value=latest.config.features; $('split').value=latest.config.split;
       request(`/export?student_id=${encodeURIComponent(state.student_id)}`).then(data=>{if(state.active?.id===s.id)$('codePreview').textContent=data.scripts[`experiment-${latest.number}.py`];}).catch(e=>error(e.message));
     } else { $('latestResult').innerHTML=''; $('codePreview').textContent='运行实验后可查看与导出复现代码。'; }
-    $('reportPanel').hidden=s.step<5;
+    $('reportPanel').hidden=s.step<state.tasks.length;
     if(s.final){
       const assisted=Object.keys(s.hints).filter(k=>s.hints[k]);
       $('report').innerHTML=`<p>本轮 5 项实操验收完成，共运行 ${s.runs.length} 次实验。</p><div class="metrics"><div class="metric"><span>封存实验</span><strong>#${s.runs.find(r=>r.id===s.selected_id).number}</strong></div><div class="metric"><span>测试准确率</span><strong>${pct(s.final.result.test_accuracy)}</strong></div><div class="metric"><span>提示使用</span><strong>${assisted.length} 项</strong></div></div><p>${assisted.length?'下一步：换一批数据，独立完成曾借助提示的任务。':'下一步：换一批数据，验证这套方法能否迁移。'} 文字解释已保存，可在教师复核中查看。</p>${s.checks.filter(c=>c.passed).map(c=>`<details><summary>${esc(state.tasks.find(t=>t.id===c.task_id).title)} · 查看证据</summary><p>${esc(c.note||c.feedback)}</p><p class="muted">作答证据：${c.evidence_ids.map(esc).join('、')}<br>实验依据：${c.experiment_evidence_ids.map(esc).join('、')}</p></details>`).join('')}`;

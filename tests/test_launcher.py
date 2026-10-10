@@ -23,7 +23,7 @@ class LauncherTests(unittest.TestCase):
             self.assertIn("npm run build", output.getvalue())
 
     def test_student_reuses_protected_server_without_catalog_access(self):
-        health = io.BytesIO(json.dumps({"app": "learning-agent", "capabilities": ["learnmargin_graph"], "student_entry": "/app/"}).encode())
+        health = io.BytesIO(json.dumps({"app": "learning-agent", "capabilities": ["learnmargin_graph", "scoped_learning_units"], "student_entry": "/app/"}).encode())
         page = io.BytesIO(b"<html></html>")
         page.headers = Message()
         page.headers["Content-Type"] = "text/html; charset=utf-8"
@@ -33,7 +33,7 @@ class LauncherTests(unittest.TestCase):
 
     def test_student_rejects_legacy_server_and_unbuilt_app(self):
         def health(entry):
-            return io.BytesIO(json.dumps({"app": "learning-agent", "capabilities": ["learnmargin_graph"], "student_entry": entry}).encode())
+            return io.BytesIO(json.dumps({"app": "learning-agent", "capabilities": ["learnmargin_graph", "scoped_learning_units"], "student_entry": entry}).encode())
         with patch.object(runner.urllib.request, "urlopen", return_value=health(None)) as request:
             self.assertFalse(runner.existing(8010, True))
             self.assertEqual(request.call_count, 1)
@@ -60,6 +60,16 @@ class LauncherTests(unittest.TestCase):
                 socket.return_value.close.assert_called_once()
                 self.assertIn("身份保护已开启", output.getvalue())
                 self.assertIn("手动停止旧服务", output.getvalue())
+
+    def test_reuse_requires_current_course_api_contract(self):
+        health = {"app": "learning-agent", "capabilities": ["learnmargin_graph", "scoped_learning_units"]}
+        for course, accepted in [({"id": "old"}, False),
+                                 ({"id": "current", "capabilities": {}, "presentation": {}}, True)]:
+            replies = [io.BytesIO(json.dumps(value).encode()) for value in [health, {"courses": [course]}]]
+            with patch.object(runner.urllib.request, "urlopen", side_effect=replies):
+                self.assertEqual(runner.existing(8010), accepted)
+        with patch.object(runner.urllib.request, "urlopen", return_value=io.BytesIO(json.dumps({"app": "learning-agent", "capabilities": ["learnmargin_graph"]}).encode())):
+            self.assertFalse(runner.existing(8010))
 
     def test_project_environment_then_current_then_path_without_duplicates(self):
         with tempfile.TemporaryDirectory() as folder:

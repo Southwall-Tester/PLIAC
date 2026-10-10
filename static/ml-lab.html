@@ -10,16 +10,16 @@
   <script defer src="/static/ml-lab.js?v=6"></script>
 </head>
 <body>
-  <header class="toolbar"><a href="/courses">PLIAC · 课程</a><a id="learnLink" href="/learn?course_id=ml_acceptance_demo">课程学习</a><a id="graphLink" href="/knowledge?course_id=ml_acceptance_demo">知识图谱</a><button id="exportLab">导出实验包</button><button id="themeButton">深色</button></header>
+  <header class="toolbar"><a href="/courses">PLIAC · 课程</a><a id="learnLink" href="/learn">课程学习</a><a id="graphLink" href="/knowledge">知识图谱</a><button id="exportLab">导出实验包</button><button id="themeButton">深色</button></header>
   <main>
     <div class="heading"><div><p class="eyebrow">机器学习 · 决策树分类</p><h1>实验工作台</h1></div><span id="saveState" role="status"></span></div>
     <p id="labError" class="error" role="alert" hidden></p>
     <form id="identityForm" class="panel identity"><label>匿名编号<input id="studentId" required maxlength="80" pattern="[A-Za-z0-9_-]+" autocomplete="off" disabled></label><button type="submit" disabled>进入实验</button></form>
-    <section id="setup" class="panel" hidden><h2>建立实验任务</h2><p>用 600 条模拟观测完成一次分类实验：检查数据、训练模型、比较方案，最后提交测试结果。</p><form id="startForm"><div class="fields"><label>实验情境<select id="scene"><option value="space">轨道站 · 设备预警</option><option value="ocean">海洋站 · 样本分流</option><option value="sport">训练馆 · 器材巡检</option></select></label><label>本轮学习目标<input id="goal" maxlength="1000" placeholder="例如：理解训练分数高却预测不准的原因"></label></div><button class="primary" type="submit">开始实验</button></form></section>
+    <section id="setup" class="panel" hidden><h2>建立实验任务</h2><p>用 600 条模拟观测完成一次分类实验：检查数据、训练模型、比较方案，最后提交测试结果。</p><form id="startForm"><div class="fields"><label>实验情境<select id="scene"></select></label><label>本轮学习目标<input id="goal" maxlength="1000" placeholder="例如：理解训练分数高却预测不准的原因"></label></div><button class="primary" type="submit">开始实验</button></form></section>
     <div id="workbench" hidden>
       <section class="scene-banner"><div><span id="mode" class="eyebrow"></span><h2 id="sceneTitle"></h2><p id="mission"></p></div><span id="progress" class="progress"></span></section>
       <div class="lab-grid">
-        <aside><nav id="taskList" class="panel" aria-label="实验步骤"></nav><aside id="labRest" class="lab-rest" hidden><p id="labRestText"></p><button type="button" id="takeLabRest">休息一下</button><button type="button" id="dismissLabRest">继续实验</button></aside><section class="panel"><h2>知识速查</h2><div id="knowledge"></div><a id="reviewLink" href="/review?course_id=ml_acceptance_demo">查看作答与复核</a></section></aside>
+        <aside><nav id="taskList" class="panel" aria-label="实验步骤"></nav><aside id="labRest" class="lab-rest" hidden><p id="labRestText"></p><button type="button" id="takeLabRest">休息一下</button><button type="button" id="dismissLabRest">继续实验</button></aside><section class="panel"><h2>知识速查</h2><div id="knowledge"></div><a id="reviewLink" href="/review">查看作答与复核</a></section></aside>
         <div class="lab-column">
           <section id="taskPanel" class="panel"><div class="heading"><h2 id="taskTitle"></h2><button id="hintButton">给我一级提示</button></div><p id="taskGoal"></p><p id="acceptance" class="criterion"></p><div id="hints"></div><form id="checkForm"><div id="answerFields" class="fields"></div><label id="noteLabel">我的观察与判断<textarea id="note" rows="3" maxlength="2000" placeholder="引用实验编号和实际结果，解释你的选择。"></textarea></label><button class="primary" type="submit" id="checkButton">检查本步成果</button></form><div id="feedback" role="status"></div></section>
 

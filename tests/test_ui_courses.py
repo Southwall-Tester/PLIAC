@@ -53,8 +53,9 @@ def main():
                             page.locator('#themeButton').click()
                         page.wait_for_timeout(350)
 
+                    baseline = len(client.get('/api/courses').json()['courses'])
                     page.goto(base + '/manage/courses')
-                    expect(page.locator('[data-course-id]')).to_have_count(1)
+                    expect(page.locator('[data-course-id]')).to_have_count(baseline)
                     assert not default_store.output_dir.exists()
                     report['checks'].append('Course list exposes the existing course without writing data')
 
@@ -138,7 +139,7 @@ def main():
                         theme(dark)
                         assert course_link.evaluate("e=>parseFloat(getComputedStyle(e).borderTopWidth)") >= 1
                     course_link.click()
-                    expect(page.locator('[data-course-id]')).to_have_count(3)
+                    expect(page.locator('[data-course-id]')).to_have_count(baseline + 2)
                     page.set_viewport_size({'width':390, 'height':844})
                     theme(True)
                     assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')

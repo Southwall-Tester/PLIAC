@@ -11,20 +11,6 @@ from learning_agent.course_graph import CourseGraphError, _dict, _text
 CONFIDENCE = {"sure": "确定", "unsure": "不太确定", "guess": "猜的"}
 CARD_FIELDS = {"trigger": "什么时候用", "reason": "为什么这样做", "steps": "关键步骤",
                "boundary": "容易误判的地方", "reflection": "我的卡点与修正"}
-MIXED = [
-    {"id": "roles-a", "nodes": ["roles", "partition"], "question": "已经准备好三份互不重叠的数据。现在要比较深度不同的模型，应依据哪份数据的成绩选择方案？",
-     "options": ["训练集", "验证集", "测试集"], "key": 1, "explanation": "验证集用于比较候选方案；训练集用于拟合，测试集留到方案确定之后。"},
-    {"id": "roles-b", "nodes": ["roles", "partition"], "question": "某份数据的标签被训练算法用来调整模型参数。这份数据承担什么职责？",
-     "options": ["验证集", "测试集", "训练集"], "key": 2, "explanation": "参与拟合参数的是训练集。验证集提供选择依据，测试集评估已经确定的方案。"},
-    {"id": "roles-c", "nodes": ["roles", "partition"], "question": "参数已封存，现在要报告模型对未参与拟合和选型的数据的表现，应使用哪份数据？",
-     "options": ["测试集", "训练集", "验证集"], "key": 0, "explanation": "测试集用于最终评估；看过测试成绩再据此调参，会改变这份数据的用途。"},
-    {"id": "fit-a", "nodes": ["underfit", "overfit", "leakage"], "question": "在相同且无泄漏的划分上，深树的训练准确率为 99%，验证准确率为 69%；中等深度分别为 87% 和 84%。深树更值得检查什么？",
-     "options": ["欠拟合", "过拟合", "事后信息泄漏"], "key": 1, "explanation": "训练表现改善而验证表现下降，支持检查过拟合。这个现象本身不能证明数据泄漏。"},
-    {"id": "fit-b", "nodes": ["underfit", "overfit", "leakage"], "question": "划分与特征相同，一层树的训练和验证准确率都约 60%；增加适当深度后，两者均明显提高。原模型更符合哪种情况？",
-     "options": ["欠拟合", "过拟合", "事后信息泄漏"], "key": 0, "explanation": "浅树在训练数据上也难以拟合，增加表达能力后两者改善，支持欠拟合判断。"},
-    {"id": "fit-c", "nodes": ["underfit", "overfit", "leakage"], "question": "模型加入检修完成后才产生的回执，验证准确率从 80% 升到 99%，但任务要求提前预测是否需要检修。首先应检查什么？",
-     "options": ["欠拟合", "过拟合", "事后信息泄漏"], "key": 2, "explanation": "回执在预测时尚不可用，属于事后信息泄漏。判断依据是信息产生时间，而非单看分数。"},
-]
 
 
 def confidence(value):
@@ -34,14 +20,12 @@ def confidence(value):
 
 
 def eligible_tasks(graph, workspace):
-    if graph.get("delivery_mode") != "acceptance_demo":
-        return []
     studied = {x["node_id"] for x in workspace["lessons"] if x["responses"]}
     # Relation types guide comparison, never create prerequisite edges.
     confusable = {e["source"] for e in graph["edges"] if e["type"] == "confusable"}
     confusable |= {e["target"] for e in graph["edges"] if e["type"] == "confusable"}
-    return [t for t in MIXED if set(t["nodes"]) <= studied
-            and (t["id"].startswith("roles") or set(t["nodes"]) & confusable)]
+    return [t for t in graph.get("study", {}).get("mixed_tasks", []) if set(t["nodes"]) <= studied
+            and (not t.get("requires_confusable") or set(t["nodes"]) & confusable)]
 
 
 def study_view(graph, workspace):
@@ -50,10 +34,8 @@ def study_view(graph, workspace):
     attempts = workspace.get("mixed_attempts", [])
     seen = {a["task_id"] for a in attempts}
     tasks = eligible_tasks(graph, workspace)
-    # Rotate methods instead of issuing three consecutive questions of one type.
-    order = ["roles-a", "fit-a", "roles-b", "fit-b", "roles-c", "fit-c"]
-    available = {t["id"]: t for t in tasks if t["id"] not in seen}
-    task = next((available[i] for i in order if i in available), None)
+    # The authored list carries interleaving order for any subject.
+    task = next((t for t in tasks if t["id"] not in seen), None)
     return {"mixed_task": {k: copy.deepcopy(v) for k, v in task.items() if k not in {"key", "explanation"}} if task else None,
             "mixed_completed": len(attempts), "mixed_total": len(tasks),
             "mixed_history": copy.deepcopy(attempts), "cards": copy.deepcopy(workspace.get("chunk_cards", {}))}

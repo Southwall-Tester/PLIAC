@@ -41,6 +41,7 @@ class LearningWorkspace(StudyActivities):
                 assessment.pop(private, None)
         current = next((x for x in workspace["lessons"] if x["id"] == workspace["current_lesson_id"]), None)
         return {"course": student_graph(graph), "publication": self.store.publication(),
+                "capabilities": {"edit": self.store.content_editable, "objective_assessment": bool(self.store.assessment)},
                 "concept_map": self.store.concept_map() if hasattr(self.store, "concept_map") else None,
                 "learner": {k: v for k, v in learner.items() if k != "workspace"}, "workspace": workspace,
                 "current_lesson": current, "course_changed": bool(current and graph and current["course_version"] != graph["version"]),
@@ -165,10 +166,10 @@ class LearningWorkspace(StudyActivities):
             return None
         # The authored route is a teaching preference, never a fabricated edge.
         # Reuse the same task order and remedial loop for existing demo records.
-        if getattr(self.store, "is_demo", False) and graph.get("learning_order"):
+        if graph.get("learning_order"):
             route = graph["learning_order"]
             return min(frontier, key=lambda i: (0 if learner["states"][i]["due"] or learner["states"][i]["status"] == "needs_review" else 1,
-                                                route.index(i)))
+                                                route.index(i) if i in route else len(route)))
         # Unobserved tasks before waiting tasks; reviewed weaknesses and due reviews first.
         counts = {i: sum(x["node_id"] == i for x in workspace["lessons"]) for i in frontier}
         return min(frontier, key=lambda i: (0 if learner["states"][i]["due"] or learner["states"][i]["status"] == "needs_review" else 1,
@@ -184,11 +185,8 @@ class LearningWorkspace(StudyActivities):
             node = self.store._node(graph, requested)
             selection = recommend_resources(graph, learner["states"], node["id"])
             state = learner["states"][node["id"]]
-            task = node.get("check_task") if node.get("check_question") else None
-            demo = getattr(self.store, "is_demo", False)
-            if demo:
-                task = self.store.choose_task(node, workspace)
-            question = task["question"] if demo else node.get("check_question")
+            task = self.store.choose_task(node, workspace)
+            question = task.get("question", node.get("check_question")) if task else node.get("check_question")
             # Re-labeling a seen question with a new version cannot erase assistance.
             task_key = hashlib.sha256(json.dumps([node["id"], question], ensure_ascii=False).encode()).hexdigest()
             level = workspace["exposures"].get(task_key, 0)
@@ -213,9 +211,12 @@ class LearningWorkspace(StudyActivities):
                 lesson["study"] = {"mode": "recall" if state["due"] else "reading",
                                    "recall_started": bool(state["due"]), "material_reopened": False,
                                    "support_viewed": False}
-            if demo:
-                lesson.update(paragraphs=copy.deepcopy(node["lesson_content"]), options=copy.deepcopy(task["options"]),
-                              sources=[copy.deepcopy(s) for s in graph["sources"] if s["id"] in node["source_ids"]])
+            if node.get("lesson_content"):
+                lesson["paragraphs"] = copy.deepcopy(node["lesson_content"])
+            if task and task.get("options"):
+                lesson["options"] = copy.deepcopy(task["options"])
+            lesson["sources"] = [{**copy.deepcopy(source), "url": source.get("url") or "/course-reader?course_id=" + graph["id"]}
+                                 for source in graph.get("sources", []) if source["id"] in node.get("source_ids", [])]
             workspace["lessons"].append(lesson)
             workspace["current_lesson_id"] = lesson["id"]
             learner["profile"]["current_position"] = {k: lesson[k] for k in ("course_id", "course_version", "chapter_id", "node_id")}
@@ -262,9 +263,9 @@ class LearningWorkspace(StudyActivities):
                 raise CourseGraphError("该题已给出全部四级提示，请整理思路后作答。", 409)
             node = self.store._node(graph, lesson["node_id"])
             level += 1
-            task = self.store.lesson_task(node, lesson) if getattr(self.store, "is_demo", False) else node["check_task"]
+            task = self.store.lesson_task(node, lesson)
             text = task["hint_levels"][level - 1]
-            if getattr(self.store, "is_demo", False) and level == 4:
+            if task.get("explanation") and level == 4:
                 text += "\n" + task["explanation"]
             workspace["exposures"][lesson["task_key"]] = level
             lesson["prompt_level"] = level
@@ -285,8 +286,7 @@ class LearningWorkspace(StudyActivities):
             if task:
                 context.update(task_id=task["id"], task_version=task["version"])
             text = payload.get("text")
-            demo = getattr(self.store, "is_demo", False)
-            if demo:
+            if lesson.get("options"):
                 if lesson["status"] == "assessed":
                     raise CourseGraphError("本小节已提交，请安排新的复测小节；原始作答已保留。", 409)
                 choice = self._choice(lesson, payload)
@@ -296,8 +296,8 @@ class LearningWorkspace(StudyActivities):
             record = self._evidence(graph, learner, node, text, "quiz" if task else "dialog", level, context)
             lesson["responses"].append({"evidence_id": record["id"], "text": record["text"], "prompt_level": level, "created_at": record["created_at"], "context": copy.deepcopy(context)})
             lesson["status"] = "awaiting_review"
-            if demo:
-                lesson["responses"][-1]["judgement"] = self.store.grade(graph, learner, workspace, lesson, node, record, choice)
+            if self.store.assessment and lesson.get("options"):
+                lesson["responses"][-1]["judgement"] = self.store.assessment.grade(graph, learner, workspace, lesson, node, record, choice)
             workspace["drafts"].pop(lesson["id"], None)
             self._event(workspace, "answer", lesson_id=lesson["id"], evidence_id=record["id"], prompt_level=level)
         return self._mutate(payload, "answer", apply)
@@ -417,10 +417,11 @@ class LearningWorkspace(StudyActivities):
         tasks = {n["id"]: {"question": n.get("check_question", ""), "expected_answer": n.get("expected_answer", ""),
                              "rubric": n.get("check_task", {}).get("rubric", [])} for n in graph["nodes"]} if graph else {}
         view["teacher_tasks"] = tasks
-        if getattr(self.store, "is_demo", False):
+        if graph:
             for node in graph["nodes"]:
                 variants = self.store.tasks(node)
-                tasks[node["id"]]["question"] = "\n\n".join(f"{t['id']}：{t['question']}" for t in variants)
-                tasks[node["id"]]["expected_answer"] = "\n\n".join(
-                    f"{t['id']}：{t['answer_key']} · {t['explanation']}" for t in variants)
+                if len(variants) > 1:
+                    tasks[node["id"]]["question"] = "\n\n".join(f"{t['id']}：{t.get('question', node.get('check_question', ''))}" for t in variants)
+                    tasks[node["id"]]["expected_answer"] = "\n\n".join(
+                        f"{t['id']}：{t.get('answer_key', '')} · {t.get('explanation', node.get('expected_answer', ''))}" for t in variants)
         return view

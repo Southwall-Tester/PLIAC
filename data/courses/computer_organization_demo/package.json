@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "id": "computer_organization_demo",
+  "version": 1,
+  "graph": "course.json",
+  "runtime_path": "source_demo/computer_organization_demo/v1",
+  "delivery_mode": "source_demo",
+  "notice": "教材导读；自检作答保留为学习证据，需教师复核后判断掌握。",
+  "presentation": {
+    "label": "教材导读",
+    "description": "六章导读与逻辑设计附录，保留全书历史图谱及原文定位。"
+  },
+  "handouts": {
+    "archive": "handouts.zip",
+    "manifest": "manifest.json"
+  },
+  "source_snapshot": "source-snapshot.json.gz"
+}

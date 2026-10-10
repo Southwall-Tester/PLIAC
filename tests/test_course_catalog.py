@@ -67,7 +67,9 @@ class CourseCatalogTests(unittest.TestCase):
     def test_listing_and_default_alias_are_read_only(self):
         result = self.client.get("/api/courses")
         self.assertEqual(result.status_code, 200, result.text)
-        course, = result.json()["courses"]
+        courses = result.json()["courses"]
+        course, = [item for item in courses if item["is_default"]]
+        self.assertTrue(all("presentation" in item and "capabilities" in item for item in courses))
         self.assertTrue(course["is_default"])
         self.assertEqual(course["node_count"], 40)
         self.assertEqual(self.graph(), self.graph(course["id"]))

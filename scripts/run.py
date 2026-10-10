@@ -37,16 +37,17 @@ def existing(port, student_workspace=False):
     try:
         with urllib.request.urlopen(f"http://127.0.0.1:{port}/health", timeout=1) as response:
             health = json.load(response)
-            if health.get("app") != "learning-agent" or "learnmargin_graph" not in health.get("capabilities", []):
+            if health.get("app") != "learning-agent" or "scoped_learning_units" not in health.get("capabilities", []):
                 return False
             if student_workspace and health.get("student_entry") != "/app/":
                 return False
         if student_workspace:
             with urllib.request.urlopen(f"http://127.0.0.1:{port}/app/", timeout=2) as response:
                 return response.headers.get_content_type() == "text/html"
-        # An older server may share the assets while lacking the course catalog API.
+        # Static assets update immediately; do not reuse an incompatible old API.
         with urllib.request.urlopen(f"http://127.0.0.1:{port}/api/courses", timeout=2) as response:
-            return isinstance(json.load(response).get("courses"), list)
+            courses = json.load(response).get("courses")
+            return isinstance(courses, list) and all("capabilities" in c and "presentation" in c for c in courses)
     except (OSError, ValueError):
         return False
 
