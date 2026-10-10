@@ -82,7 +82,7 @@ class GraphTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(['term'],[n['id'] for n in result['nodes']])
             allowed=provider.generate.await_args_list[-1].args[2].split('已审核术语：')[1]
             self.assertNotIn('"id": "instruction"',allowed)
-            self.assertEqual('concept-first-v2',result['policy_version'])
+            self.assertEqual('concept-first-v3',result['policy_version'])
 
     async def test_real_renderer_delivers_pdf_and_graph_from_course_snapshot(self):
         lesson=demo_lesson()

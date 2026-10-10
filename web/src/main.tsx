@@ -1,7 +1,7 @@
 import React, {useEffect, useLayoutEffect, useRef, useState} from 'react';
 import {createRoot} from 'react-dom/client';
 import {BrowserRouter, Link, NavLink, Outlet, Route, Routes, useParams, useSearchParams} from 'react-router-dom';
-import {ArrowLeft, ArrowRight, BookOpen, ClipboardCheck, FlaskConical, FolderOpen, History, Menu, MessageSquare, NotebookPen, PanelLeft, Settings2, Sparkles, Target, UserRound, X} from 'lucide-react';
+import {ArrowLeft, ArrowRight, BookOpen, ClipboardCheck, FileText, FlaskConical, FolderOpen, History, Menu, MessageSquare, NotebookPen, PanelLeft, Settings2, Sparkles, Target, UserRound, X} from 'lucide-react';
 import {api, learnerKey, localLearner, Workspace} from './api';
 import {IdentityGate, IdentitySettings} from './Identity';
 import {GuidedFlow} from './GuidedFlow';
@@ -17,13 +17,16 @@ import './style.css';
 import {TutorPanel} from './TutorPanel';
 import {LearningStart} from './LearningStart';
 import {TeachingMaterial} from './TeachingMaterial';
+import {RichText} from './RichText';
 import {AssessmentPanel} from './AssessmentPanel';
 import {TeachingAdvance} from './TeachingAdvance';
 import {NotebookPanel} from './NotebookPanel';
 import {LearningArchive} from './LearningArchive';
 import {LearningMemory} from './LearningMemory';
 import {StageReport, SaveStageReport} from './StageReport';
-import {DEMO_COURSE, HomePage, isOpen, useCourses} from './Home';
+import {HomePage, courseLabel, isOpen, useCourses} from './Home';
+import {Handouts} from './Handouts';
+import {ChapterProgress} from './Progress';
 import {BRAND, Wordmark} from './Brand';
 import {StarPanel} from './StarMap';
 
@@ -85,8 +88,8 @@ function CourseList() {
   const open = courses.filter(isOpen), pending = courses.filter(c => !isOpen(c));
   return <>
     <div className="course-grid">{open.map(course => <Link key={course.id} className="course-card" to={`/courses/${encodeURIComponent(course.id)}`}>
-      {course.status === 'demo' && <span className="tag" style={{alignSelf: 'flex-start'}}>体验课</span>}
-      <h3>{course.title}</h3><p>{course.chapter_count} 章 · {course.node_count} 个知识点</p><span>进入学习<ArrowRight size={15}/></span></Link>)}</div>
+      {courseLabel(course) && <span className="tag" style={{alignSelf: 'flex-start'}}>{courseLabel(course)}</span>}
+      <h3>{course.title}</h3>{course.presentation?.description && <p className="course-desc">{course.presentation.description}</p>}<p>{course.chapter_count} 章 · {course.node_count} 个知识点</p><span>进入学习<ArrowRight size={15}/></span></Link>)}</div>
     {pending.length > 0 && <><div className="section-heading"><h2>准备中</h2></div><div className="course-grid">{pending.map(course =>
       <div key={course.id} className="course-card pending" aria-disabled="true"><h3>{course.title}</h3><p>{course.chapter_count} 章 · {course.node_count} 个知识点</p><span>知识内容核验完成后开放</span></div>)}</div></>}
   </>;
@@ -96,7 +99,7 @@ function CoursesPage() {return <div className="page-width"><h1>我的课程</h1>
 
 function ArchivePage() {return <LearningArchive/>;}
 
-type View = 'learn' | 'check' | 'lab';
+type View = 'learn' | 'handout' | 'check' | 'lab';
 type Drawer = 'notes' | 'record' | null;
 const statusLabel: Record<string, string> = {mastered: '已掌握', needs_review: '需补学', uncertain: '待核验'};
 
@@ -108,6 +111,12 @@ function WorkspacePage() {
   const [conversation, setConversationState] = useState(() => (localStorage.getItem('pliac.tutor-open') ?? '1') === '1' && window.innerWidth >= 1180);
   const setConversation = (open: boolean) => {setConversationState(open); localStorage.setItem('pliac.tutor-open', open ? '1' : '0');};
   const [drawer, setDrawer] = useState<Drawer>(null);
+  const [hasLab, setHasLab] = useState(false);
+  useEffect(() => {
+    const c = new AbortController(); setHasLab(false);
+    fetch(`/api/ml-lab?${new URLSearchParams({course_id: courseId, student_id: localLearner()})}`, {signal: c.signal}).then(r => setHasLab(r.ok)).catch(() => {});
+    return () => c.abort();
+  }, [courseId]);
   const [navMode, setNavModeState] = useState(() => localStorage.getItem('pliac.nav-mode') === 'map' ? 'map' : 'list');
   const setNavMode = (mode: string) => {setNavModeState(mode); localStorage.setItem('pliac.nav-mode', mode);};
   const [nodeId, selectNode] = useState('');
@@ -122,10 +131,11 @@ function WorkspacePage() {
   const selected = value?.course?.nodes.find(n => n.id === material?.proposal.target_node_id) || value?.course?.nodes.find(n => n.id === archived?.node_id) || value?.course?.nodes.find(n => n.id === (search.get('node') || nodeId)) || value?.course?.nodes.find(n => n.id === value.current_lesson?.node_id) || value?.course?.nodes[0];
   // 中栏一次只呈现一个活动：学习（讲义/教学材料）、检验、实验。
   const view: View = search.get('lab') === '1' ? 'lab'
+    : search.get('view') === 'handout' ? 'handout'
     : search.get('view') === 'check' || (material?.activity?.type === 'assessment' && search.get('view') !== 'learn') ? 'check' : 'learn';
   const setView = (next: View) => {
     const params = new URLSearchParams(search); params.delete('lab'); params.delete('view'); params.delete('report');
-    if (next === 'check') params.set('view', 'check'); else if (next === 'lab') params.set('lab', '1'); else if (material?.activity?.type === 'assessment') params.set('view', 'learn');
+    if (next === 'check' || next === 'handout') params.set('view', next); else if (next === 'lab') params.set('lab', '1'); else if (material?.activity?.type === 'assessment') params.set('view', 'learn');
     setSearch(params);
   };
   const readingKey = learnerKey(`reading.${courseId}.${material?.request_id || archived?.id || selected?.id || ''}${view === 'lab' ? '.lab' : view === 'check' ? '.check' : ''}`);
@@ -135,10 +145,23 @@ function WorkspacePage() {
     : undefined;
   useLayoutEffect(() => {if (readingPane.current) readingPane.current.scrollTop = Number(localStorage.getItem(readingKey) || 0);}, [readingKey]);
   const node = (id: string) => {setSearch({}); selectNode(id); localStorage.setItem(learnerKey(`node.${courseId}`), id); if (window.innerWidth < 900) setNavigation(false);};
-  const flowBusy = !!value?.workspace.teaching_flow?.plan_request || !!value?.workspace.teaching_flow?.pending_plan_id;
+  // 从图谱发起教学：让智能体围绕某个知识点重新安排学习（与 GuidedFlow 的“围绕当前知识点重新安排”同一接口）。
+  const arrange = async (id: string, label?: string) => {
+    if (!value?.course) return;
+    const target = value.course.nodes.find(n => n.id === id);
+    if (!value.workspace.onboarded || !value.workspace.teaching_flow?.enabled) {
+      setSearch({setup: '1', goal: `我想弄懂「${(label || target?.title || '').replace(/^\d+\s*/, '')}」`}); return;
+    }
+    node(id);
+    const response = await fetch(`/api/tutor/flow?course_id=${encodeURIComponent(courseId)}`, {method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({operation: 'choose', node_id: id, turn_id: value.workspace.teaching_flow?.current_turn_id, student_id: localLearner(),
+        request_id: crypto.randomUUID(), expected_version: value.learner.version, course_version: value.course.version})});
+    if (response.ok) setValue(await response.json());
+  };
+  const flowBusy =!!value?.workspace.teaching_flow?.plan_request || !!value?.workspace.teaching_flow?.pending_plan_id;
   const course = value?.course;
   const ready = !!course && !!selected;
-  const title = course?.title || (courseId === DEMO_COURSE.id ? DEMO_COURSE.title : '课程学习');
+  const title = course?.title || '课程学习';
 
   let body: React.ReactNode;
   if (!value) body = <LoadState error={error} retry={retry}/>;
@@ -147,13 +170,20 @@ function WorkspacePage() {
   else if (report) body = <StageReport report={report}/>;
   else if (!selected) body = <div className="empty"><h1>还没有知识内容</h1></div>;
   else if (view === 'lab') body = <MLLab key={'lab:' + courseId} revision={value.learner.version} courseId={courseId} materialId={material?.request_id} update={setValue}/>;
+  else if (view === 'handout') body = <Handouts key={'handout:' + courseId} state={value} courseId={courseId} nodeId={selected.id} openLesson={node}/>;
   else if (view === 'check') body = <AssessmentPanel key={'assessment:' + courseId + selected.id + (material?.activity?.id || value.workspace.assessments?.filter(item => item.node_id === selected.id).at(-1)?.id || 'new')} courseId={courseId} nodeId={selected.id} assessmentId={material?.activity?.type === 'assessment' ? material.activity.id : undefined} state={value} update={setValue}/>;
   else body = <>
     {material ? <TeachingMaterial turn={material}/> : <article className="lesson">
       {!value.workspace.onboarded && <div className="start-notice"><p>先说说你的目标和基础，讲解会更贴合你。</p><button onClick={() => setSearch({setup: '1'})}>设置起点</button></div>}
       <h1>{archived?.title || selected.title}</h1>
+      {(() => {const plan = (value as Workspace & {rhythm?: {plan?: {after: {node_id: string}; estimated_minutes: number; break_minutes: number}[]}}).rhythm?.plan || [];
+        const order = course.nodes.map(n => n.id), at = order.indexOf(selected.id);
+        const block = plan.find(p => order.indexOf(p.after.node_id) >= at);
+        if (!block || at < 0) return null;
+        const end = course.nodes.find(n => n.id === block.after.node_id)?.title.replace(/^\d+\s*/, '');
+        return <p className="rhythm-hint">这一段约 {Math.round(block.estimated_minutes)} 分钟{end ? `，学完「${end}」后` : '，之后'}可以休息 {block.break_minutes} 分钟</p>;})()}
       {archived ? archived.paragraphs.map(p => <section key={p.id}>{p.heading && <h2>{p.heading}</h2>}<p>{p.text}</p></section>)
-        : <>{selected.description && <p className="lead">{selected.description}</p>}<h2>学习目标</h2><ol>{selected.objectives.map((objective, i) => <li key={i}>{objective}</li>)}</ol></>}
+        : <>{selected.description && <div className="lead"><RichText text={selected.description}/></div>}<h2>学习目标</h2><ol>{selected.objectives.map((objective, i) => <li key={i}><RichText text={objective}/></li>)}</ol></>}
     </article>}
     <div className="next-step"><div><b>读完了？</b><p>做几道题检验一下，智能体会据此安排下一步。</p></div><div className="next-actions">
       {!value.workspace.teaching_flow?.enabled && <TeachingAdvance key={'advance:' + courseId + selected.id} state={value} courseId={courseId} nodeId={selected.id} update={setValue}/>}
@@ -169,7 +199,7 @@ function WorkspacePage() {
       <span className="top-spacer"/>
       {ready && <><KnowledgeRelations state={value!} nodeId={selected!.id} browse={node}/><ResourceChoices course={courseId} node={selected!.id}/></>}
       {ready && <button aria-expanded={drawer === 'notes'} onClick={() => setDrawer(drawer === 'notes' ? null : 'notes')}><NotebookPen size={16}/><span className="label">笔记</span></button>}
-      {ready && <button aria-expanded={drawer === 'record'} onClick={() => setDrawer(drawer === 'record' ? null : 'record')}><History size={16}/><span className="label">学习记录</span></button>}
+      {ready && <button aria-expanded={drawer === 'record'} onClick={() => setDrawer(drawer === 'record' ? null : 'record')}><History size={16}/><span className="label">学习进度</span></button>}
       {course && <button aria-expanded={showStart} onClick={() => setSearch(showStart ? {} : {setup: '1'})}><Target size={16}/><span className="label">目标与起点</span></button>}
       <span className="top-divider"/>
       <Appearance/>
@@ -177,7 +207,7 @@ function WorkspacePage() {
     </header>
     {navigation && <aside className="course-nav" aria-label="学习目录">
       {course && <div className="seg" role="tablist" aria-label="目录或星图"><button role="tab" aria-selected={navMode === 'list'} className={navMode === 'list' ? 'on' : ''} onClick={() => setNavMode('list')}>目录</button><button role="tab" aria-selected={navMode === 'map'} className={navMode === 'map' ? 'on' : ''} onClick={() => setNavMode('map')}>星图</button></div>}
-      {course && navMode === 'map' && <StarPanel state={value!} selected={selected?.id} onSelect={node}/>}
+      {course && navMode === 'map' && <StarPanel state={value!} selected={selected?.id} onSelect={node} arrange={arrange}/>}
       {navMode === 'list' && course?.chapters.map(chapter => <section key={chapter.id}><h3>{chapter.title}</h3>{course.nodes.filter(n => n.chapter_id === chapter.id).map(n => {
         const status = value!.learner.states[n.id]?.status || '';
         return <button key={n.id} className={selected?.id === n.id ? 'selected' : ''} onClick={() => node(n.id)} title={statusLabel[status] || '尚未学习'}><i className={`dot ${status}`}/>{n.title}</button>;
@@ -187,21 +217,22 @@ function WorkspacePage() {
     <main className="lesson-pane" ref={readingPane} onScroll={e => localStorage.setItem(readingKey, String(e.currentTarget.scrollTop))}>
       {ready && !showStart && !report && <nav className="activity-head" aria-label="学习活动"><div className="activity-head-inner">
         <button className={`activity-tab ${view === 'learn' ? 'on' : ''}`} aria-current={view === 'learn'} onClick={() => setView('learn')}><BookOpen size={15}/>学习</button>
+        <button className={`activity-tab ${view === 'handout' ? 'on' : ''}`} aria-current={view === 'handout'} onClick={() => setView('handout')}><FileText size={15}/>讲义</button>
         <button className={`activity-tab ${view === 'check' ? 'on' : ''}`} aria-current={view === 'check'} onClick={() => setView('check')}><ClipboardCheck size={15}/>检验</button>
-        <button className={`activity-tab ${view === 'lab' ? 'on' : ''}`} aria-current={view === 'lab'} onClick={() => setView('lab')}><FlaskConical size={15}/>实验</button>
+        {(hasLab || view === 'lab') && <button className={`activity-tab ${view === 'lab' ? 'on' : ''}`} aria-current={view === 'lab'} onClick={() => setView('lab')}><FlaskConical size={15}/>实验</button>}
       </div></nav>}
       <div className="activity-body">
-        {course && !showStart && view !== 'lab' && <LearningPlanPanel key={'plan:' + courseId} state={value!} courseId={courseId} update={setValue}/>}
-        {ready && !showStart && view !== 'lab' && !flowBusy && <GuidedFlow key={'flow:' + courseId} state={value!} courseId={courseId} nodeId={selected!.id} materialId={material?.request_id} update={setValue}/>}
+        {course && !showStart && view !== 'lab' && view !== 'handout' && <LearningPlanPanel key={'plan:' + courseId} state={value!} courseId={courseId} update={setValue}/>}
+        {ready && !showStart && view !== 'lab' && view !== 'handout' && !flowBusy && <GuidedFlow key={'flow:' + courseId} state={value!} courseId={courseId} nodeId={selected!.id} materialId={material?.request_id} update={setValue}/>}
         {body}
       </div>
     </main>
     {ready && <TutorPanel key={courseId} hidden={!conversation} courseId={courseId} nodeId={selected!.id} title={selected!.title} state={value!} update={setValue} draft={draft} setDraft={text => {setDraft(text); localStorage.setItem(learnerKey(`question.${courseId}`), text);}} close={() => setConversation(false)}/>}
-    {ready && drawer && <aside className="drawer" aria-label={drawer === 'notes' ? '笔记' : '学习记录'}>
-      <div className="drawer-head"><strong style={{fontSize: 13, paddingLeft: 8}}>{drawer === 'notes' ? '笔记' : '学习记录'}</strong><span className="spacer"/><button aria-label="关闭" onClick={() => setDrawer(null)}><X size={16}/></button></div>
+    {ready && drawer && <aside className="drawer" aria-label={drawer === 'notes' ? '笔记' : '学习进度'}>
+      <div className="drawer-head"><strong style={{fontSize: 13, paddingLeft: 8}}>{drawer === 'notes' ? '笔记' : '学习进度'}</strong><span className="spacer"/><button aria-label="关闭" onClick={() => setDrawer(null)}><X size={16}/></button></div>
       <div className="drawer-body">{drawer === 'notes'
         ? <NotebookPanel key={'notebook:' + courseId + selected!.id} state={value!} courseId={courseId} nodeId={selected!.id} materialId={material?.request_id} update={setValue}/>
-        : <><LearningMemory memory={value!.workspace.memory?.nodes[selected!.id]}/><SaveStageReport key={'report:' + courseId} state={value!} courseId={courseId} update={setValue}/></>}</div>
+        : <><ChapterProgress state={value!} open={id => {node(id); setDrawer(null);}}/><LearningMemory memory={value!.workspace.memory?.nodes[selected!.id]}/><SaveStageReport key={'report:' + courseId} state={value!} courseId={courseId} update={setValue}/></>}</div>
     </aside>}
   </div>;
 }

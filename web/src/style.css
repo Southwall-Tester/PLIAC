@@ -437,3 +437,89 @@ dialog.global-nav::backdrop{background:#0005}
 .starmap-side .concept-card h3{color:#fff}
 .starmap-side .concept-rel button,.starmap-side .concept-src a{color:#9cc6f0}
 .starmap-side .concept-rel li,.starmap-side .concept-sub,.starmap-side .concept-src{color:#8a96ad}
+
+/* 讲义 */
+.handout-bar{display:flex;align-items:center;gap:10px;margin-bottom:22px;flex-wrap:wrap}
+.handout-bar select{max-width:360px;padding:7px 10px;font-size:13px}
+.handout h1{font-size:28px;margin-bottom:6px}
+.handout-sub{color:var(--muted);font-size:13px}
+.handout .lead{font-size:15px;color:var(--ink-2);line-height:1.85}
+.handout-section{margin-top:34px}
+.handout-section h2{font-size:20px;margin-bottom:12px}
+.handout-section .rich-text{font-size:16px;line-height:1.9;color:var(--ink-2)}
+.handout-example{margin:16px 0;padding:14px 18px;border-left:3px solid var(--glow);background:var(--sunken);border-radius:0 10px 10px 0}
+.handout-practice{margin-top:18px}
+.handout-practice h3{font-size:14px;margin-bottom:8px}
+.handout-practice details{border:1px solid var(--line);border-radius:10px;padding:10px 14px;margin-bottom:8px;background:var(--surface)}
+.handout-practice summary{cursor:pointer}
+.handout-practice summary .rich-text{display:inline}
+.handout-practice .hint{font-size:13px;color:var(--muted);margin:8px 0 4px}
+.handout-practice .answer{border-top:1px dashed var(--line);margin-top:8px;padding-top:8px;font-size:14px}
+.handout-refs{font-size:12px;color:var(--muted);margin-top:12px}
+.handout-refs button{font-size:12px;color:var(--accent);padding:2px 6px}
+.handout-note{font-size:12px;color:var(--muted);margin-top:36px;border-top:1px solid var(--line);padding-top:12px}
+.source-overlay{position:fixed;inset:0;z-index:70;background:#0006;display:grid;place-items:center}
+.course-desc{color:var(--ink-2)!important;font-size:13px!important;line-height:1.6}
+
+/* 学习进度 */
+.progress-panel{display:grid;gap:14px;padding:12px 0}
+.chapter-progress{border:1px solid var(--line);border-radius:12px;padding:12px 14px;background:var(--bg)}
+.chapter-progress header{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:14px;margin-bottom:8px}
+.chapter-bar{height:4px;border-radius:4px;background:var(--line);overflow:hidden;margin-bottom:8px}
+.chapter-bar i{display:block;height:100%;background:var(--glow);box-shadow:0 0 6px var(--glow)}
+.chapter-progress ul{list-style:none;padding:0;margin:0}
+.chapter-progress li button{display:flex;align-items:center;gap:8px;width:100%;text-align:left;padding:5px 4px;font-size:13px;color:var(--ink-2)}
+.chapter-progress details{margin-top:6px;font-size:12px;color:var(--muted)}
+.chapter-progress details p{font-size:12px;margin:4px 0 0}
+/* 档案 */
+.archive-toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:18px 0 8px}
+.archive-filter select,.archive-filter input{padding:7px 10px;font-size:13px}
+.archive-filter.grow{flex:1;min-width:200px}
+.archive-filter.grow input{width:100%}
+.archive-entry{border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:10px;background:var(--surface)}
+.next-step .assessment-panel>button:first-of-type:not(:disabled){background:none;color:var(--accent);border:1px solid var(--line);font-weight:500}
+.lesson .lead .rich-text p{margin:0 0 10px}
+.lesson li .rich-text p{margin:0;display:inline}
+.archive-empty{margin:40px 0;padding:44px 28px;border-radius:16px;text-align:center;color:#c3cbdc;background:radial-gradient(ellipse at 30% 20%,#16264a 0%,#0e1a33 60%,#0a1222 100%)}
+.archive-empty h2{color:#fff;font-family:var(--serif)}
+.archive-empty p{font-size:14px;margin-bottom:20px}
+.archive-empty .primary{background:#f0b44a;color:#1a1405}
+.ask-bar .send{flex-shrink:0}
+.ask-bar select{min-width:0;flex:1 1 auto}
+@media(max-width:760px){.next-step{flex-direction:column;align-items:stretch}.next-step .next-actions{justify-content:flex-end;flex-wrap:wrap}.start-notice{flex-direction:column;align-items:flex-start}.activity-tab{padding:0 9px}}
+
+.handout-seg{margin:0;width:150px}
+.handout-map-grid{display:grid;grid-template-columns:minmax(0,1fr) 260px;gap:14px;align-items:start}
+.handout-map-side .concept-card{margin:0}
+.handout-map-side blockquote{font-size:12px;color:var(--muted);border-left:2px solid var(--line);margin:6px 0;padding-left:10px}
+.activity-body:has(.handout-map){max-width:1100px}
+@media(max-width:1180px){.handout-map-grid{grid-template-columns:1fr}}
+
+/* 图谱引擎画布（原 NetworkView） */
+.graph-canvas{position:relative;width:100%;border-radius:12px;overflow:hidden;background:radial-gradient(ellipse at 30% 20%,#16264a 0%,#0e1a33 55%,#0a1222 100%)}
+.graph-canvas-stage{position:absolute;inset:0}
+.graph-canvas-note{position:absolute;inset:0;display:grid;place-items:center;color:#8a96ad;font-size:12px}
+.graph-canvas-tools{position:absolute;right:8px;bottom:8px;display:flex;gap:4px}
+.course-nav .graph-canvas-tools button,.graph-canvas-tools button{width:26px;height:26px;padding:0;display:grid;place-items:center;border-radius:7px;background:#ffffff14;color:#cfe0ff;font-size:13px;margin:0}
+.graph-canvas-tools button:hover{background:#ffffff26}
+.starmap-full-canvas{flex:1;min-height:0;display:flex}
+.starmap-full-canvas .graph-canvas{flex:1}
+.card-actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+.course-nav .card-actions button{width:auto;display:inline-flex;margin:0;font-size:12px;padding:6px 10px}
+.basis{display:flex;align-items:flex-start;gap:6px;font-size:12px!important;color:var(--muted)!important;margin:2px 0 4px!important}
+.basis .dot{margin-top:5px}
+.concept-lesson{margin-bottom:4px}
+.chips{display:flex;flex-wrap:wrap;gap:4px}
+.course-nav .chips button,.chips button{display:inline-flex;align-items:center;gap:5px;width:auto;padding:3px 8px;font-size:12px;border:1px solid var(--line);border-radius:999px;color:var(--ink-2);margin:0}
+.starmap-side .basis{color:#8a96ad!important}
+.starmap-side .chips button{border-color:#2b3a5a;color:#c3cbdc}
+.course-nav .card-actions .primary{background:var(--accent);color:var(--accent-ink)}
+.course-nav .card-actions .ghost{border:1px solid var(--line);color:var(--ink-2)}
+
+.handout-map-tools{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.handout-map-tools select{max-width:320px;padding:7px 10px;font-size:13px}
+.handout-map-tools input{flex:1;min-width:180px;padding:7px 10px;font-size:13px}
+.handout-map-side{max-height:540px;overflow:auto}
+.handout-map-grid{grid-template-columns:1fr!important}
+.handout-map-side{max-height:none}
+.rhythm-hint{display:inline-flex;align-items:center;gap:6px;font-size:12px!important;color:var(--muted)!important;background:var(--sunken);border-radius:999px;padding:4px 12px;margin:-4px 0 16px!important}

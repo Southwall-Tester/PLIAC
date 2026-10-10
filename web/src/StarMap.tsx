@@ -3,12 +3,13 @@ import {createPortal} from 'react-dom';
 import {Maximize2, X} from 'lucide-react';
 import type {Workspace} from './api';
 import {layout, neighborhood} from './graphLayout';
+import {GraphCanvas} from './GraphCanvas';
 
 // 星图：课程知识图谱的学生视图。夜空为底；有证据支持掌握的点像萤火一样亮起。
 // 有概念图谱（concept_map，旧 /learn 页面使用的数据）时画概念层：概念按分组成星团，点击查看解释、相关小节、关系与来源；
 // 否则画小节层（course.nodes / course.edges）。
 // 概念本身不推断掌握：概念星的颜色只表示“它所在小节”的学习状态（见 AGENTS.md）。
-type G = {
+export type G = {
   key: string; concepts: boolean;
   nodes: {id: string; title: string; group?: string}[];
   edges: {id: string; source: string; target: string; kind: string; label?: string}[];
@@ -23,6 +24,7 @@ const edgeStyle: Record<string, {dash?: string; color: string; opacity: number; 
   related: {color: '#85b7eb', opacity: .35, dash: '4 4'},
   confusable: {color: '#ef8a73', opacity: .55, dash: '1.5 4'},
   contains: {color: '#85b7eb', opacity: .18},
+  cooccurs: {color: '#85b7eb', opacity: .12},
 };
 const labelsFor = (concepts: boolean): Record<string, string> => concepts
   ? {mastered: '所在小节已掌握', uncertain: '所在小节待核验', needs_review: '所在小节需补学'}
@@ -110,6 +112,18 @@ export function StarMap({graph, active, onPick, full = false, height = 340, labe
   const stars = useMemo(() => backgroundStars(full ? 160 : 60), [full]);
   const short = (t: string) => {if (full) return t; const x = t.replace(/^\d+\s*/, ''); return x.length > 8 ? x.slice(0, 7) + '…' : x;};
   const focusId = hover || active;
+  const named = useMemo(() => {
+    if (graph.nodes.length <= 60) return null;
+    const degree = new Map<string, number>();
+    for (const e of graph.edges) {degree.set(e.source, (degree.get(e.source) || 0) + 1); degree.set(e.target, (degree.get(e.target) || 0) + 1);}
+    return new Set([...degree.entries()].sort((a, b) => b[1] - a[1]).slice(0, full ? 40 : 24).map(([id]) => id));
+  }, [graph.key, full]);
+  const big = graph.nodes.length > 60;
+  const near = useMemo(() => {
+    const out = new Set<string>();
+    if (focusId) for (const e of graph.edges) {if (e.source === focusId) out.add(e.target); if (e.target === focusId) out.add(e.source);}
+    return out;
+  }, [focusId, graph.key]);
 
   return <div className="starmap" ref={ref} style={{height}}>
     {width > 0 && <svg width={w} height={h} role="img" aria-label={full ? '课程全景星图' : '当前学习附近的星图'}>
@@ -124,7 +138,7 @@ export function StarMap({graph, active, onPick, full = false, height = 340, labe
         const lit = !!focusId && (e.source === focusId || e.target === focusId);
         return <g key={e.id}>
           <line x1={a.x} y1={a.y} x2={bx} y2={by} stroke={st.color} strokeWidth={lit ? 1.6 : 1}
-            strokeDasharray={st.dash} opacity={on ? (lit ? .95 : st.opacity) : .06} markerEnd={on && st.arrow ? 'url(#sm-arrow)' : undefined}/>
+            strokeDasharray={st.dash} opacity={on ? (lit ? .95 : big ? st.opacity * .7 : st.opacity) : .06} markerEnd={on && st.arrow ? 'url(#sm-arrow)' : undefined}/>
           {lit && on && e.label && labels && <text x={(a.x + b.x) / 2} y={(a.y + b.y) / 2 - 4} textAnchor="middle" fontSize={10.5} fill="#9fb4d8"
             style={{paintOrder: 'stroke', stroke: '#0e1a33', strokeWidth: 3}}>{e.label}</text>}
         </g>;
@@ -141,8 +155,8 @@ export function StarMap({graph, active, onPick, full = false, height = 340, labe
           {s === 'mastered' && <circle className="firefly" r={14} fill="#ffc35c" opacity=".22"/>}
           {s === 'uncertain' && <circle r={9} fill="#85b7eb" opacity=".18"/>}
           {ring && <circle r={11} fill="none" stroke="#ffffff" strokeWidth={1.4} opacity=".9"/>}
-          <circle r={s === 'mastered' ? 6 : s ? 5.5 : 4} fill={fill} opacity={s ? 1 : .8}/>
-          {labels && <text y={-12} textAnchor="middle" fontSize={ring ? 12.5 : 11.5} fontWeight={ring ? 600 : 400}
+          <circle r={s === 'mastered' ? 6 : s ? 5.5 : big ? 2.6 : 4} fill={big && !s ? tint : fill} opacity={s ? 1 : .8}/>
+          {labels && (!named || named.has(n.id) || ring || n.id === hover || near.has(n.id)) && <text y={-12} textAnchor="middle" fontSize={ring ? 12.5 : 11.5} fontWeight={ring ? 600 : 400}
             fill={s === 'mastered' ? '#ffe3ad' : ring ? '#ffffff' : tint} style={{paintOrder: 'stroke', stroke: '#0e1a33', strokeWidth: 3}}>{short(n.title)}</text>}
         </g>;
       })}
@@ -163,8 +177,16 @@ export function StarLegend({state}: {state?: Workspace}) {
   </div>;
 }
 
-/** 概念卡片：解释、相关小节、关系、来源（对应旧 /learn 页面右侧面板）。 */
-function ConceptCard({state, id, openLesson, pick}: {state: Workspace; id: string; openLesson: (lesson: string) => void; pick: (id: string) => void}) {
+const statusText: Record<string, string> = {mastered: '已掌握', uncertain: '待核验', needs_review: '需补学'};
+
+/** 小节的掌握依据（来自学习者状态的 reason）。 */
+function Basis({state, lesson}: {state: Workspace; lesson: string}) {
+  const st = state.learner.states[lesson];
+  return <p className="basis"><i className={`dot ${st?.status || ''}`}/>{statusText[st?.status || ''] || '尚未学习'}{st?.reason ? `：${st.reason}` : ''}</p>;
+}
+
+/** 概念卡片：解释、在哪几节学（含掌握依据）、关系、来源、下一步动作。 */
+function ConceptCard({state, id, openLesson, arrange, pick}: {state: Workspace; id: string; openLesson: (lesson: string) => void; arrange?: (lesson: string, label?: string) => void; pick: (id: string) => void}) {
   const cm = state.concept_map!, n = cm.nodes.find(x => x.id === id);
   if (!n) return null;
   const name = (cid: string) => cm.nodes.find(x => x.id === cid)?.title || cid;
@@ -175,42 +197,87 @@ function ConceptCard({state, id, openLesson, pick}: {state: Workspace; id: strin
     <small>{cm.groups.find(g => g.id === n.group_id)?.title}</small>
     <h3>{n.title}</h3>
     <p>{n.description}</p>
-    {n.lesson_ids.length > 0 && <><div className="concept-sub">在这些小节学</div><div className="concept-lessons">{n.lesson_ids.map(l => lesson(l) && <button key={l} onClick={() => openLesson(l)}>
-      <i className={`dot ${state.learner.states[l]?.status || ''}`}/>{lesson(l)!.title}</button>)}</div></>}
+    {n.lesson_ids.length > 0 && <><div className="concept-sub">在这些小节学</div><div className="concept-lessons">{n.lesson_ids.map(l => lesson(l) && <div key={l} className="concept-lesson">
+      <button onClick={() => openLesson(l)}><i className={`dot ${state.learner.states[l]?.status || ''}`}/>{lesson(l)!.title}</button>
+      <Basis state={state} lesson={l}/></div>)}</div></>}
     {rel.length > 0 && <><div className="concept-sub">关系</div><ul className="concept-rel">{rel.map(e => <li key={e.id} title={e.reason}>
       <button onClick={() => pick(e.source)}>{name(e.source)}</button><span>{e.predicate}</span><button onClick={() => pick(e.target)}>{name(e.target)}</button></li>)}</ul></>}
     {srcs.length > 0 && <div className="concept-src">来源：{srcs.map(s => s.url ? <a key={s.id} href={s.url} target="_blank" rel="noopener noreferrer">{s.title}</a> : <span key={s.id}>{s.title}</span>)}</div>}
+    {n.lesson_ids[0] && <div className="card-actions">
+      <button className="primary" onClick={() => openLesson(n.lesson_ids[0])}>去学这一节</button>
+      {arrange && <button className="ghost" onClick={() => arrange(n.lesson_ids[0], n.title)}>让智能体围绕它安排学习</button>}
+    </div>}
   </div>;
 }
 
-/** 左栏里的星图 + 概念卡片 + 全景星图。 */
-export function StarPanel({state, selected, onSelect}: {state: Workspace; selected?: string; onSelect: (id: string) => void}) {
+/** 小节卡片（没有概念图谱的课程）：掌握依据、先修与后续、下一步动作。 */
+function LessonCard({state, id, openLesson, arrange, pick}: {state: Workspace; id: string; openLesson: (lesson: string) => void; arrange?: (lesson: string, label?: string) => void; pick: (id: string) => void}) {
+  const course = state.course!, n = course.nodes.find(x => x.id === id);
+  if (!n) return null;
+  const title = (lid: string) => course.nodes.find(x => x.id === lid)?.title || lid;
+  const edges = course.edges || [];
+  const before = edges.filter(e => e.type === 'prerequisite' && e.target === id).map(e => e.source);
+  const after = edges.filter(e => e.type === 'prerequisite' && e.source === id).map(e => e.target);
+  const other = edges.filter(e => e.type !== 'prerequisite' && (e.source === id || e.target === id));
+  return <div className="concept-card">
+    <h3>{n.title}</h3>
+    <Basis state={state} lesson={id}/>
+    {before.length > 0 && <><div className="concept-sub">先修</div><div className="chips">{before.map(x => <button key={x} onClick={() => pick(x)}><i className={`dot ${state.learner.states[x]?.status || ''}`}/>{title(x)}</button>)}</div></>}
+    {after.length > 0 && <><div className="concept-sub">学完可以接着学</div><div className="chips">{after.map(x => <button key={x} onClick={() => pick(x)}>{title(x)}</button>)}</div></>}
+    {other.length > 0 && <><div className="concept-sub">相关与易混</div><div className="chips">{other.map(e => {const x = e.source === id ? e.target : e.source;
+      return <button key={e.id} onClick={() => pick(x)}>{e.type === 'confusable' ? '易混 · ' : ''}{title(x)}</button>;})}</div></>}
+    <div className="card-actions">
+      <button className="primary" onClick={() => openLesson(id)}>去学这一节</button>
+      {arrange && <button className="ghost" onClick={() => arrange(id)}>让智能体围绕它安排学习</button>}
+    </div>
+  </div>;
+}
+
+function toCanvas(graph: G, ids: Set<string> | null, anchor?: string) {
+  const nodes = graph.nodes.filter(n => !ids || ids.has(n.id)).map(n => ({id: n.id, title: n.title, group: Number(n.group ?? 0),
+    status: graph.status(n.id) || undefined, anchor: n.id === anchor || (!anchor && graph.focus.has(n.id))}));
+  const keep = new Set(nodes.map(n => n.id));
+  return {nodes, edges: graph.edges.filter(e => keep.has(e.source) && keep.has(e.target))};
+}
+
+/** 左栏里的星图 + 节点卡片 + 全景星图。渲染引擎为原平台 NetworkView（GraphCanvas）。 */
+export function StarPanel({state, selected, onSelect, arrange}: {state: Workspace; selected?: string; onSelect: (id: string) => void; arrange?: (id: string, label?: string) => void}) {
   const [full, setFull] = useState(false);
-  const [concept, setConcept] = useState('');
+  const [pick, setPick] = useState('');
   const graph = useMemo(() => buildGraph(state, selected), [state, selected]);
   const concepts = graph.concepts;
-  useEffect(() => setConcept(''), [selected]);
+  useEffect(() => setPick(''), [selected]);
   useEffect(() => {
     if (!full) return;
     const close = (e: KeyboardEvent) => {if (e.key === 'Escape') setFull(false);};
     window.addEventListener('keydown', close); return () => window.removeEventListener('keydown', close);
   }, [full]);
-  const pick = (id: string) => {if (concepts) setConcept(id); else {onSelect(id); setFull(false);}};
+  const local = useMemo(() => {
+    const anchors = pick ? [pick] : [...graph.focus];
+    if (!anchors.length) return toCanvas(graph, null);
+    const ids = new Set<string>();
+    for (const a of anchors) for (const id of neighborhood(a, graph.edges, concepts ? 1 : 2)) ids.add(id);
+    return toCanvas(graph, ids, pick || undefined);
+  }, [graph, pick]);
+  const whole = useMemo(() => toCanvas(graph, null, pick || undefined), [graph, pick]);
   const openLesson = (id: string) => {onSelect(id); setFull(false);};
+  const doArrange = arrange ? (id: string, label?: string) => {arrange(id, label); setFull(false);} : undefined;
+  const card = pick ? (concepts
+    ? <ConceptCard state={state} id={pick} openLesson={openLesson} arrange={doArrange} pick={setPick}/>
+    : <LessonCard state={state} id={pick} openLesson={openLesson} arrange={doArrange} pick={setPick}/>) : null;
   const lit = graph.nodes.filter(n => graph.status(n.id) === 'mastered').length;
   return <div className="star-panel">
-    <StarMap graph={graph} active={concept || undefined} onPick={pick}/>
+    <GraphCanvas nodes={local.nodes} edges={local.edges} focus={pick || undefined} onSelect={setPick} height={330}/>
     <div className="star-panel-bar"><span>{concepts ? `${graph.nodes.length} 个概念 · 本节相关 ${graph.focus.size} 个` : `已点亮 ${lit}/${graph.nodes.length}`}</span>
       <button onClick={() => setFull(true)}><Maximize2 size={14}/>全景星图</button></div>
-    {concept ? <ConceptCard state={state} id={concept} openLesson={openLesson} pick={setConcept}/>
-      : <p className="star-hint">{concepts ? '点一颗星，看这个概念讲什么、在哪几节学。' : '点一颗星，跳到这个知识点。'}</p>}
+    {card || <p className="star-hint">{concepts ? '点一颗星，看这个概念讲什么、在哪几节学。可拖动、滚轮缩放。' : '点一颗星，看它的先修、掌握依据和下一步。可拖动、滚轮缩放。'}</p>}
     <StarLegend state={state}/>
     {full && createPortal(<div className="starmap-full" role="dialog" aria-label="全景星图">
       <header><strong>{state.course!.title}</strong><span>{concepts ? `${graph.nodes.length} 个概念` : `已点亮 ${lit}/${graph.nodes.length}`}</span>
         <button style={{marginLeft: 'auto'}} aria-label="关闭全景星图" onClick={() => setFull(false)}><X size={18}/></button></header>
       <div className="starmap-full-body">
-        <StarMap graph={graph} active={concept || undefined} onPick={pick} full height={window.innerHeight - 110}/>
-        {concept && <aside className="starmap-side"><ConceptCard state={state} id={concept} openLesson={openLesson} pick={setConcept}/></aside>}
+        <div className="starmap-full-canvas"><GraphCanvas nodes={whole.nodes} edges={whole.edges} focus={pick || undefined} onSelect={setPick} height="100%"/></div>
+        {card && <aside className="starmap-side">{card}</aside>}
       </div>
       <StarLegend state={state}/>
     </div>, document.body)}

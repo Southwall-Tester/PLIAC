@@ -46,13 +46,13 @@ export function LearningArchive() {
     results.current?.scrollIntoView({block: 'start'}); results.current?.focus({preventScroll: true});
   }
   return <div className="page-width"><h1>学习档案</h1>
-    <p className="lead">你的教材、笔记和学习总结都在这里。</p>
-    <label>查看内容 <select value={kind} onChange={event => filter('kind', event.target.value)}><option value="all">全部</option>
-      {Object.entries(kinds).map(([key, name]) => <option key={key} value={key}>{name}</option>)}</select></label>
-    <label className="identity-field">筛选课程<select value={selectedCourse} onChange={event => filter('course', event.target.value)}><option value="all">全部课程</option>{data?.courses.map(course => <option key={course.id} value={course.id}>{course.title}</option>)}</select></label>
-    <label className="identity-field">搜索档案<input type="search" value={text} onChange={event => filter('q', event.target.value)} placeholder="课程、标题、知识点或笔记文字"/></label>
+    
+    <div className="archive-toolbar"><div className="mode-chips" role="radiogroup" aria-label="查看内容">{[['all', '全部'], ...Object.entries(kinds)].map(([key, name]) =>
+      <button key={key} type="button" role="radio" aria-checked={kind === key} className={kind === key ? 'on' : ''} onClick={() => filter('kind', key)}>{name}</button>)}</div>
+    <label className="archive-filter"><span className="sr-only">筛选课程</span><select value={selectedCourse} onChange={event => filter('course', event.target.value)}><option value="all">全部课程</option>{data?.courses.map(course => <option key={course.id} value={course.id}>{course.title}</option>)}</select></label>
+    <label className="archive-filter grow"><span className="sr-only">搜索档案</span><input type="search" value={text} onChange={event => filter('q', event.target.value)} placeholder="课程、标题、知识点或笔记文字"/></label></div>
     {error ? <p role="alert">{error}<button onClick={() => setRetry(value => value + 1)}>重试</button></p> : !data ? <p role="status">正在读取档案…</p> : !data.courses.length ?
-      <div className="empty"><h2>还没有保存的学习成果</h2><Link to="/courses">选择课程</Link></div> : <>
+      <div className="archive-empty"><h2>这里还是一片空白的星空</h2><p>学习中保存的讲义、笔记、检验记录和阶段总结，都会在这里一颗颗亮起来。</p><Link className="primary" to="/">开始学习</Link></div> : <>
       <p role="status" ref={results} tabIndex={-1}>找到 {matched.length} 条记录 · 第 {page} / {pageCount} 页</p>
       {!matched.length && <p>没有符合条件的记录。<button onClick={() => setSearch({})}>清除筛选</button></p>}
       {data.courses.filter(course => visible.some(entry => entry.course.id === course.id)).map(course => {
@@ -65,13 +65,13 @@ export function LearningArchive() {
             <small>{kinds[item.kind]} · 课程 v{item.course_version} · {new Date(item.created_at).toLocaleString('zh-CN')}</small>
             <h3>{item.title}</h3>{item.kind !== 'report' && item.kind !== 'lab' && <p>{item.node_title}</p>}
             {item.lab && <details><summary>查看本轮实验记录</summary>
-              <p>实验规则 v{item.lab.contract_version} · 已完成 {item.lab.step} 步 · {item.lab.completed ? '本轮已封存' : '本轮未完成'}。技术成果不等于概念掌握。</p>
+              <p>实验规则 v{item.lab.contract_version} · 已完成 {item.lab.step} 步 · {item.lab.completed ? '本轮已封存' : '本轮未完成'}。</p>
               <div style={{overflowX: 'auto'}}><table><caption>当时保存的训练与验证结果</caption><thead><tr><th>次数</th><th>参数</th><th>训练准确率</th><th>验证准确率</th></tr></thead>
                 <tbody>{item.lab.runs.map(run => <tr key={run.number}><td>{run.number}</td><td>训练 {run.config.train_percent}%；深度 {run.config.depth || '自由'}；特征 {run.config.features}；划分 {run.config.split}</td><td>{(run.train_accuracy * 100).toFixed(1)}%</td><td>{(run.validation_accuracy * 100).toFixed(1)}%</td></tr>)}</tbody></table></div>
               {!item.lab.runs.length && <p>本轮暂无训练记录。</p>}
               <ol>{item.lab.checks.map((check, index) => <li key={index}>步骤 {check.task_id}：{check.passed ? '成果检查通过' : '成果检查未通过'}；记录受助等级 {check.prompt_level ?? '未知'}。<p>{check.note || '未附解释文字'}</p><p>{check.feedback}</p></li>)}</ol>
               <p>{item.lab.test_accuracy === null ? '本轮未封存测试结果。' : `封存方案测试准确率 ${(item.lab.test_accuracy * 100).toFixed(1)}%。`}</p>
-              <p>这里展示原轮次，不重跑模型，也不把旧结果改成当前版本结论。</p>
+              
             </details>}
             {item.kind === 'note' && <details><summary>查看第 {item.revision} 版笔记</summary><p style={{whiteSpace: 'pre-wrap'}}>{item.text || '当前笔记为空；历史版本可在工作台查看。'}</p></details>}
             {item.kind === 'assessment' && <details><summary>{item.status === 'assessed' ? '查看当时的作答与反馈' : item.status === 'submitted' ? '作答已保存，评价待完成' : '尚未提交作答'}</summary>

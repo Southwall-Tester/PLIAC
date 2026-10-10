@@ -262,7 +262,9 @@ async def generate(request: Request, course_store=Depends(resolve_course_store))
                     task.add_done_callback(lambda _: TASKS.pop(previous["id"], None))
                     return previous
     job = dict(id=new_id(), status="queued", stage="等待生成", progress=0, created_at=now(), course_id=graph["id"],
-               course_version=graph["version"], source_view=view, chapter_id=chapter, scope=scope, title=scope["title"], error=None)
+               course_version=graph["version"], source_view=view, chapter_id=chapter, scope=scope, title=scope["title"], error=None,
+               # 生成来源可追溯：记录模型名与图谱生成策略版本（不记录任何密钥）
+               generator={"model": api.model, "graph_policy": "concept-first-v3"})
     store.save_job(job)
     task = asyncio.create_task(run_job(store, job, request_data, docs, origins))
     TASKS[job["id"]] = task

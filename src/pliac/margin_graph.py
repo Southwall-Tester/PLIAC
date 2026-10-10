@@ -154,7 +154,7 @@ async def generate_map(lesson, provider):
         raise ValueError('没有通过审校的知识概念，讲义已保存，可重试。')
     relations = await provider.generate(Relations,
         '仅在给定的已审核术语之间提取资料明确支持的语义关系。source/target 只能选术语 id。'
-        'predicate 写具体关系，方向按实际含义。evidence_id 选能支持整条关系的段落。'
+        'predicate 写具体关系，方向按实际含义，使用讲义语言（'+lesson.language+'）的简短动词短语，例如“用于评估”“决定”“导致”，不要用其他语言。evidence_id 选能支持整条关系的段落。'
         '同段出现、相邻章节、目录顺序不是语义关系，不自动连成先修链；无依据的边省略，'
         '允许孤立节点。不要增加、改名或恢复被剔除的术语，也不要求固定边数。',
         material+'\n已审核术语：'+json.dumps([n.model_dump() for n in accepted],ensure_ascii=False))
@@ -166,7 +166,7 @@ async def generate_map(lesson, provider):
         result = validate_map(ConceptGraph.model_validate(result), lesson)
     except (KeyError, ValueError):
         raise ValueError('图谱关系或引用未通过校验，讲义已保存，可重试。') from None
-    result.update(policy_version='concept-first-v2', vocabulary_audit=audit.model_dump())
+    result.update(policy_version='concept-first-v3', vocabulary_audit=audit.model_dump())
     return result
 
 

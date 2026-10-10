@@ -1,4 +1,6 @@
-export interface Course { id: string; title: string; node_count: number; chapter_count: number; status: string }
+export interface Course { id: string; title: string; node_count: number; chapter_count: number; status: string;
+  capabilities?: {learn?: boolean; generate_handouts?: boolean; objective_assessment?: boolean};
+  presentation?: {label?: string; description?: string} }
 export interface KnowledgeNode { id: string; title: string; chapter_id: string; description: string; objectives: string[] }
 export interface Lesson { id: string; node_id: string; title: string; paragraphs: {id: string; text: string; heading?: string}[]; question: string; status: string }
 export interface TutorTurn {

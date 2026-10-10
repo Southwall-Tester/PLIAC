@@ -1,6 +1,7 @@
 """Automatic, evidence-backed course activation without fabricated human review."""
 from __future__ import annotations
 
+import asyncio
 import copy
 import json
 from typing import Literal
@@ -10,6 +11,9 @@ from pydantic import Field
 from learning_agent.course_graph import CourseGraphError, _atomic_json, _fingerprint, _read_json, validate_graph
 from learnmargin.provider import Provider, ProviderError
 from .tutor import Contract, Citation
+
+
+AUDIT_BATCH = 20
 
 
 class KnowledgeCheck(Contract):
@@ -102,11 +106,19 @@ async def audit_knowledge(context, config):
         "发现同名歧义、相互矛盾、推论过强或缺依据时输出uncertain或unsupported。"
         "supported必须提供来源中逐字可定位的引文。不得仅因内容看似合理就通过。"
     )
+    # Large courses exceed one generation window; audit in parallel batches that carry only their own
+    # sources, then validate the merged result against the full context exactly as before.
+    batches = [context["items"][i:i + AUDIT_BATCH] for i in range(0, len(context["items"]), AUDIT_BATCH)]
+    def part(items):
+        used = {key for item in items for key in item["allowed_sources"]}
+        return {**context, "items": items, "sources": [src for src in context["sources"] if src["id"] in used]}
     try:
         async with Provider(config) as provider:
-            result = await provider.generate(KnowledgeAudit, instruction, json.dumps(context, ensure_ascii=False))
+            results = await asyncio.gather(*(provider.generate(KnowledgeAudit, instruction, json.dumps(part(items), ensure_ascii=False)) for items in batches))
+            result = KnowledgeAudit(checks=[check for item in results for check in item.checks])
             validate_audit(result, context)
-            return result, {"model": config.model, "usage": provider.usage, "policy": "knowledge-activation-v1"}
+            return result, {"model": config.model, "usage": provider.usage, "policy": "knowledge-activation-v1",
+                            "batches": len(batches)}
     except ProviderError as exc:
         raise CourseGraphError("知识核验模型暂时不可用，当前可用课程未改变。", 502) from exc
 

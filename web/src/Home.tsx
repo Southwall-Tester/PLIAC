@@ -4,10 +4,9 @@ import {ArrowRight, ArrowUp, BookOpen, Lightbulb, PenLine, RotateCcw} from 'luci
 import {api, Course, learnerKey, localLearner, Workspace} from './api';
 import {MiniStarMap} from './StarMap';
 
-// 演示课由后端单独提供、未出现在 /api/courses 中；前端在此补一个“体验课”入口。
-export const DEMO_COURSE: Course = {id: 'ml_acceptance_demo', title: '机器学习分类入门：从数据到可靠评估', node_count: 10, chapter_count: 2, status: 'demo'};
-
-export const isOpen = (course: Course) => course.status === 'published' || course.status === 'demo';
+// 课程能否学习、显示什么标签，以后端 /api/courses 的 capabilities.learn 与 presentation.label 为准（main 2026-10-09 起提供）。
+export const isOpen = (course: Course) => course.capabilities?.learn ?? course.status === 'published';
+export const courseLabel = (course: Course) => course.presentation?.label || '';
 
 export function useCourses() {
   const [courses, setCourses] = useState<Course[]>();
@@ -15,8 +14,8 @@ export function useCourses() {
   useEffect(() => {
     const controller = new AbortController();
     api<{courses: Course[]}>('/api/courses', controller.signal)
-      .then(value => {if (!controller.signal.aborted) setCourses([...value.courses.filter(c => c.id !== DEMO_COURSE.id), DEMO_COURSE]);})
-      .catch(failure => {if (!controller.signal.aborted) {setError(failure.message); setCourses([DEMO_COURSE]);}});
+      .then(value => {if (!controller.signal.aborted) setCourses(value.courses);})
+      .catch(failure => {if (!controller.signal.aborted) {setError(failure.message); setCourses([]);}});
     return () => controller.abort();
   }, []);
   return {courses, error};
@@ -130,7 +129,7 @@ export function HomePage() {
         onChange={event => setGoal(event.target.value)} onKeyDown={event => {if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {event.preventDefault(); submit();}}}/>
       <div className="ask-bar">
         <select aria-label="选择课程" value={courseId} onChange={event => setCourseId(event.target.value)}>
-          {open.map(c => <option key={c.id} value={c.id}>{c.status === 'demo' ? `体验课 · ${c.title}` : c.title}</option>)}
+          {open.map(c => <option key={c.id} value={c.id}>{courseLabel(c) ? `${courseLabel(c)} · ${c.title}` : c.title}</option>)}
         </select>
         <button className="send" type="submit" aria-label="开始" disabled={!goal.trim() || !courseId}><ArrowUp size={18}/></button>
       </div>
