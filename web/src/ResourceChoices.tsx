@@ -12,19 +12,20 @@ function safeLink(value: string) {
   if (/^\/api\/documents\/[A-Za-z0-9_-]+\/source(?:#page=\d+)?$/.test(value)) return value;
   try {const url = new URL(value); return ['http:', 'https:'].includes(url.protocol) && !url.username && !url.password ? url.href : undefined;} catch {return undefined;}
 }
-export function ResourceChoices({course, node, resourceId, label}: {course: string; node: string; resourceId?: string; label?: string}) {
+export function ResourceChoices({course, node, resourceId, label, openKey, text}: {course: string; node: string; resourceId?: string; label?: string; openKey?: number; text?: string}) {
   const [open, setOpen] = useState(false);
   const opener = useRef<HTMLButtonElement>(null);
   const [search, setSearch] = useSearchParams();
   const requested = resourceId ? undefined : search.get('resource') || undefined;
   const previous = useRef<string | undefined>(undefined);
   useEffect(() => {if (requested) setOpen(true); else if (previous.current) setOpen(false); previous.current = requested;}, [requested]);
+  useEffect(() => {if (openKey) setOpen(true);}, [openKey]);
   function close() {
     setOpen(false);
     if (requested) setSearch(value => {value.delete('resource'); return value;}, {replace: true});
     requestAnimationFrame(() => opener.current?.focus({preventScroll: true}));
   }
-  return <><button ref={opener} aria-label={label || '选择学习材料'} onClick={() => setOpen(true)}>{label || <BookOpen size={18}/>}</button>{open && <MaterialDialog key={course + node + (resourceId || requested)} course={course} node={node} resourceId={resourceId || requested} close={close}/>}</>;
+  return <><button ref={opener} aria-label={label || '选择学习材料'} onClick={() => setOpen(true)}>{label || <><BookOpen size={16}/>{text && <span className="label">{text}</span>}</>}</button>{open && <MaterialDialog key={course + node + (resourceId || requested)} course={course} node={node} resourceId={resourceId || requested} close={close}/>}</>;
 }
 function MaterialDialog({course, node, resourceId, close}: {course: string; node: string; resourceId?: string; close: () => void}) {
   const dialog = useRef<HTMLDialogElement>(null);

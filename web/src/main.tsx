@@ -27,6 +27,7 @@ import {StageReport, SaveStageReport} from './StageReport';
 import {HomePage, courseLabel, isOpen, useCourses} from './Home';
 import {Handouts} from './Handouts';
 import {ChapterProgress} from './Progress';
+import {LearningForms} from './LearningForms';
 import {BRAND, Wordmark} from './Brand';
 import {StarPanel} from './StarMap';
 
@@ -112,6 +113,7 @@ function WorkspacePage() {
   const setConversation = (open: boolean) => {setConversationState(open); localStorage.setItem('pliac.tutor-open', open ? '1' : '0');};
   const [drawer, setDrawer] = useState<Drawer>(null);
   const [hasLab, setHasLab] = useState(false);
+  const [materialsKey, openMaterials] = useState(0);
   useEffect(() => {
     const c = new AbortController(); setHasLab(false);
     fetch(`/api/ml-lab?${new URLSearchParams({course_id: courseId, student_id: localLearner()})}`, {signal: c.signal}).then(r => setHasLab(r.ok)).catch(() => {});
@@ -173,6 +175,9 @@ function WorkspacePage() {
   else if (view === 'handout') body = <Handouts key={'handout:' + courseId} state={value} courseId={courseId} nodeId={selected.id} openLesson={node}/>;
   else if (view === 'check') body = <AssessmentPanel key={'assessment:' + courseId + selected.id + (material?.activity?.id || value.workspace.assessments?.filter(item => item.node_id === selected.id).at(-1)?.id || 'new')} courseId={courseId} nodeId={selected.id} assessmentId={material?.activity?.type === 'assessment' ? material.activity.id : undefined} state={value} update={setValue}/>;
   else body = <>
+    {!material && <LearningForms state={value} courseId={courseId} nodeId={selected.id} hasLab={hasLab}
+      onExplain={() => void arrange(selected.id)} onHandout={() => setView('handout')} onCheck={() => setView('check')} onLab={() => setView('lab')}
+      onTalk={() => setConversation(true)} onMaterials={() => openMaterials(k => k + 1)} onHandbook={() => setDrawer('record')}/>}
     {material ? <TeachingMaterial turn={material}/> : <article className="lesson">
       {!value.workspace.onboarded && <div className="start-notice"><p>先说说你的目标和基础，讲解会更贴合你。</p><button onClick={() => setSearch({setup: '1'})}>设置起点</button></div>}
       <h1>{archived?.title || selected.title}</h1>
@@ -197,7 +202,7 @@ function WorkspacePage() {
       <button aria-label="切换课程目录" aria-expanded={navigation} onClick={() => setNavigation(!navigation)}><PanelLeft size={17}/></button>
       <span className="course-name">{title}{selected && !showStart && <> / <b>{selected.title}</b></>}</span>
       <span className="top-spacer"/>
-      {ready && <><KnowledgeRelations state={value!} nodeId={selected!.id} browse={node}/><ResourceChoices course={courseId} node={selected!.id}/></>}
+      {ready && <><KnowledgeRelations state={value!} nodeId={selected!.id} browse={node}/><ResourceChoices course={courseId} node={selected!.id} openKey={materialsKey} text="材料"/></>}
       {ready && <button aria-expanded={drawer === 'notes'} onClick={() => setDrawer(drawer === 'notes' ? null : 'notes')}><NotebookPen size={16}/><span className="label">笔记</span></button>}
       {ready && <button aria-expanded={drawer === 'record'} onClick={() => setDrawer(drawer === 'record' ? null : 'record')}><History size={16}/><span className="label">学习进度</span></button>}
       {course && <button aria-expanded={showStart} onClick={() => setSearch(showStart ? {} : {setup: '1'})}><Target size={16}/><span className="label">目标与起点</span></button>}

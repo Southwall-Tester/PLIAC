@@ -523,3 +523,13 @@ dialog.global-nav::backdrop{background:#0005}
 .handout-map-grid{grid-template-columns:1fr!important}
 .handout-map-side{max-height:none}
 .rhythm-hint{display:inline-flex;align-items:center;gap:6px;font-size:12px!important;color:var(--muted)!important;background:var(--sunken);border-radius:999px;padding:4px 12px;margin:-4px 0 16px!important}
+
+/* 多种学习形式 */
+.learning-forms{margin:0 0 22px}
+.learning-forms-title{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);margin-bottom:8px}
+.learning-forms-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.learning-forms-grid button{display:flex;align-items:flex-start;gap:9px;text-align:left;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--ink-2)}
+.learning-forms-grid button:hover{border-color:var(--accent);background:var(--accent-soft)}
+.learning-forms-grid button svg{color:var(--accent);margin-top:2px}
+.learning-forms-grid b{display:block;font-size:13px;font-weight:500;color:var(--ink)}
+.learning-forms-grid small{display:block;font-size:11px;color:var(--muted);margin-top:2px}
