@@ -28,7 +28,7 @@ def main():
             page = context.new_page()
             errors = []
             page.on('pageerror', lambda error: errors.append(str(error)))
-            page.goto(base + '/app/knowledge-activation')
+            page.goto(base + '/app/admin/knowledge-activation')
             page.get_by_role('button', name='读取课程核验状态').click()
             expect(page.get_by_text('尚未核验 · 已尝试 0 次')).to_be_visible()
             button = page.get_by_role('button', name='自动核验并生效', exact=True)
@@ -55,7 +55,7 @@ def main():
             graph = store.load_graph('draft')
             graph['sources'][0].pop('text')
             store.save_graph(graph, graph['version'])
-            page.goto(base + '/app/knowledge-activation')
+            page.goto(base + '/app/admin/knowledge-activation')
             page.get_by_role('button', name='读取课程核验状态').click()
             expect(page.get_by_role('status')).to_contain_text('实际来源正文')
             expect(page.get_by_role('button', name='自动核验并生效', exact=True)).to_have_count(0)

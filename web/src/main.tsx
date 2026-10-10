@@ -1,7 +1,7 @@
 import React, {useEffect, useLayoutEffect, useRef, useState} from 'react';
 import {createRoot} from 'react-dom/client';
-import {BrowserRouter, Link, NavLink, Outlet, Route, Routes, useParams, useSearchParams} from 'react-router-dom';
-import {ArrowLeft, ArrowRight, BookOpen, ClipboardCheck, FileText, FlaskConical, FolderOpen, History, Menu, MessageSquare, NotebookPen, PanelLeft, Settings2, Sparkles, Target, UserRound, X} from 'lucide-react';
+import {BrowserRouter, Link, Navigate, NavLink, Outlet, Route, Routes, useParams, useSearchParams} from 'react-router-dom';
+import {ArrowLeft, ArrowRight, BookOpen, FolderOpen, History, Menu, MessageSquare, NotebookPen, PanelLeft, Settings2, Sparkles, Target, UserRound, X} from 'lucide-react';
 import {api, learnerKey, localLearner, Workspace} from './api';
 import {IdentityGate, IdentitySettings} from './Identity';
 import {GuidedFlow} from './GuidedFlow';
@@ -12,7 +12,7 @@ import {MediaAdmin} from './MediaAdmin';
 import {KnowledgeRelations} from './KnowledgeRelations';
 import {JobRecovery} from './TeachingJobRecovery';
 import {KnowledgeActivation} from './KnowledgeActivation';
-import {ResourceChoices} from './ResourceChoices';
+import {MaterialList} from './ResourceChoices';
 import './style.css';
 import {TutorPanel} from './TutorPanel';
 import {LearningStart} from './LearningStart';
@@ -27,7 +27,8 @@ import {StageReport, SaveStageReport} from './StageReport';
 import {HomePage, courseLabel, isOpen, useCourses} from './Home';
 import {Handouts} from './Handouts';
 import {ChapterProgress} from './Progress';
-import {LearningForms} from './LearningForms';
+import {ACTIVITIES, activityFromSearch, searchForActivity, type ActivityKey} from './activities';
+import {PathBar} from './PathBar';
 import {BRAND, Wordmark} from './Brand';
 import {StarPanel} from './StarMap';
 
@@ -100,7 +101,6 @@ function CoursesPage() {return <div className="page-width"><h1>我的课程</h1>
 
 function ArchivePage() {return <LearningArchive/>;}
 
-type View = 'learn' | 'handout' | 'check' | 'lab';
 type Drawer = 'notes' | 'record' | null;
 const statusLabel: Record<string, string> = {mastered: '已掌握', needs_review: '需补学', uncertain: '待核验'};
 
@@ -113,7 +113,6 @@ function WorkspacePage() {
   const setConversation = (open: boolean) => {setConversationState(open); localStorage.setItem('pliac.tutor-open', open ? '1' : '0');};
   const [drawer, setDrawer] = useState<Drawer>(null);
   const [hasLab, setHasLab] = useState(false);
-  const [materialsKey, openMaterials] = useState(0);
   useEffect(() => {
     const c = new AbortController(); setHasLab(false);
     fetch(`/api/ml-lab?${new URLSearchParams({course_id: courseId, student_id: localLearner()})}`, {signal: c.signal}).then(r => setHasLab(r.ok)).catch(() => {});
@@ -131,15 +130,10 @@ function WorkspacePage() {
   const showStart = search.get('setup') === '1';
   const report = value?.workspace.stage_reports?.find(item => item.id === search.get('report'));
   const selected = value?.course?.nodes.find(n => n.id === material?.proposal.target_node_id) || value?.course?.nodes.find(n => n.id === archived?.node_id) || value?.course?.nodes.find(n => n.id === (search.get('node') || nodeId)) || value?.course?.nodes.find(n => n.id === value.current_lesson?.node_id) || value?.course?.nodes[0];
-  // 中栏一次只呈现一个活动：学习（讲义/教学材料）、检验、实验。
-  const view: View = search.get('lab') === '1' ? 'lab'
-    : search.get('view') === 'handout' ? 'handout'
-    : search.get('view') === 'check' || (material?.activity?.type === 'assessment' && search.get('view') !== 'learn') ? 'check' : 'learn';
-  const setView = (next: View) => {
-    const params = new URLSearchParams(search); params.delete('lab'); params.delete('view'); params.delete('report');
-    if (next === 'check' || next === 'handout') params.set('view', next); else if (next === 'lab') params.set('lab', '1'); else if (material?.activity?.type === 'assessment') params.set('view', 'learn');
-    setSearch(params);
-  };
+  // 中栏一次只呈现一个活动（见 activities.ts）；URL 是活动的唯一来源。
+  const assessmentMaterial = material?.activity?.type === 'assessment';
+  const view: ActivityKey = search.get('resource') ? 'materials' : activityFromSearch(search, assessmentMaterial);
+  const setView = (next: ActivityKey) => {const params = searchForActivity(search, next, assessmentMaterial); params.delete('resource'); setSearch(params);};
   const readingKey = learnerKey(`reading.${courseId}.${material?.request_id || archived?.id || selected?.id || ''}${view === 'lab' ? '.lab' : view === 'check' ? '.check' : ''}`);
   const cameraActivity = showStart || report ? undefined : view === 'lab'
     ? (value?.workspace.ml_lab?.active_id ? {kind: 'lab', id: value.workspace.ml_lab.active_id} : undefined)
@@ -172,14 +166,11 @@ function WorkspacePage() {
   else if (report) body = <StageReport report={report}/>;
   else if (!selected) body = <div className="empty"><h1>还没有知识内容</h1></div>;
   else if (view === 'lab') body = <MLLab key={'lab:' + courseId} revision={value.learner.version} courseId={courseId} materialId={material?.request_id} update={setValue}/>;
+  else if (view === 'materials') body = <div className="materials-view"><h1>{selected.title}</h1><MaterialList key={courseId + selected.id} course={courseId} node={selected.id} resourceId={search.get('resource') || undefined}/></div>;
   else if (view === 'handout') body = <Handouts key={'handout:' + courseId} state={value} courseId={courseId} nodeId={selected.id} openLesson={node}/>;
   else if (view === 'check') body = <AssessmentPanel key={'assessment:' + courseId + selected.id + (material?.activity?.id || value.workspace.assessments?.filter(item => item.node_id === selected.id).at(-1)?.id || 'new')} courseId={courseId} nodeId={selected.id} assessmentId={material?.activity?.type === 'assessment' ? material.activity.id : undefined} state={value} update={setValue}/>;
   else body = <>
-    {!material && <LearningForms state={value} courseId={courseId} nodeId={selected.id} hasLab={hasLab}
-      onExplain={() => void arrange(selected.id)} onHandout={() => setView('handout')} onCheck={() => setView('check')} onLab={() => setView('lab')}
-      onTalk={() => setConversation(true)} onMaterials={() => openMaterials(k => k + 1)} onHandbook={() => setDrawer('record')}/>}
     {material ? <TeachingMaterial turn={material}/> : <article className="lesson">
-      {!value.workspace.onboarded && <div className="start-notice"><p>先说说你的目标和基础，讲解会更贴合你。</p><button onClick={() => setSearch({setup: '1'})}>设置起点</button></div>}
       <h1>{archived?.title || selected.title}</h1>
       {(() => {const plan = (value as Workspace & {rhythm?: {plan?: {after: {node_id: string}; estimated_minutes: number; break_minutes: number}[]}}).rhythm?.plan || [];
         const order = course.nodes.map(n => n.id), at = order.indexOf(selected.id);
@@ -202,7 +193,7 @@ function WorkspacePage() {
       <button aria-label="切换课程目录" aria-expanded={navigation} onClick={() => setNavigation(!navigation)}><PanelLeft size={17}/></button>
       <span className="course-name">{title}{selected && !showStart && <> / <b>{selected.title}</b></>}</span>
       <span className="top-spacer"/>
-      {ready && <><KnowledgeRelations state={value!} nodeId={selected!.id} browse={node}/><ResourceChoices course={courseId} node={selected!.id} openKey={materialsKey} text="材料"/></>}
+      {ready && <KnowledgeRelations state={value!} nodeId={selected!.id} browse={node}/>}
       {ready && <button aria-expanded={drawer === 'notes'} onClick={() => setDrawer(drawer === 'notes' ? null : 'notes')}><NotebookPen size={16}/><span className="label">笔记</span></button>}
       {ready && <button aria-expanded={drawer === 'record'} onClick={() => setDrawer(drawer === 'record' ? null : 'record')}><History size={16}/><span className="label">学习进度</span></button>}
       {course && <button aria-expanded={showStart} onClick={() => setSearch(showStart ? {} : {setup: '1'})}><Target size={16}/><span className="label">目标与起点</span></button>}
@@ -221,14 +212,15 @@ function WorkspacePage() {
     </aside>}
     <main className="lesson-pane" ref={readingPane} onScroll={e => localStorage.setItem(readingKey, String(e.currentTarget.scrollTop))}>
       {ready && !showStart && !report && <nav className="activity-head" aria-label="学习活动"><div className="activity-head-inner">
-        <button className={`activity-tab ${view === 'learn' ? 'on' : ''}`} aria-current={view === 'learn'} onClick={() => setView('learn')}><BookOpen size={15}/>学习</button>
-        <button className={`activity-tab ${view === 'handout' ? 'on' : ''}`} aria-current={view === 'handout'} onClick={() => setView('handout')}><FileText size={15}/>讲义</button>
-        <button className={`activity-tab ${view === 'check' ? 'on' : ''}`} aria-current={view === 'check'} onClick={() => setView('check')}><ClipboardCheck size={15}/>检验</button>
-        {(hasLab || view === 'lab') && <button className={`activity-tab ${view === 'lab' ? 'on' : ''}`} aria-current={view === 'lab'} onClick={() => setView('lab')}><FlaskConical size={15}/>实验</button>}
+        {ACTIVITIES.filter(a => a.available({hasLab}) || a.key === view).map(({key, label, icon: Icon}) =>
+          <button key={key} className={`activity-tab ${view === key ? 'on' : ''}`} aria-current={view === key} onClick={() => setView(key)}><Icon size={15}/>{label}</button>)}
       </div></nav>}
       <div className="activity-body">
-        {course && !showStart && view !== 'lab' && view !== 'handout' && <LearningPlanPanel key={'plan:' + courseId} state={value!} courseId={courseId} update={setValue}/>}
-        {ready && !showStart && view !== 'lab' && view !== 'handout' && !flowBusy && <GuidedFlow key={'flow:' + courseId} state={value!} courseId={courseId} nodeId={selected!.id} materialId={material?.request_id} update={setValue}/>}
+        {ready && !showStart && !report && <PathBar state={value!} nodeId={selected!.id} activity={view} onNode={node}
+          onAct={action => action === 'setup' ? setSearch({setup: '1'}) : action === 'check' ? setView('check') : action === 'explain' ? void arrange(selected!.id)
+            : action === 'learn' ? setView('learn') : (() => {const ids = course!.nodes.map(n => n.id); const next = ids[ids.indexOf(selected!.id) + 1]; if (next) node(next);})()}/>}
+        {course && !showStart && (view === 'learn' || view === 'check') && <LearningPlanPanel key={'plan:' + courseId} state={value!} courseId={courseId} update={setValue}/>}
+        {ready && !showStart && (view === 'learn' || view === 'check') && !flowBusy && <GuidedFlow key={'flow:' + courseId} state={value!} courseId={courseId} nodeId={selected!.id} materialId={material?.request_id} update={setValue}/>}
         {body}
       </div>
     </main>
@@ -242,6 +234,9 @@ function WorkspacePage() {
   </div>;
 }
 
-function App() {return <BrowserRouter basename="/app"><Routes><Route element={<Shell/>}><Route index element={<HomePage/>}/><Route path="courses" element={<CoursesPage/>}/><Route path="archive" element={<ArchivePage/>}/><Route path="account" element={<IdentitySettings/>}/><Route path="media-review" element={<MediaAdmin/>}/><Route path="job-recovery" element={<JobRecovery/>}/><Route path="knowledge-activation" element={<KnowledgeActivation/>}/></Route><Route path="courses/:courseId" element={<WorkspacePage/>}/><Route path="*" element={<div className="empty"><h1>没有这个页面</h1><Link to="/">回到首页</Link></div>}/></Routes></BrowserRouter>;}
+// 管理端页面集中在 /admin/ 下，与学生视图分开（build-guide 9.2）；旧地址保留跳转。
+function LegacyAdmin({path}: {path: string}) {return <Navigate replace to={`/admin/${path}${location.search}`}/>;}
+
+function App() {return <BrowserRouter basename="/app"><Routes><Route element={<Shell/>}><Route index element={<HomePage/>}/><Route path="courses" element={<CoursesPage/>}/><Route path="archive" element={<ArchivePage/>}/><Route path="account" element={<IdentitySettings/>}/><Route path="admin/media-review" element={<MediaAdmin/>}/><Route path="admin/job-recovery" element={<JobRecovery/>}/><Route path="admin/knowledge-activation" element={<KnowledgeActivation/>}/>{["media-review", "job-recovery", "knowledge-activation"].map(path => <Route key={path} path={path} element={<LegacyAdmin path={path}/>}/>)}</Route><Route path="courses/:courseId" element={<WorkspacePage/>}/><Route path="*" element={<div className="empty"><h1>没有这个页面</h1><Link to="/">回到首页</Link></div>}/></Routes></BrowserRouter>;}
 
 createRoot(document.getElementById('root')!).render(<React.StrictMode><IdentityGate><App/></IdentityGate></React.StrictMode>);

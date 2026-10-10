@@ -123,9 +123,9 @@ export function IdentitySettings() {
       <p>会话有效期为 24 小时。退出或过期后，请使用已保存的恢复码重新进入；管理身份使用管理凭证。</p>
       <p>退出会清除此浏览器中的学习草稿与任务恢复缓存，不会删除已经保存到服务器的教材、笔记和报告。请先保存需要保留的内容。</p>
       {session.identity.role === 'admin' && <p><a className="material-link" href="/manage/courses">打开课程管理</a></p>}
-      {session.identity.role === 'admin' && <p><a className="material-link" href="/app/media-review">打开授权媒体回看</a></p>}
-      {session.identity.role === 'admin' && <p><a className="material-link" href="/app/job-recovery">打开教学任务恢复</a></p>}
-      {session.identity.role === 'admin' && <p><a className="material-link" href="/app/knowledge-activation">打开课程自动核验</a></p>}
+      {session.identity.role === 'admin' && <p><a className="material-link" href="/app/admin/media-review">打开授权媒体回看</a></p>}
+      {session.identity.role === 'admin' && <p><a className="material-link" href="/app/admin/job-recovery">打开教学任务恢复</a></p>}
+      {session.identity.role === 'admin' && <p><a className="material-link" href="/app/admin/knowledge-activation">打开课程自动核验</a></p>}
       <button className="primary" disabled={busy} onClick={logout}>{busy ? '正在退出…' : '退出此浏览器的学习身份'}</button></> : <><p>本机模式：学习记录保存在这台电脑上。</p></>}
     {error && <p role="alert">{error}</p>}
   </section>;

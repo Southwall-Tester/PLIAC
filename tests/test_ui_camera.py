@@ -66,7 +66,7 @@ def main():
             admin_context = browser.new_context()
             admin_context.request.post(base + '/api/access/admin', data={'secret': env['PLIAC_ADMIN_SECRET']})
             admin = admin_context.new_page()
-            admin.goto(base + '/app/media-review')
+            admin.goto(base + '/app/admin/media-review')
             admin.get_by_label('课程编号', exact=True).fill('ml_acceptance_demo')
             admin.get_by_label('学习者匿名编号', exact=True).fill(page.evaluate("localStorage.getItem('pliac.local-learner')"))
             admin.get_by_role('button', name='查询授权记录').click()

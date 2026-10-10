@@ -525,17 +525,38 @@ dialog.global-nav::backdrop{background:#0005}
 .rhythm-hint{display:inline-flex;align-items:center;gap:6px;font-size:12px!important;color:var(--muted)!important;background:var(--sunken);border-radius:999px;padding:4px 12px;margin:-4px 0 16px!important}
 
 /* 多种学习形式 */
-.learning-forms{margin:0 0 22px}
-.learning-forms-title{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);margin-bottom:8px}
-.learning-forms-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
-.learning-forms-grid button{display:flex;align-items:flex-start;gap:9px;text-align:left;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--ink-2)}
-.learning-forms-grid button:hover{border-color:var(--accent);background:var(--accent-soft)}
-.learning-forms-grid button svg{color:var(--accent);margin-top:2px}
-.learning-forms-grid b{display:block;font-size:13px;font-weight:500;color:var(--ink)}
-.learning-forms-grid small{display:block;font-size:11px;color:var(--muted);margin-top:2px}
 .bili-frame{margin:10px 0}
 .bili-frame iframe{width:100%;aspect-ratio:16/9;border:0;border-radius:10px;background:#000}
 .bili-frame button{margin-top:6px}
 .star-scope{display:flex;gap:4px;margin:0 0 8px}
 .course-nav .star-scope button,.star-scope button{width:auto;display:inline-flex;margin:0;font-size:12px;padding:4px 10px;border-radius:999px;border:1px solid var(--line);color:var(--muted)}
 .course-nav .star-scope button.on,.star-scope button.on{background:var(--brand-night);border-color:var(--brand-night);color:#e6ebf5}
+
+/* 学习路径条（PathBar）：本章位置 + 当前状态 + 下一步 */
+.path-bar{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin:0 0 22px;padding:10px 14px;border:1px solid var(--line);border-radius:var(--r);background:var(--surface);font-size:12.5px}
+.path-chapter{display:flex;align-items:center;gap:10px;min-width:0}
+.path-title{color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px}
+.path-dots{display:flex;align-items:center;gap:5px}
+.path-dot{width:9px;height:9px;padding:0;border-radius:50%;border:1.5px solid var(--line-strong);background:transparent;min-height:0}
+.path-dot.mastered{background:var(--glow);border-color:var(--glow);box-shadow:0 0 6px var(--glow-soft)}
+.path-dot.uncertain{background:var(--warn);border-color:var(--warn)}
+.path-dot.needs_review{background:var(--bad);border-color:var(--bad)}
+.path-dot.here{outline:2px solid var(--accent);outline-offset:2px}
+.path-dot:hover{transform:scale(1.25)}
+.path-count{color:var(--muted);font-variant-numeric:tabular-nums}
+.path-next{display:flex;align-items:center;gap:10px;min-width:0}
+.path-state{padding:2px 8px;border-radius:999px;background:var(--accent-soft);color:var(--ink-2);white-space:nowrap}
+.path-state.needs_review{color:var(--bad)}.path-state.uncertain{color:var(--warn)}
+.path-text{color:var(--ink-2)}
+.path-next button{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--accent);font-size:12.5px;white-space:nowrap}
+.path-next button:hover{border-color:var(--accent)}
+/* 材料活动页 */
+.materials-view h1{margin:0 0 14px}
+.material-filter{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 14px}
+.material-filter button{padding:4px 12px;border-radius:999px;border:1px solid var(--line);background:var(--surface);font-size:12.5px;color:var(--ink-2)}
+.material-filter button.on{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
+.material-list .archive-entry{margin-bottom:12px}
+.material-empty{color:var(--muted)}
+.material-list .archive-entry>.primary,.material-list .archive-entry>a{margin-right:12px;vertical-align:middle}
+.material-list .archive-entry>a{font-size:13px}
+.path-dot.here{outline-width:1.5px}

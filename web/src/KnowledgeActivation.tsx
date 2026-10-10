@@ -47,7 +47,7 @@ export function KnowledgeActivation() {
       <label className="identity-field"><input type="checkbox" disabled={busy} checked={confirmed} onChange={e => setConfirmed(e.target.checked)}/>我确认本次核验可能调用配置的模型，来源内容允许传输</label>
       <button disabled={busy || !confirmed || status.status === 'running' || (status.status !== 'generated' && status.retry_remaining === 0)} onClick={activate}>自动核验并生效</button>
       <details><summary>任务与恢复信息</summary><p style={{overflowWrap: 'anywhere'}}>任务编号：{status.job_id}</p><p>核验耗尽次数时，先排查原因，再允许原任务重试。</p>
-        <Link to={`/job-recovery?${new URLSearchParams({course: target, student: status.job_owner, job: status.job_id})}`}>打开此任务的管理恢复</Link></details></section>}
+        <Link to={`/admin/job-recovery?${new URLSearchParams({course: target, student: status.job_owner, job: status.job_id})}`}>打开此任务的管理恢复</Link></details></section>}
     {message && <p role="status">{message}</p>}
     <p><a href="/manage/courses">返回已有课程资料管理</a></p>
   </div>;

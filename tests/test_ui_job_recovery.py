@@ -25,7 +25,7 @@ def main():
             page = context.new_page()
             errors = []
             page.on('pageerror', lambda error: errors.append(str(error)))
-            page.goto(base + '/app/job-recovery')
+            page.goto(base + '/app/admin/job-recovery')
             expect(page.get_by_role('heading', name='教学生成任务恢复')).to_be_visible()
             # Empty course selects the default isolated store through the API.
             page.get_by_label('课程编号').fill(' ')
