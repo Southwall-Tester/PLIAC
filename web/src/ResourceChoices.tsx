@@ -8,6 +8,12 @@ import {useSearchParams} from 'react-router-dom';
 
 type Resource = {id: string; title: string; url: string; format: string; applicable_segment: string; video_segment?: {start_seconds: number; end_seconds: number} | null; for_current: boolean; reason: string; missing_prerequisites: {id: string; title: string}[]};
 type Choices = {course_version: number; resources: Resource[]; notice: string};
+const formatLabel: Record<string, string> = {video: '视频', lesson: '图文讲解', case: '案例与示例', practice: '练习', course: '课程'};
+// B站官方外链播放器：只在点击后加载，不自动播放
+function bilibiliEmbed(url: string) {
+  const m = /^https:\/\/www\.bilibili\.com\/video\/(BV[0-9A-Za-z]{10})/.exec(url);
+  return m ? `https://player.bilibili.com/player.html?bvid=${m[1]}&autoplay=0&high_quality=1&danmaku=0` : undefined;
+}
 function safeLink(value: string) {
   if (/^\/api\/documents\/[A-Za-z0-9_-]+\/source(?:#page=\d+)?$/.test(value)) return value;
   try {const url = new URL(value); return ['http:', 'https:'].includes(url.protocol) && !url.username && !url.password ? url.href : undefined;} catch {return undefined;}
@@ -57,9 +63,12 @@ function MaterialDialog({course, node, resourceId, close}: {course: string; node
       <p>{value.notice}</p>{resourceId ? <p>以下核对当前可用材料；历史推荐说明保留在原教学记录中。{!value.resources.some(item => item.id === resourceId) && '该推荐材料目前不再关联此知识点或已不可用，可关闭后重新选择其他材料。'}</p> : <label>材料形式<select value={format} onChange={e => setFormat(e.target.value)}><option value="all">全部形式</option>{[...new Set(value.resources.map(item => item.format))].map(item => <option key={item}>{item}</option>)}</select></label>}
       {!value.resources.length && <p>这个知识点暂时没有配套资料，可以先看讲解或在对话里提问。</p>}
       {value.resources.filter(item => resourceId ? item.id === resourceId : format === 'all' || item.format === format).map(item => <section className="archive-entry" key={item.id}>
-        <small>{item.for_current ? '当前知识点' : '建议补充的基础'} · {item.format}</small><h3>{item.title}</h3><p>{item.applicable_segment}</p>
+        <small>{item.for_current ? '当前知识点' : '建议补充的基础'} · {formatLabel[item.format] || item.format}</small><h3>{item.title}</h3><p>{item.applicable_segment}</p>
         <p>{item.reason}</p>{!!item.missing_prerequisites.length && <p>前置仍待核验：{item.missing_prerequisites.map(node => node.title).join('、')}。可以先查看并向智能体求助。</p>}
         {safeLink(item.url) ? <a href={safeLink(item.url)} target="_blank" rel="noopener noreferrer">打开材料（新标签页）</a> : <p>该资源没有可安全打开的链接。</p>}
+        {bilibiliEmbed(item.url) && (video === item.id
+          ? <div className="bili-frame"><iframe src={bilibiliEmbed(item.url)} title={item.title} allowFullScreen sandbox="allow-scripts allow-same-origin allow-popups allow-presentation"/><button onClick={() => setVideo(undefined)}>收起视频</button></div>
+          : <button className="primary" onClick={() => setVideo(item.id)}>在这里播放</button>)}
         {/^\/api\/documents\/[A-Za-z0-9_-]+\/source(?:#page=[1-9]\d*)?$/.test(item.url) && <button data-document-resource={item.id} onClick={() => {setVideo(undefined); setReadingDocument(item.id);}}>在工作台阅读原文件（PDF）</button>}
         {videoURL(item) && <><p>平台内播放将连接视频提供方。只有点击后才加载，不自动播放。</p>{video === item.id ? <VideoResource key={item.id} course={course} resource={item.id} url={videoURL(item)!} segment={item.video_segment} close={() => {
           setVideo(undefined);

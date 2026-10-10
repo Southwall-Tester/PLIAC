@@ -11,7 +11,8 @@
 ## 1 必读顺序
 
 1. 本文件。
-2. `docs/design-vs-implementation-20261010.md`：最初设计与当前实现逐项对照、最主要差距与下一步顺序。
+2. `docs/architecture-review-20261010.md`：图谱定位、知识库、讲义路径、诊断与多模态、智能体位置、v7 闭环对照、OpenMAIC/DeepTutor 借鉴与下一批任务（最新）。
+3. `docs/design-vs-implementation-20261010.md`：最初设计与当前实现逐项对照、最主要差距与下一步顺序。
 3. `docs/knowledge-graph-requirements.md`：图谱定位、13 条需求、原图谱与新实现的逐项评估、方案与实施情况。
 4. `docs/ui-rework-20261010.md`：前端改版的每一轮决策、改动清单、已知问题（按 3.1–3.7 顺序）。
 5. `AGENTS.md`：仓库红线（证据与诊断分离、先修才约束顺序、候选与可用版本分开、演示课不可改等）。

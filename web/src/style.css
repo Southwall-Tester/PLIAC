@@ -533,3 +533,9 @@ dialog.global-nav::backdrop{background:#0005}
 .learning-forms-grid button svg{color:var(--accent);margin-top:2px}
 .learning-forms-grid b{display:block;font-size:13px;font-weight:500;color:var(--ink)}
 .learning-forms-grid small{display:block;font-size:11px;color:var(--muted);margin-top:2px}
+.bili-frame{margin:10px 0}
+.bili-frame iframe{width:100%;aspect-ratio:16/9;border:0;border-radius:10px;background:#000}
+.bili-frame button{margin-top:6px}
+.star-scope{display:flex;gap:4px;margin:0 0 8px}
+.course-nav .star-scope button,.star-scope button{width:auto;display:inline-flex;margin:0;font-size:12px;padding:4px 10px;border-radius:999px;border:1px solid var(--line);color:var(--muted)}
+.course-nav .star-scope button.on,.star-scope button.on{background:var(--brand-night);border-color:var(--brand-night);color:#e6ebf5}

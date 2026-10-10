@@ -118,8 +118,8 @@ def teaching_context(graph, learner, node_id, message, documents=None):
         related &= set(plan["proposal"]["target_node_ids"] + plan["prerequisite_node_ids"] + [node_id])
     selected = [current] + [node for node in nodes if node["id"] in related and node["id"] != node_id][:11]
     selected_ids = {node['id'] for node in selected}
-    resources = [item for item in graph.get('resources', []) if item.get('review_status') in ('reviewed', 'auto_validated')
-                 and item.get('url') and selected_ids.intersection(item.get('node_ids', []))]
+    from .resource_catalog import usable_resources
+    resources = [item for item in usable_resources(graph) if item.get('url') and selected_ids.intersection(item.get('node_ids', []))]
     resources.sort(key=lambda item: node_id not in item['node_ids'])
     from .retrieval import retrieve_sources
     sources = retrieve_sources(graph, selected, message, documents)

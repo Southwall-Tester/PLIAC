@@ -252,13 +252,15 @@ export function StarPanel({state, selected, onSelect, arrange}: {state: Workspac
     const close = (e: KeyboardEvent) => {if (e.key === 'Escape') setFull(false);};
     window.addEventListener('keydown', close); return () => window.removeEventListener('keydown', close);
   }, [full]);
+  const [scope, setScope] = useState<'all' | 'near'>(() => localStorage.getItem('pliac.star-scope') === 'near' ? 'near' : 'all');
+  const changeScope = (next: 'all' | 'near') => {setScope(next); localStorage.setItem('pliac.star-scope', next);};
   const local = useMemo(() => {
     const anchors = pick ? [pick] : [...graph.focus];
-    if (!anchors.length) return toCanvas(graph, null);
+    if (scope === 'all' || !anchors.length) return toCanvas(graph, null, pick || undefined);
     const ids = new Set<string>();
     for (const a of anchors) for (const id of neighborhood(a, graph.edges, concepts ? 1 : 2)) ids.add(id);
     return toCanvas(graph, ids, pick || undefined);
-  }, [graph, pick]);
+  }, [graph, pick, scope]);
   const whole = useMemo(() => toCanvas(graph, null, pick || undefined), [graph, pick]);
   const openLesson = (id: string) => {onSelect(id); setFull(false);};
   const doArrange = arrange ? (id: string, label?: string) => {arrange(id, label); setFull(false);} : undefined;
@@ -267,7 +269,11 @@ export function StarPanel({state, selected, onSelect, arrange}: {state: Workspac
     : <LessonCard state={state} id={pick} openLesson={openLesson} arrange={doArrange} pick={setPick}/>) : null;
   const lit = graph.nodes.filter(n => graph.status(n.id) === 'mastered').length;
   return <div className="star-panel">
-    <GraphCanvas nodes={local.nodes} edges={local.edges} focus={pick || undefined} onSelect={setPick} height={330}/>
+    <div className="star-scope" role="radiogroup" aria-label="星图范围">
+      <button role="radio" aria-checked={scope === 'all'} className={scope === 'all' ? 'on' : ''} onClick={() => changeScope('all')}>整门课</button>
+      <button role="radio" aria-checked={scope === 'near'} className={scope === 'near' ? 'on' : ''} onClick={() => changeScope('near')}>当前附近</button>
+    </div>
+    <GraphCanvas key={scope} nodes={local.nodes} edges={local.edges} focus={pick || undefined} onSelect={setPick} height={380}/>
     <div className="star-panel-bar"><span>{concepts ? `${graph.nodes.length} 个概念 · 本节相关 ${graph.focus.size} 个` : `已点亮 ${lit}/${graph.nodes.length}`}</span>
       <button onClick={() => setFull(true)}><Maximize2 size={14}/>全景星图</button></div>
     {card || <p className="star-hint">{concepts ? '点一颗星，看这个概念讲什么、在哪几节学。可拖动、滚轮缩放。' : '点一颗星，看它的先修、掌握依据和下一步。可拖动、滚轮缩放。'}</p>}

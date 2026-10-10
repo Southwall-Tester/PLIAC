@@ -1,6 +1,7 @@
 """Read-only material choice; prerequisite guidance is not a browsing veto."""
 from learning_agent.course_graph import safe_id
 from learning_agent.recommendation import recommend_resources
+from .resource_catalog import ORIGIN, usable_resources
 
 
 def resource_choices(store, student, node_id):
@@ -12,9 +13,7 @@ def resource_choices(store, student, node_id):
     selection = recommend_resources(graph, learner['states'], node_id)
     recommended = {item['id']: item for item in selection['resources']}
     result = []
-    for item in graph['resources']:
-        if item.get('review_status') not in ('reviewed', 'auto_validated'):
-            continue
+    for item in usable_resources(graph):
         if node_id not in item.get('node_ids', []) and item['id'] not in recommended:
             continue
         missing = [ident for ident in item.get('prerequisite_ids', [])
@@ -22,7 +21,10 @@ def resource_choices(store, student, node_id):
         result.append({key: item.get(key, '') for key in ('id', 'title', 'url', 'format', 'applicable_segment')} | {
             'for_current': node_id in item.get('node_ids', []),
             'video_segment': item.get('video_segment'),
-            'reason': recommended.get(item['id'], {}).get('recommendation_reason', '关联当前知识点，可自主查看；阅读不作为掌握证据。'),
+            'reason': recommended.get(item['id'], {}).get('recommendation_reason',
+                '团队挑选的公开课程资源' + (f"（{item['organization']}）" if item.get('organization') else '') if item.get('review_status') == ORIGIN
+                else '关联当前知识点，可自主查看；阅读不作为掌握证据。'),
+            'origin': 'curated' if item.get('review_status') == ORIGIN else 'course',
             'missing_prerequisites': [{'id': ident, 'title': nodes[ident]['title']} for ident in missing]})
     return {'course_version': graph['version'], 'resources': result,
             'notice': '材料来自当前可用课程；基础规则推荐不等同于智能体已作出完整教学判断。缺少所需形式时不会生成虚假入口。'}
