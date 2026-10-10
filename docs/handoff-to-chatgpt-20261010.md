@@ -27,9 +27,10 @@
 
 ## 3 Git 状态
 
-1. 分支 `feat/agent-learning-platform`。本地提交（均**未推送**）：`6419358`（改版快照）→ `5f6e8d1`（合并 origin/main：郑洁的学习单元、讲义练习、课程包、计算机组成整书课）。
-2. 之后的改动未提交（以 `git status` 为准），包括 StarMap/GraphCanvas/Handouts/Progress、`knowledge_activation.py` 分批核验、`margin_graph.py` v3、`margin.py` 生成来源记录、文档等。
-3. 红线：**未经用户明确同意不提交、不推送、不公开部署**；不要 reset 或丢弃改动。
+1. 分支 `feat/agent-learning-platform`，**已推送到 GitHub**（用户 2026-10-10 同意）。提交顺序：`6419358` 改版快照 → `5f6e8d1` 合并 main（学习单元、讲义练习、课程包、计算机组成整书课）→ `050da7e` 图谱迁移、讲义、学习进度、交接文档 → `5c18f6d` 合并 main 新提交 `9c5d4d3`（郑洁：LearnMargin 模型控制，`config/models.json` 可设协议、思考档位、请求超时 10～600 秒；配置错误不再暴露凭据）→ 本文档更新。
+2. 合并后全量测试：431 通过，1 跳过。
+3. 红线：后续提交可以在本地进行；**推送、合并到 main、公开部署前须经用户同意**；不要 reset 或丢弃改动。
+4. 提示：`9c5d4d3` 的请求超时设置可能有助于正式课自动核验（此前因单次生成超时失败，已改为分批）。
 
 ## 4 当前已完成（可直接在页面上看到）
 
