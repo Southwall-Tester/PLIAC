@@ -39,6 +39,11 @@ def publish_synthetic(store, graph=None):
 
 
 class WorkspaceTests(unittest.TestCase):
+    def test_editing_goal_without_interests_preserves_existing_preferences(self):
+        self.workspace.onboard(self.payload(goals="first", interests=["合成兴趣"], self_assessments={}))
+        state = self.workspace.onboard(self.payload(goals="changed", self_assessments={}))
+        self.assertEqual(state["learner"]["profile"]["interests"], ["合成兴趣"])
+
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)

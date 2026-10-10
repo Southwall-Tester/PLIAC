@@ -1,12 +1,13 @@
 # Project constraints
 
-- The current specification is `../课程个性化学习智能体_项目搭建方案_v7_20261008.docx`.
+- The current specification is `docs/build-guide-20261009.md`, approved for implementation in the conversation on 2026-10-09. Older v7 documents describe the migration baseline, not the target architecture.
+- Work on `feat/agent-learning-platform`. Keep changes local for user verification; do not push before explicit user approval. Track incomplete requirements in `docs/implementation-status.md` rather than declaring a partial prototype complete.
 - Develop in this independent repository. Do not add features to the original ChatEval repository.
 - PLIAC is the platform repository. `src/learning_agent` provides knowledge, assets and evidence/diagnosis; `src/pliac` provides the learning workspace and orchestration. Preserve the legacy app import and existing runtime paths.
 - Current workspace includes rule-based lessons, human review, reports, evidence handbooks and the executable scikit-learn ML Lab. The Lab executes a bounded parameterized experiment, with authored scenes separate from versioned task contracts. Live-model teaching, arbitrary student-code execution, recordings and real-user trials remain separate work.
 - ML Lab checks are artifact checks, not automatic human-reviewed conceptual mastery. Keep experiment telemetry, learner explanations and check results separate; carry them into the shared learner store. Freeze the chosen configuration before computing test metrics and preserve completed sessions when starting a new-data transfer task.
-- Keep draft content separate from published content. Never manufacture human review, real learner records or live-model validation.
-- The immutable `ml_acceptance_demo` course is a separate, explicitly marked acceptance fixture. Its objective questions use server-side `demo-choice-v1` rules and `rule_verified` diagnoses, never fabricated human review. Formal courses retain their existing publication and review requirements.
+- Replace mandatory human publication/review gates with automatic source, structure and evidence validation for the new agent workflow. Candidate knowledge and usable knowledge remain versioned and separate. Never manufacture human review, real learner records or live-model validation. Legacy entrypoints may remain during migration but must not define the new workflow.
+- The immutable `ml_acceptance_demo` course is a separate, explicitly marked acceptance fixture. Its objective questions use server-side `demo-choice-v1` rules and `rule_verified` diagnoses, never fabricated human review. Do not silently relabel it as a formal course. New formal-course automatic evaluation must preserve rubrics, evidence, assistance/exposure and uncertainty.
 - Preserve raw evidence separately from diagnoses and derived learner state. System completion, model inference, interests and auxiliary behavioral/emotional clues cannot independently prove mastery.
 - Only prerequisite edges constrain order. Confusable and related relations are non-directional for learning order.
 - Use UTF-8 and pathlib; store runtime data under outputs and test in isolated temporary directories.

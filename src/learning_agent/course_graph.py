@@ -8,6 +8,7 @@ from __future__ import annotations
 import copy
 import hashlib
 import json
+import math
 import os
 import re
 import tempfile
@@ -75,9 +76,11 @@ def _integer(value, label, minimum=0):
     return value
 
 
-def _url(value, label):
+def _url(value, label, *, allow_document=False):
     _text(value, label, 2000, required=False)
     if not value:
+        return value
+    if allow_document and re.fullmatch(r'/api/documents/[a-f0-9]{32}/source(?:#page=[1-9]\d*)?', value):
         return value
     try:
         parsed = urlsplit(value)
@@ -103,8 +106,8 @@ def _unique(items, label):
     return seen
 
 
-def _refs(value, allowed, label):
-    _list(value, label, 200)
+def _refs(value, allowed, label, maximum=200):
+    _list(value, label, maximum)
     if any(not isinstance(v, str) for v in value):
         _fail(f"{label}中的每项须为资料 ID。")
     if len(set(value)) != len(value) or not set(value).issubset(allowed):
@@ -121,8 +124,16 @@ def _date(value, label):
 
 
 def _review(item):
+    if item.get("review_status") == "auto_validated":
+        check = _dict(item.get("automatic_validation"), "自动核验记录")
+        if check.get("policy") != "knowledge-activation-v1" or check.get("content_digest") != _fingerprint(item):
+            _fail("自动核验记录与知识内容不一致。")
+        _date(check.get("checked_at"), "自动核验时间")
+        if any(item.get(key) for key in ("reviewer", "reviewed_at", "review_note")):
+            _fail("自动核验不得冒充人工审核。")
+        return
     if item.get("review_status") not in ("draft", "reviewed"):
-        _fail("审核状态须为 draft 或 reviewed。")
+        _fail("知识状态须为 draft、reviewed 或 auto_validated。")
     for field, label in (("reviewer", "审核人"), ("reviewed_at", "审核时间"), ("review_note", "审核依据")):
         if item.get("review_status") == "reviewed" or field in item:
             _text(item.get(field), label, 2000, item.get("review_status") == "reviewed")
@@ -229,11 +240,18 @@ def validate_graph(graph: dict, *, allow_empty=False) -> dict:
     for resource in resources:
         _text(resource.get("title"), "资源标题", 300)
         _text(resource.get("organization"), "资源作者或机构", 300)
-        _url(resource.get("url"), "资源链接")
+        _url(resource.get("url"), "资源链接", allow_document=True)
         _text(resource.get("applicable_segment"), "适用片段", 2000, False)
+        if "video_segment" in resource:
+            segment = resource["video_segment"]
+            if (resource.get("format") != "video" or not isinstance(segment, dict)
+                    or set(segment) != {"start_seconds", "end_seconds"}
+                    or any(type(value) not in (int, float) or not math.isfinite(value) for value in segment.values())
+                    or not 0 <= segment["start_seconds"] < segment["end_seconds"] <= 604800):
+                _fail("视频片段须提供有效起止秒数，且开始早于结束。")
         if resource.get("format") not in tuple(RESOURCE_FORMATS):
             _fail("资源形态须为 video、lesson、case、practice 或 course。")
-        _refs(resource.get("node_ids"), node_ids, "资源适用节点")
+        _refs(resource.get("node_ids"), node_ids, "资源适用节点", maximum=500)
         _refs(resource.get("prerequisite_ids"), node_ids, "资源前置要求")
         if not resource["node_ids"]:
             _fail("教学资源至少关联一个知识节点。")
@@ -253,7 +271,7 @@ def validate_graph(graph: dict, *, allow_empty=False) -> dict:
 def graph_summary(graph, learner=None):
     if graph is None:
         return {"node_count": 0, "edge_count": 0, "chapter_count": 0, "resource_count": 0,
-                "status_counts": {s: 0 for s in sorted(STATUSES)}, "review_counts": {"draft": 0, "reviewed": 0},
+                "status_counts": {s: 0 for s in sorted(STATUSES)}, "review_counts": {"draft": 0, "reviewed": 0, "auto_validated": 0},
                 "has_drafts": False, "review_notice": "课程尚未发布，请先完成课程审核。"}
     states = learner.get("states", {}) if learner else {}
     counts = Counter(states.get(node["id"], {}).get("status", "unknown") for node in graph["nodes"])
@@ -263,9 +281,9 @@ def graph_summary(graph, learner=None):
         "chapter_count": len(graph["chapters"]),
         "resource_count": len(graph["resources"]),
         "status_counts": {s: counts[s] for s in sorted(STATUSES)},
-        "review_counts": {s: reviews[s] for s in ("draft", "reviewed")},
+        "review_counts": {s: reviews[s] for s in ("draft", "reviewed", "auto_validated")},
         "has_drafts": bool(reviews["draft"]),
-        "review_notice": "含待教师审核的课程草稿。" if reviews["draft"] else "节点与关系已标记审核；审核依据见备注和来源。",
+        "review_notice": "含待核验的课程草稿。" if reviews["draft"] else "课程含自动核验结果，可回查来源及核验记录。" if reviews["auto_validated"] else "节点与关系已标记审核；审核依据见备注和来源。",
     }
 
 
@@ -303,7 +321,7 @@ def _atomic_json(path, data):
 
 
 def _fingerprint(node):
-    content = {k: v for k, v in node.items() if k not in {"review_status", "reviewer", "reviewed_at", "review_note"}}
+    content = {k: v for k, v in node.items() if k not in {"review_status", "reviewer", "reviewed_at", "review_note", "automatic_validation"}}
     return hashlib.sha256(json.dumps(content, sort_keys=True, ensure_ascii=False).encode("utf-8")).hexdigest()
 
 
@@ -394,6 +412,8 @@ class CourseGraphStore:
         draft = self.load_graph("draft")
         pointer = self.output_dir / "publication.json"
         data = _read_json(pointer) if pointer.exists() else {}
+        if data.get("activation_mode") == "automatic":
+            return {**data, "draft_version": draft["version"], "notice": "学习端使用自动核验后的知识版本；个人教学无需人工发布。"}
         return {**data, "draft_version": draft["version"], "published_version": data.get("published_version"),
                 "notice": "学习端使用已发布课程；草稿修改不会自动上线。" if data else "课程尚未发布。请教师在草稿视图核验节点、关系和资源后发布。"}
 
@@ -411,6 +431,16 @@ class CourseGraphStore:
         _fail("该课程版本中不存在此知识节点。", 404)
 
     def save_graph(self, graph, expected_version):
+        # Clients cannot grant automatic validation by posting status metadata.
+        graph = copy.deepcopy(graph)
+        if isinstance(graph, dict):
+            graph.pop("activation", None)
+            for group in ("nodes", "edges", "resources"):
+                for item in graph.get(group, []) if isinstance(graph.get(group), list) else []:
+                    if isinstance(item, dict):
+                        item.pop("automatic_validation", None)
+                        if item.get("review_status") == "auto_validated":
+                            item["review_status"] = "draft"
         validate_graph(graph, allow_empty=True)
         _integer(expected_version, "预期草稿版本", 1)
         with self._writer():
@@ -543,7 +573,11 @@ class CourseGraphStore:
                 or bool(context.get("skeleton_id") and context.get("skeleton_version")))
 
     def _confirmed(self, diagnosis):
-        return diagnosis["review_status"] == "reviewed"
+        return diagnosis["review_status"] == "reviewed" or (
+            (diagnosis["review_status"] == "model_verified" or (
+                diagnosis["review_status"] == "rule_verified" and diagnosis.get("rule_id") == "fixed-choice-v1"))
+            and diagnosis.get("policy") == "rubric-evidence-v1"
+            and bool(diagnosis.get("assessment_id") and diagnosis.get("evidence_ids") and diagnosis.get("criteria")))
 
     def _published_history(self):
         publication = _read_json(self.output_dir / "publication.json")
@@ -568,8 +602,12 @@ class CourseGraphStore:
             ident = node["id"]
             raw = [e for e in learner["evidence"] if e["node_id"] == ident and e["course_id"] == graph["id"]]
             diagnostics = [d for d in learner["diagnoses"] if d["node_id"] == ident and d["course_id"] == graph["id"]]
-            resolved = {ref for d in diagnostics for ref in d.get("resolves_diagnosis_ids", [])}
-            active = [d for d in diagnostics if d["id"] not in resolved]
+            fingerprint = _fingerprint(node)
+            applicable = [d for d in diagnostics if d.get("node_fingerprint") == fingerprint
+                and all(nodes.get(ident) == fingerprint for version, nodes in history.items()
+                        if version > d["course_version"])]
+            resolved = {ref for d in applicable for ref in d.get("resolves_diagnosis_ids", [])}
+            active = [d for d in applicable if d["id"] not in resolved]
             latest = diagnostics[-1] if diagnostics else None
             mastered = [d for d in diagnostics if d["status"] == "mastered" and self._confirmed(d)]
             last_mastery = mastered[-1] if mastered else None
@@ -580,6 +618,7 @@ class CourseGraphStore:
                      "last_mastered_at": last_mastery.get("mastered_at", last_mastery["created_at"]) if last_mastery else None,
                      "reason": reason, "evidence_ids": [e["id"] for e in raw],
                      "diagnosis_ids": [d["id"] for d in diagnostics], "review_stage": last_mastery.get("review_stage", 0) if last_mastery else 0,
+                     "applicable_diagnosis_ids": [d["id"] for d in applicable],
                      "version_changed": False, "due": False}
             if latest:
                 reason = latest["basis"]
@@ -617,6 +656,17 @@ class CourseGraphStore:
             _fail("匿名编号须为文本。")
         return self._derive(self._read_learner(student_id), graph if graph is not None else self.load_graph())
 
+    @staticmethod
+    def public_learner(learner):
+        result = copy.deepcopy(learner)
+        workspace = result.get("workspace", {})
+        workspace.pop("receipts", None)
+        workspace.pop("exposures", None)
+        for assessment in workspace.get("assessments", []):
+            for key in ("rubric", "reference_answer", "answer_key", "task_key"):
+                assessment.pop(key, None)
+        return result
+
     def view(self, student_id="", view="published"):
         graph = self.load_graph(view)
         if view == "draft":
@@ -624,7 +674,7 @@ class CourseGraphStore:
             learner["preview_only"] = True
         else:
             learner = self.load_learner(student_id, graph)
-        return {"graph": graph if view == "draft" else student_graph(graph), "learner": learner,
+        return {"graph": graph if view == "draft" else student_graph(graph), "learner": self.public_learner(learner),
                 "summary": graph_summary(graph, learner), "publication": self.publication()}
 
     def _context(self, value):
@@ -651,7 +701,7 @@ class CourseGraphStore:
     def _mutation_result(self, learner, record=None, kind=None):
         graph = self.load_graph()
         learner = self._derive(learner, graph)
-        result = {"learner": learner, "summary": graph_summary(graph, learner)}
+        result = {"learner": self.public_learner(learner), "summary": graph_summary(graph, learner)}
         if record is not None:
             result["record"] = record
             if kind:
@@ -886,7 +936,7 @@ class CourseGraphStore:
                     learner["actions"].append(action)
                     self._commit(learner)
             return {"actions": [action], "resources": available, "learner_version": learner["version"],
-                    "learner": learner,
+                    "learner": self.public_learner(learner),
                     "selection": selection, "action_history": self._action_history(learner, graph, node_id),
                     "unavailable_count": len(selection["excluded_resources"]),
                     "notice": "草稿预览" if view == "draft" else ""}
@@ -921,7 +971,7 @@ class CourseGraphStore:
             graph = self._require_graph(version)
             node = self._node(graph, payload.get("node_id"))
             resource = next((r for r in graph["resources"] if r["id"] == payload.get("resource_id")), None)
-            if not resource or node["id"] not in resource["node_ids"] or resource["review_status"] != "reviewed":
+            if not resource or node["id"] not in resource["node_ids"] or resource["review_status"] not in {"reviewed", "auto_validated"}:
                 _fail("该资源未审核或未关联当前知识节点。")
             learner = self._read_learner(student_id)
             self._expected(learner, payload.get("expected_version"))

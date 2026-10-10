@@ -878,10 +878,35 @@ class DocumentStore:
                                    "reason": edge["reason"], "source_ids": [source_id], "review_status": "draft", "document_id": ident, "document_page_kind": graph["page_kind"],
                                    "extraction_type": edge["type"], "document_evidence": edge["evidence"]})
             count += 1
-        if not additions and not count:
-            return {"version": expected_version, "nodes_added": 0, "edges_added": 0, "graph": draft}
+        # Importing selected concepts also links their original teaching material.
+        # This is a draft resource, not publication of every uploaded document.
+        resource_id = 'doc_' + ident
+        resource = next((item for item in draft['resources'] if item['id'] == resource_id), None)
+        if resource and (resource.get('origin') != 'document_import' or resource.get('document_id') != ident):
+            raise CourseGraphError('资料资源编号与已有手工资源冲突，请先调整已有资源编号。', 409)
+        resource_added = resource is None
+        if resource is None:
+            resource = {'id': resource_id, 'title': graph['title'], 'organization': '上传资料（作者信息待补充）',
+                        'format': 'lesson', 'url': f'/api/documents/{ident}/source',
+                        'node_ids': [], 'prerequisite_ids': [], 'source_ids': [source_id],
+                        'applicable_segment': '与已导入知识点关联的原文；具体页码或单元见来源依据。',
+                        'document_id': ident, 'document_page_kind': graph['page_kind'],
+                        'document_evidence': [], 'origin': 'document_import', 'review_status': 'draft'}
+            draft['resources'].append(resource)
+        previous_resource = copy.deepcopy(resource)
+        resource['node_ids'] = sorted(set(resource['node_ids']) | {mapping[nid] for nid in imported})
+        evidence = {json.dumps(item, sort_keys=True, ensure_ascii=False): item for item in resource.get('document_evidence', [])}
+        for node in draft['nodes']:
+            if node.get('document_id') == ident and node['id'] in resource['node_ids']:
+                for item in node.get('document_evidence', []):
+                    evidence[json.dumps(item, sort_keys=True, ensure_ascii=False)] = copy.deepcopy(item)
+        resource['document_evidence'] = [evidence[key] for key in sorted(evidence)]
+        resource_changed = resource_added or previous_resource != resource
+        if not additions and not count and not resource_changed:
+            return {"version": expected_version, "nodes_added": 0, "edges_added": 0, "resources_added": 0, "graph": draft}
         saved = course_store.save_graph(draft, expected_version)
-        return {"version": saved["graph"]["version"], "nodes_added": len(additions), "edges_added": count, "graph": saved["graph"]}
+        return {"version": saved["graph"]["version"], "nodes_added": len(additions), "edges_added": count,
+                "resources_added": int(resource_added), "graph": saved["graph"]}
 
 
 document_store = DocumentStore()

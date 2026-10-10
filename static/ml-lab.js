@@ -7,7 +7,9 @@
   $('themeButton').onclick = () => GraphTheme.toggle();
   $('studentId').value = new URLSearchParams(location.search).get('student_id') || localStorage.getItem('pliac-ml-student') || '';
   function error(message='') { $('labError').textContent = message; $('labError').hidden = !message; }
+  const courseId = new URLSearchParams(location.search).get('course_id') || 'ml_acceptance_demo';
   async function request(path, body) {
+    path += `${path.includes('?') ? '&' : '?'}course_id=${encodeURIComponent(courseId)}`;
     const response = await fetch(`/api/ml-lab${path}`, body ? {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)} : {});
     const data = await response.json();
     if (!response.ok) throw new Error(data.detail || '请求未完成，请重试。');
@@ -20,7 +22,7 @@
     const signature = JSON.stringify([name,fields]);
     if (!receipt || receipt.signature !== signature) receipt = {signature,id:crypto.randomUUID()};
     try {
-      state = await request(`/${name}`, {student_id:state.student_id,expected_version:state.version,course_version:1,
+      state = await request(`/${name}`, {student_id:state.student_id,expected_version:state.version,course_version:state.course_version,
         request_id:receipt.id,session_id:state.active?.id,...fields});
       receipt = null; $('saveState').textContent = '已保存到本机'; render();
     } catch (e) {
@@ -38,9 +40,16 @@
   function render() {
     const s=state.active;
     $('setup').hidden = !!s; $('workbench').hidden = !s;
-    for(const [id,path] of [['learnLink','learn'],['graphLink','knowledge'],['reviewLink','review']]) $(id).href=`/${path}?course_id=ml_acceptance_demo&student_id=${encodeURIComponent(state.student_id)}`;
+    for(const [id,path] of [['learnLink','learn'],['graphLink','knowledge'],['reviewLink','review']]) $(id).href=`/${path}?course_id=${encodeURIComponent(courseId)}&student_id=${encodeURIComponent(state.student_id)}`;
     const originNode=new URLSearchParams(location.search).get('node_id');
     if(originNode){$('learnLink').href+=`&node_id=${encodeURIComponent(originNode)}&view=study`;$('learnLink').textContent='返回讲义';}
+    const returnPath = new URLSearchParams(location.search).get('return_to');
+    if (returnPath) {
+      const target = new URL(returnPath, location.origin);
+      if (target.origin === location.origin && target.pathname === `/app/courses/${encodeURIComponent(courseId)}`) {
+        $('learnLink').href = target.href; $('learnLink').textContent = '返回学习工作台';
+      }
+    }
     if (!s) {lockControls();return;}
     const scene=s.presentation || state.scenes[s.scene], task=state.tasks[s.step];
     $('sceneTitle').textContent=scene.title; $('mission').textContent=`你是${scene.role}。${scene.mission}`;
@@ -52,7 +61,7 @@
     $('dismissLabRest').onclick=()=>operate('rest',{point_id:pause.id,choice:'continue'});
     $('takeLabRest').onclick=()=>operate('rest',{point_id:pause.id,choice:'rest'});
     $('taskList').innerHTML=state.tasks.map((t,i)=>`<div class="task-row ${i===s.step?'active':i<s.step?'done':''}" ${i===s.step?'aria-current="step"':''}><span class="task-index">${i<s.step?'✓':i+1}</span>${esc(t.title)}</div>`).join('');
-    $('knowledge').innerHTML=[['训练、验证与测试','训练集用来拟合模型；验证集比较候选方案；测试集在方案确定后评估最终表现。','roles'],['模型复杂度','浅树表达能力较弱；深树能够拟合更细的局部变化。比较训练和验证表现，判断复杂度是否合适。','complexity'],['数据泄漏','输入特征应在实际预测时就能取得。结果产生后的回执会把答案的信息带进模型。','leakage']].map(([title,text,node])=>`<details><summary>${title}</summary><p>${text}</p><a href="/learn?course_id=ml_acceptance_demo&student_id=${encodeURIComponent(state.student_id)}&node_id=${node}">进入相关小节</a></details>`).join('');
+    $('knowledge').innerHTML=[['训练、验证与测试','训练集用来拟合模型；验证集比较候选方案；测试集在方案确定后评估最终表现。','roles'],['模型复杂度','浅树表达能力较弱；深树能够拟合更细的局部变化。比较训练和验证表现，判断复杂度是否合适。','complexity'],['数据泄漏','输入特征应在实际预测时就能取得。结果产生后的回执会把答案的信息带进模型。','leakage']].map(([title,text,node])=>`<details><summary>${title}</summary><p>${text}</p><a href="/learn?course_id=${encodeURIComponent(courseId)}&student_id=${encodeURIComponent(state.student_id)}&node_id=${encodeURIComponent(state.node_mapping[node] || node)}">进入相关小节</a></details>`).join('');
     $('taskPanel').hidden=!task;
     if(task){
       $('taskTitle').textContent=`${s.step+1}. ${task.title}`; $('taskGoal').textContent=task.goal; $('acceptance').textContent=`验收目标：${task.acceptance}`;

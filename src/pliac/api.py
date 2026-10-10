@@ -6,6 +6,7 @@ from starlette.concurrency import run_in_threadpool
 from learning_agent.api import ChineseRoute, _body, resolve_course_store
 from learning_agent.course_graph import CourseGraphError, _dict, _list, _text
 from .workspace import LearningWorkspace
+from .reading_position import ReadingPositions, recent_reading
 
 router = APIRouter(prefix="/api/learning", tags=["学习工作台"], route_class=ChineseRoute)
 
@@ -18,6 +19,32 @@ def workspace(student_id: str, course_store=Depends(resolve_course_store)):
 @router.get("/teacher")
 def teacher(student_id: str, course_store=Depends(resolve_course_store)):
     return LearningWorkspace(course_store).teacher_view(student_id)
+
+
+@router.get("/reading-position")
+def reading_position(student_id: str, material_id: str, course_store=Depends(resolve_course_store)):
+    return ReadingPositions(course_store).read(student_id, material_id)
+
+
+@router.get("/continue")
+def continue_reading(student_id: str):
+    from learning_agent import api as course_api
+    from learning_agent import document_api
+    from fastapi.responses import JSONResponse
+    return JSONResponse(recent_reading(course_api.store, student_id, document_api.document_store), headers={'Cache-Control': 'no-store'})
+
+
+@router.get("/review-reminders")
+def review_reminders(student_id: str):
+    from fastapi.responses import JSONResponse
+    from learning_agent import api as course_api
+    from .review_reminders import review_reminders as collect
+    return JSONResponse(collect(course_api.store, student_id), headers={"Cache-Control": "no-store"})
+
+
+@router.post("/reading-position")
+async def save_reading_position(request: Request, course_store=Depends(resolve_course_store)):
+    return await run_in_threadpool(ReadingPositions(course_store).save, await _body(request))
 
 
 @router.post("/teacher/chapter-policy")
@@ -62,7 +89,7 @@ async def task(request: Request, course_store=Depends(resolve_course_store)):
 
 @router.post("/{operation}")
 async def mutate(operation: str, request: Request, course_store=Depends(resolve_course_store)):
-    if operation not in {"onboard", "next", "draft", "hint", "answer", "ask", "annotate", "resource", "report", "study", "card", "mixed", "rest"}:
+    if operation not in {"onboard", "preferences", "next", "draft", "hint", "answer", "ask", "annotate", "resource", "report", "study", "card", "mixed", "rest"}:
         raise CourseGraphError("不支持的学习操作。", 404)
     body = _dict(await _body(request), "学习请求")
     method = "next_lesson" if operation == "next" else operation

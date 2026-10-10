@@ -1,6 +1,15 @@
 # PLIAC · 课程个性化学习智能体
 
-依据《课程个性化学习智能体_项目搭建方案_v7_20261008.docx》建设的独立项目。PLIAC 承担整个平台开发，原 learning-agent 作为其中的课程知识、资料建图与证据诊断模块继续使用。项目仓库：[Southwall-Tester/PLIAC](https://github.com/Southwall-Tester/PLIAC)，本轮开发分支为 `feat/learning-workspace`。
+当前建设依据是 [课程个性化学习平台搭建框架指南](docs/build-guide-20261009.md)，开发分支为 `feat/agent-learning-platform`。PLIAC 承担整个平台开发，原 learning-agent 作为课程知识、资料建图与证据诊断模块继续使用。项目仓库：[Southwall-Tester/PLIAC](https://github.com/Southwall-Tester/PLIAC)。本地改动须先由用户核验，未经同意不提交或推送。
+
+## 当前学生工作台与核验入口
+
+1. 新学生工作台位于 `/app/`，使用 React、TypeScript、Vite 和现有 FastAPI。在 `web` 目录执行 `npm ci` 和 `npm run build` 后，双击根目录「启动智能学习工作台.cmd」。旧「启动学习平台.cmd」仍进入原课程列表。新入口缺少构建时会停止并提示；启动仅绑定本机地址，显示身份保护状态。复用已有服务不代表其后端已经更新，修改后端后需手动停止旧服务再重启，不要用旧预览验收新代码。
+2. 新流程以智能体教学为主控，包含目标协商、学习活动、证据诊断、个人教材与阶段成果。无逐次人工教学审批；公共知识仍需自动来源与结构核验。旧页面的人工复核规则不是新工作台的必经环节。
+3. `/courses`、`/learn`、`/review`、`/knowledge` 和独立 Lab 等旧入口阶段保留。**下文版本章节是历史能力及兼容入口说明**，其中“尚未接入实时模型”“正式课程人工复核”等描述不得用作新工作台的当前完成度或需求依据。
+4. 工程改动及测试边界见 [实施记录](docs/implementation-status.md)，目标逐项核验见 [验收清单](docs/acceptance-checklist.md)。代码存在、测试通过或模型调用成功不代表整个平台或真实教学已验收。
+5. 默认本地开发模式不提供真实身份保护，不能公开给真实学生使用。共享试用前按 [受保护运行说明](docs/access-runtime.md) 核验身份、HTTPS、配置和数据边界；另见 [媒体运行说明](docs/media-runtime.md) 与 [离线备份恢复](docs/backup-runtime.md)。
+6. `ml_acceptance_demo` 是合成验收夹具，不是正式课程或真实试用数据。正式单元、实际模型质量、Word 排版及真实试用仍按验收清单推进。
 
 ## 课程讲义与知识图谱（0.10.0）
 

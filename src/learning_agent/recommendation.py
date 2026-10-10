@@ -59,9 +59,9 @@ def recommend_resources(graph, states, target_id, *, limit=4):
     for resource in sorted(graph.get("resources", []), key=lambda item: item["id"]):
         codes, reasons = [], []
         matched = frontier_set.intersection(resource.get("node_ids", []))
-        if resource.get("review_status") != "reviewed":
+        if resource.get("review_status") not in {"reviewed", "auto_validated"}:
             codes.append("not_reviewed")
-            reasons.append("资源尚未通过人工审核")
+            reasons.append("资源尚未通过有效核验")
         if not matched:
             codes.append("outside_frontier")
             reasons.append("未覆盖当前可行动的待核验知识点")
@@ -105,7 +105,7 @@ def recommend_resources(graph, states, target_id, *, limit=4):
         titles = "、".join(nodes[ident]["title"] for ident in matched)
         relation_reason = ("先补齐目标知识的可行动先修：" if target_id not in frontier_set
                            else "关联当前待核验知识：") + titles
-        reasons = ["已通过人工审核", relation_reason, "资源前置条件已满足"]
+        reasons = ["已通过自动核验" if resource.get('review_status') == 'auto_validated' else "已通过人工审核", relation_reason, "资源前置条件已满足"]
         if newly_covered:
             reasons.append("补充本轮尚未覆盖的知识点")
         if new_format and selected:

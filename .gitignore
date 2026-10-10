@@ -5,3 +5,6 @@ __pycache__/
 outputs/
 config/models.json
 *.log
+web/node_modules/
+web/dist/
+web/*.tsbuildinfo

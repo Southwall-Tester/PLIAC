@@ -485,6 +485,12 @@ class DocumentsTests(unittest.TestCase):
         self.assertTrue(added)
         self.assertTrue(all(n["review_status"] == "draft" and n["document_evidence"] for n in added))
         self.assertTrue(all(n["document_page_kind"] == "section" for n in added))
+        material = next(item for item in result['graph']['resources'] if item.get('document_id') == ident)
+        self.assertEqual(result['resources_added'], 1)
+        self.assertEqual(material['review_status'], 'draft')
+        self.assertEqual(material['url'], f'/api/documents/{ident}/source')
+        self.assertEqual(set(material['node_ids']), {item['id'] for item in added})
+        self.assertTrue(material['document_evidence'])
         self.assertIsNone(self.course.load_graph("published"))
         for edge in result["graph"]["edges"]:
             if edge.get("extraction_type") == "cooccurs":
@@ -493,6 +499,7 @@ class DocumentsTests(unittest.TestCase):
         self.assertEqual(duplicate["nodes_added"], 0)
         self.assertEqual(duplicate["edges_added"], 0)
         self.assertEqual(duplicate["version"], result["version"])
+        self.assertEqual(duplicate['resources_added'], 0)
 
     def test_incremental_import_adds_missing_nodes_edges_and_mapped_hierarchy(self):
         ident = self.book()
@@ -505,6 +512,85 @@ class DocumentsTests(unittest.TestCase):
         chapter = next(c for c in second["graph"]["chapters"] if c["id"] == "doc_" + ident)
         course_ids = {n["id"] for n in second["graph"]["nodes"]}
         self.assertTrue(all(m["target"] in course_ids for m in chapter["document_hierarchy"]["memberships"]))
+        resources = [item for item in second['graph']['resources'] if item.get('document_id') == ident]
+        self.assertEqual(len(resources), 1)
+        self.assertEqual(len(resources[0]['node_ids']), len(nodes))
+        self.assertEqual(second['resources_added'], 0)
+
+    def test_resource_backfill_does_not_duplicate_nodes_or_overwrite_custom_title(self):
+        ident = self.book()
+        first = self.store.import_draft(ident, self.course, self.course.load_graph('draft')['version'])
+        graph = first['graph']
+        graph['resources'] = [item for item in graph['resources'] if item.get('document_id') != ident]
+        version = self.course.save_graph(graph, graph['version'])['graph']['version']
+        repaired = self.store.import_draft(ident, self.course, version)
+        self.assertEqual((repaired['nodes_added'], repaired['edges_added'], repaired['resources_added']), (0, 0, 1))
+        graph = repaired['graph']
+        resource = next(item for item in graph['resources'] if item.get('document_id') == ident)
+        resource['title'] = '团队补充的资料标题'
+        version = self.course.save_graph(graph, graph['version'])['graph']['version']
+        repeated = self.store.import_draft(ident, self.course, version)
+        self.assertEqual(repeated['version'], version)
+        self.assertEqual(next(item for item in repeated['graph']['resources'] if item.get('document_id') == ident)['title'], '团队补充的资料标题')
+
+    def test_document_resource_id_collision_preserves_existing_draft(self):
+        ident = self.book()
+        result = self.store.import_draft(ident, self.course, self.course.load_graph('draft')['version'])
+        graph = result['graph']
+        resource = next(item for item in graph['resources'] if item.get('document_id') == ident)
+        resource.pop('origin')
+        before = self.course.save_graph(graph, graph['version'])['graph']
+        with self.assertRaises(CourseGraphError) as caught:
+            self.store.import_draft(ident, self.course, before['version'])
+        self.assertEqual(caught.exception.status_code, 409)
+        self.assertEqual(self.course.load_graph('draft'), before)
+
+    def test_document_resource_does_not_reduce_existing_500_node_import_capacity(self):
+        import copy
+        ident = self.book()
+        extracted = self.store.graph(ident)
+        template = extracted['nodes'][0]
+        extracted['nodes'] = [dict(copy.deepcopy(template), id=f'synthetic_{number}', title=f'合成概念 {number}') for number in range(205)]
+        extracted['edges'] = []
+        extracted['hierarchy'] = {}
+        with patch.object(self.store, 'graph', return_value=extracted):
+            result = self.store.import_draft(ident, self.course, self.course.load_graph('draft')['version'])
+        resource = next(item for item in result['graph']['resources'] if item.get('document_id') == ident)
+        self.assertEqual(len(resource['node_ids']), 205)
+        self.assertEqual(result['nodes_added'], 205)
+
+    def test_real_document_import_reaches_automatic_activation_with_relation_evidence(self):
+        from pliac.knowledge_activation import activation_context, KnowledgeAudit, activate_snapshot
+        empty = self.course.load_graph('draft')
+        for group in ('nodes', 'edges', 'resources', 'sources'):
+            empty[group] = []
+        self.course.save_graph(empty, empty['version'])
+        ident = self.book()
+        result = self.store.import_draft(ident, self.course, self.course.load_graph('draft')['version'])
+        graph = result['graph']
+        self.assertTrue(graph['edges'], 'The real extractor must supply relations for this regression')
+        with patch.object(self.store, 'page', wraps=self.store.page) as read:
+            context = activation_context(graph, self.store)
+            self.assertEqual(read.call_count, 1, 'Shared source page is loaded once, not once per item')
+        for item in context['items']:
+            self.assertEqual(item['allowed_sources'], [f'document:{ident}:1'])
+        source = context['sources'][0]
+        audit = KnowledgeAudit(checks=[{'key': item['key'], 'outcome': 'supported',
+            'reason': '合成模型结果，只验证工程链路，不证明关系教学质量',
+            'citations': [{'source_id': source['id'], 'quote': source['text'][:40]}]} for item in context['items']])
+        activate_snapshot(self.course, graph, context, audit, {'model': 'synthetic'})
+        published = self.course.load_graph()
+        self.assertEqual(published['activation']['kind'], 'automatic')
+        self.assertTrue(all(edge['review_status'] == 'auto_validated' and 'reviewer' not in edge for edge in published['edges']))
+        self.assertEqual(self.course.load_graph('draft'), graph)
+        from pliac.resources import resource_choices
+        from pliac.tutor import teaching_context
+        node = graph['nodes'][0]['id']
+        choices = resource_choices(self.course, 'synthetic-resource-import', node)
+        self.assertEqual(choices['resources'][0]['id'], 'doc_' + ident)
+        learner = self.course.load_learner('synthetic-resource-import')
+        teaching = teaching_context(published, learner, node, '合成材料选择', self.store)
+        self.assertEqual(teaching['resources'][0]['id'], 'doc_' + ident)
 
     def test_same_page_headings_assign_concepts_by_character_offset(self):
         ident = self.book("# 第一节\n神经网络包括训练集。\n# 第二节\n知识图谱支持实体对齐。", "book.md")

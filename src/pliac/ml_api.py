@@ -8,8 +8,8 @@ from .ml_lab import MLLab
 router = APIRouter(prefix="/api/ml-lab", tags=["机器学习 Lab"], route_class=ChineseRoute)
 
 
-def lab():
-    return MLLab(resolve_course_store(DEMO_ID))
+def lab(course_id: str = DEMO_ID):
+    return MLLab(resolve_course_store(course_id))
 
 
 @router.get("")

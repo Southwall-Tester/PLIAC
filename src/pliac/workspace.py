@@ -34,6 +34,11 @@ class LearningWorkspace(StudyActivities):
         workspace = copy.deepcopy(learner.get("workspace", empty_workspace()))
         workspace.pop("receipts", None)
         workspace.pop("exposures", None)
+        from .memory import learning_memory
+        workspace["memory"] = learning_memory(graph, learner)
+        for assessment in workspace.get("assessments", []):
+            for private in ("rubric", "reference_answer", "answer_key", "task_key"):
+                assessment.pop(private, None)
         current = next((x for x in workspace["lessons"] if x["id"] == workspace["current_lesson_id"]), None)
         return {"course": student_graph(graph), "publication": self.store.publication(),
                 "concept_map": self.store.concept_map() if hasattr(self.store, "concept_map") else None,
@@ -68,6 +73,13 @@ class LearningWorkspace(StudyActivities):
                 if len(workspace["events"]) >= 10000 or len(workspace["receipts"]) >= 20000:
                     raise CourseGraphError("学习会话记录已达到容量，请先导出并归档。", 409)
                 apply(graph, learner, workspace)
+                from .memory import learning_memory
+                self.store._derive(learner, graph)
+                if operation in {"assessment_result", "learning_plan_accepted"}:
+                    from .learning_plan import close_supported_plan
+                    close_supported_plan(graph, learner, workspace, self.store._stamp())
+                workspace["memory"] = learning_memory(graph, learner)
+                workspace["memory"]["learner_version"] = learner["version"] + 1
                 workspace["receipts"][request_id] = {"operation": operation, "signature": signature}
                 self.store._commit(learner)
         return self.view(student)
@@ -86,11 +98,21 @@ class LearningWorkspace(StudyActivities):
         learner["evidence"].append(record)
         return record
 
+    def preferences(self, payload):
+        def apply(graph, learner, workspace):
+            interests = [_text(item, "案例兴趣", 100) for item in _list(payload.get("interests", []), "案例兴趣", 30)]
+            explanation = _text(payload.get("explanation_preferences", ""), "讲解偏好", 1000, False)
+            learner["profile"]["interests"] = list(dict.fromkeys(interests))
+            learner["profile"]["explanation_preferences"] = explanation
+            self._event(workspace, "preferences_changed", course_version=graph["version"], origin="learner_declared")
+        return self._mutate(payload, "preferences", apply)
+
     def onboard(self, payload):
         def apply(graph, learner, workspace):
             for name, label in (("goals", "学习目标"), ("background", "学习背景")):
                 learner["profile"][name] = _text(payload.get(name, ""), label, 2000, False)
-            learner["profile"]["interests"] = [_text(x, "兴趣", 100) for x in _list(payload.get("interests", []), "兴趣", 30)]
+            if "interests" in payload:
+                learner["profile"]["interests"] = [_text(x, "兴趣", 100) for x in _list(payload["interests"], "兴趣", 30)]
             assessments = _dict(payload.get("self_assessments", {}), "三档自评")
             if len(assessments) > 500:
                 raise CourseGraphError("自评节点过多。")
@@ -103,8 +125,33 @@ class LearningWorkspace(StudyActivities):
                     continue
                 evidence = self._evidence(graph, learner, node, SELF_LABELS[value], "self_assessment")
                 workspace["self_assessments"][node_id] = {"value": value, "evidence_id": evidence["id"], "course_version": graph["version"]}
+            first = not workspace["onboarded"]
             workspace["onboarded"] = True
-            self._event(workspace, "onboarding", course_version=graph["version"])
+            event = self._event(workspace, "onboarding", course_version=graph["version"])
+            if "agent_guided" in payload:
+                if type(payload["agent_guided"]) is not bool:
+                    raise CourseGraphError("自动教学选项须为布尔值。")
+                flow = workspace.setdefault("teaching_flow", {"pending": None, "current_turn_id": None})
+                flow["enabled"] = payload["agent_guided"]
+                flow.update(plan_request=None, pending_plan_id=None, active_plan_id=None)
+                if flow["enabled"]:
+                    flow["current_turn_id"] = None
+                    if "plan_mode" in payload:
+                        mode, form = payload["plan_mode"], payload.get("preferred_form", "mixed")
+                        if mode not in {"systematic", "topic", "task"} or form not in {"mixed", "explanation", "practice", "lab"}:
+                            raise CourseGraphError("学习范围类型或形式偏好无效。")
+                        anchor = payload.get("start_node_id") or ""
+                        if anchor:
+                            self.store._node(graph, anchor)
+                        flow["pending"] = None
+                        flow["plan_request"] = {"id": event["id"], "mode": mode, "preferred_form": form,
+                                                "anchor_node_id": anchor, "course_version": graph["version"]}
+                    else:
+                        node = self.store._node(graph, payload.get("start_node_id"))
+                        from .teaching_flow import enqueue
+                        enqueue(workspace, graph, node["id"], "initial_diagnosis" if first else "goal_changed", event["id"])
+                else:
+                    flow["pending"] = None
         return self._mutate(payload, "onboard", apply)
 
     def _choose_node(self, graph, learner, workspace):

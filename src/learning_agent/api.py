@@ -117,7 +117,7 @@ def audit(view: str = "draft", course_store=Depends(resolve_course_store)):
 
 @router.get("/learner/export")
 def export_learner(student_id: str, course_store=Depends(resolve_course_store)):
-    return JSONResponse(course_store.load_learner(student_id), headers={"Content-Disposition": 'attachment; filename="learner-evidence.json"'})
+    return JSONResponse(course_store.public_learner(course_store.load_learner(student_id)), headers={"Content-Disposition": 'attachment; filename="learner-evidence.json"'})
 
 
 @router.post("/evidence")
