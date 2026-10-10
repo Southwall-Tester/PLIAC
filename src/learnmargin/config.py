@@ -10,6 +10,7 @@ from platformdirs import user_data_path
 from pydantic import SecretStr
 
 from .models import APIConfig
+from .reasoning import reasoning_parameters
 
 
 def data_directory() -> Path:
@@ -55,6 +56,7 @@ def validate_api_config(config: APIConfig) -> APIConfig:
     result.model = result.model.strip()
     if not result.model:
         raise ValueError("请填写 API 模型名。")
+    reasoning_parameters(result)
     key = result.api_key.get_secret_value()
     if len(key) > 8192 or any(ord(char) < 32 or ord(char) >= 127 for char in key):
         raise ValueError("API 密钥格式不正确，请检查是否包含换行或非 ASCII 字符。")
@@ -70,6 +72,8 @@ def default_api() -> APIConfig:
         base_url=os.environ.get("LEARNMARGIN_BASE_URL", "https://api.deepseek.com"),
         model=os.environ.get("LEARNMARGIN_MODEL", "deepseek-flash"),
         protocol=os.environ.get("LEARNMARGIN_PROTOCOL", "chat_completions"),
+        reasoning_effort=os.environ.get("LEARNMARGIN_REASONING_EFFORT") or None,
+        timeout_seconds=os.environ.get("LEARNMARGIN_TIMEOUT_SECONDS", "180"),
     )
 
 

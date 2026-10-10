@@ -4,7 +4,10 @@
     "course_model": {
       "base_url": "https://YOUR_PROVIDER/v1",
       "api_key": "YOUR_API_KEY",
-      "model": "YOUR_MODEL_NAME"
+      "model": "YOUR_MODEL_NAME",
+      "protocol": "chat_completions",
+      "reasoning_effort": null,
+      "timeout_seconds": 180
     }
   }
 }
