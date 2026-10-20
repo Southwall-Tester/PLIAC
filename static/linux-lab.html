@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>LinuxLab · 课程实训</title><script src="/static/theme.js?v=28"></script>
+<link rel="stylesheet" href="/static/theme.css?v=1"><link rel="stylesheet" href="/static/courses.css?v=19">
+<link rel="stylesheet" href="/static/practice-assessment.css?v=1">
+<link rel="stylesheet" href="/static/linux-lab.css?v=2"><script defer src="/static/practice-assessment.js?v=2"></script><script defer src="/static/linux-lab.js?v=5"></script></head>
+<body><header class="toolbar"><a href="/manage/courses">课程管理</a><a id="readerLink">课程知识图谱</a><a id="reviewLink" hidden>教学复核</a><button id="themeButton">深色</button></header>
+<main><p class="eyebrow">真实终端 · 九关任务 · 证据诊断</p><h1>LinuxLab</h1><p id="courseTitle"></p>
+<p id="modeNotice" class="notice"></p><p id="error" role="alert" hidden></p><p id="status" role="status"></p>
+<section class="setup"><label>匿名学习编号<input id="studentId" maxlength="64" autocomplete="off" value="linux-learner"></label>
+<button id="loadStudent">载入</button><label>实训情景<select id="scene"></select></label><button id="createRun">创建独立周目</button></section>
+<p class="muted">在本机 Linux / WSL 的真实 Bash 中探索；保留逐级提示、AI 助教、学习手册与现场恢复。新周目不会覆盖旧周目。</p>
+<div class="lab-layout"><aside><h2>九关与知识点</h2><div id="stages"></div></aside>
+<div><section class="lab-panel"><h2>知识点掌握估计</h2><p id="masterySummary"></p><div id="masteryList" style="max-height:480px;overflow:auto"></div></section><section class="lab-panel"><h2>实训周目</h2><label>选择周目<select id="runs"><option value="">尚无周目</option></select></label>
+<div id="runControls" hidden><p id="runTitle"></p><div class="actions"><button id="launch">打开实训终端</button><button id="sync">同步记录与诊断</button><button id="export">导出诊断报告</button></div>
+<details><summary>手动启动命令</summary><p>Windows 请复制到 PowerShell；Linux 请复制到本机终端。</p><pre id="launchCommand"></pre></details>
+<p id="progress"></p></div></section>
+<section class="lab-panel"><h2>答疑对话与帮助背景</h2><p id="dialogueSummary" class="muted">在实验终端使用 lab chat，同步后查看与诊断关联的原话。</p><div id="dialogueRecords"></div></section>
+<section class="lab-panel"><h2>诊断报告</h2><p>先说明观察到什么，再提出可能原因。检查通过不等于已经掌握；教师核验后才能形成正式判断。</p>
+<p id="coverage" class="muted"></p><div id="diagnoses"><p>启动终端并操作后，同步记录以生成可追溯的诊断草稿。</p></div></section>
+</div></div></main></body></html>

@@ -7,7 +7,7 @@ html,body{height:100%;margin:0}body{background:#fcfbf9;overflow:hidden}.topbar{h
 
 
 
-.dot.unknown{background:#b09adb}.dot.uncertain{background:#e9ca76}.dot.needs_review{background:#e99bb6}.dot.mastered{background:#6bcaa4}
+.dot.unknown{background:#bdc4ca}.dot.uncertain{background:#e9ca76}.dot.needs_review{background:#e99bb6}.dot.mastered{background:#6bcaa4}
 
 /* Toolbar color conveys interaction state, independently of graph families. */
 .topbar{--control-bg:#fff;--control-text:#41454b;--control-border:#d5d7da;--control-hover:#f2f3f4;--control-focus:#777b82}.topbar button,.topbar .button{background:var(--control-bg);color:var(--control-text);border:1px solid var(--control-border)}.topbar a,.topbar nav a,.topbar nav .current{color:var(--control-text)}.topbar nav .current:after{background:var(--control-text)}.topbar button:hover,.topbar .button:hover{background:var(--control-hover);border-color:var(--control-focus);color:var(--control-text)}.topbar :is(button,a,select):focus-visible{outline:2px solid var(--control-focus);outline-offset:2px}.network-dark .topbar{--control-bg:#24262a;--control-text:#e3e5e8;--control-border:#484b50;--control-hover:#32353a;--control-focus:#a1a5ad}.network-dark .topbar button,.network-dark .topbar .button{background:var(--control-bg);color:var(--control-text);border-color:var(--control-border)}.network-dark .topbar button:hover,.network-dark .topbar .button:hover{background:var(--control-hover);border-color:var(--control-focus)}

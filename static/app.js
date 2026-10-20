@@ -9,12 +9,15 @@
   const origins = {learner_expression:'学习者实际表达',system_completion:'系统补全',model_inference:'模型推断'};
   const sourceTypes = {manual:'人工采录',dialog:'对话原话',quiz:'题目作答',practice:'实训操作',annotation:'疑问标记',self_assessment:'学习者自评',technical:'技术异常'};
   const formats = {video:'讲解视频',lesson:'解读教案',case:'案例资料',practice:'情境式实训',course:'补充课程'};
-  const colors = {unknown:['#f7f0ff','#b09adb','#7650a3'],uncertain:['#fff8db','#e9ca76','#95700d'],needs_review:['#fff0f6','#e99bb6','#b43c69'],mastered:['#eafff3','#6bcaa4','#237851']};
+  const colors = {unknown:['#f3f5f6','#bdc4ca','#687580'],uncertain:['#fff8db','#e9ca76','#95700d'],needs_review:['#fff0f6','#e99bb6','#b43c69'],mastered:['#eafff3','#6bcaa4','#237851']};
   const view = ['/author','/admin'].includes(location.pathname) ? 'draft' : 'published';
   $('coursesLink').href=view==='draft'?'/manage/courses':'/courses';
   const courseId = new URL(location.href).searchParams.get('course_id')||'';
+  const requestedNode = new URL(location.href).searchParams.get('node_id')||'';
+  const studentStorageKey = courseId ? `pliac.student.${courseId}` : 'learningAgent.student';
   const courseURL = (path,extra={}) => {const params=new URLSearchParams({...extra,...(courseId?{course_id:courseId}:{})});return path+(params.size?'?'+params:'');};
   let graph = null, learner = {}, summary = {}, publication = {}, student = '', selected = '', chapter = 'all', activeTab = 'detail', mode = 'node';
+  let colorChoice=false;
   let renderer, network, topology='', renderBusy=false, renderAgain=false, loadToken=0, detailToken=0, toastTimer, pathResult=null, extracted=null;
   const collapsed=new Set();
   let structureSelection=null,relationSelection=null;
@@ -82,7 +85,7 @@
   function visibleNodes() {
     const q=$('search').value.trim().toLowerCase(), filter=$('statusFilter').value;
     const mapped=$('structureView').value==='expressions'?expressionNodes():null;
-    return (graph?.nodes||[]).filter(n=>(!mapped||mapped.has(n.id))&&(chapter==='all'||n.chapter_id===chapter)&&(!q||[n.id,n.title,...n.aliases].join(' ').toLowerCase().includes(q))&&(filter==='all'||(filter==='due'?!!nodeState(n.id).due:state(n.id)===filter)));
+    return (graph?.nodes||[]).filter(n=>(!mapped||mapped.has(n.id))&&(chapter==='all'||n.chapter_id===chapter)&&(!q||[n.id,n.title,...n.aliases].join(' ').toLowerCase().includes(q))&&(filter==='all'||(filter.startsWith('auto:')?nodeState(n.id).auto_assessment?.level===filter.slice(5):filter==='due'?!!nodeState(n.id).due:state(n.id)===filter)));
   }
   function syncSelection() {
     if(!graph)return;
@@ -105,9 +108,9 @@
     function visible(id,includeSelf=false){let current=includeSelf?id:parents.get(id);const seen=new Set();while(current&&!seen.has(current)){if(collapsed.has(current))return false;seen.add(current);current=parents.get(current);}return true;}
     return {structure,memberships,visible};
   }
-  function conceptFill(n){return $('colorMode').value==='mastery'?colors[state(n.id)][1]:GraphEncoding.family(graph.chapters.findIndex(c=>c.id===n.chapter_id));}
+  function conceptFill(n){return $('colorMode').value==='auto'?PracticeAssessment.colors[nodeState(n.id).auto_assessment?.level||'not_observed']:$('colorMode').value==='mastery'?colors[state(n.id)][1]:GraphEncoding.family(graph.chapters.findIndex(c=>c.id===n.chapter_id));}
   function renderColorLegend(){
-    const items=$('colorMode').value==='mastery'?Object.entries(labels).map(([id,title])=>({id,title,color:colors[id][1]})):graph.chapters.filter(c=>chapter==='all'||c.id===chapter).map(c=>({id:c.id,title:c.title,color:GraphEncoding.family(graph.chapters.indexOf(c))}));
+    const items=$('colorMode').value==='auto'?Object.entries(PracticeAssessment.labels).map(([id,title])=>({id,title,color:PracticeAssessment.colors[id]})):$('colorMode').value==='mastery'?Object.entries(labels).map(([id,title])=>({id,title,color:colors[id][1]})):graph.chapters.filter(c=>chapter==='all'||c.id===chapter).map(c=>({id:c.id,title:c.title,color:GraphEncoding.family(graph.chapters.indexOf(c))}));
     $('colorLegend').innerHTML=items.map(item=>`<span data-family="${esc(item.id)}" title="${esc(item.title)}"><i style="background:${item.color}"></i>${esc(item.title)}</span>`).join('');
   }
   function updateStats() {
@@ -135,7 +138,7 @@
     $('nodeList').innerHTML=nodes.map(n=>`<button class="node-item ${n.id===selected?'active':''}" data-node="${esc(n.id)}"><i class="dot" style="background:${conceptFill(n)}"></i><span>${esc(n.title)}</span><span class="node-index">${esc(n.id.slice(-3))}</span></button>`).join('')||'<p class="empty">暂无匹配</p>';
     $('nodeList').querySelectorAll('button').forEach(b=>b.onclick=()=>selectNode(b.dataset.node));
     $('viewTitle').textContent=chapter==='all'?'知识图谱':graph.chapters.find(c=>c.id===chapter)?.title||'';
-    $('viewCount').textContent=`${nodes.length} 个知识点`;
+    $('viewCount').textContent=`${nodes.length} 个知识点 · ${{family:'按单元分色',mastery:'按确认状态分色',auto:'按实训评估分色'}[$('colorMode').value]}`;
   }
   function changeFilter(){pathResult=null;relationSelection=null;syncSelection();renderSidebar();renderDetail();renderGraph();}
   function selectNode(id,reveal=false,remember=true){
@@ -250,6 +253,7 @@
     const resources=(graph.resources||[]).filter(r=>r.node_ids.includes(n.id)&&(view==='draft'||r.review_status==='reviewed'));
     $('detailContent').innerHTML=`${heading(n)}<p class="description">${esc(n.description)}</p><section class="detail-section"><h3>学习目标</h3><ul>${n.objectives.map(x=>`<li>${esc(x)}</li>`).join('')}</ul></section><section class="detail-section"><h3>前置知识</h3><div class="chips">${before.length?chips(before):'<p>无</p>'}</div></section>${confused.length?`<section class="detail-section"><h3>容易混淆</h3><div class="chips">${chips(confused,'confusable')}</div></section>`:''}<section class="detail-section misconception"><h3>典型误解</h3><p>${esc(n.misconception)}</p></section>${n.check_question?`<section class="detail-section"><h3>诊断问题</h3><p>${esc(n.check_question)}</p>${view==='draft'?`<details><summary class="muted">教师查看判据</summary><p>${esc(n.expected_answer||'')}</p><p class="evidence-ref">${esc(n.check_task?.id||'')} · ${esc(n.check_task?.version||'')}</p></details>`:''}</section>`:''}<section class="detail-section"><h3>节点学习材料</h3>${['video','lesson','case','practice'].map(kind=>{const items=resources.filter(r=>r.format===kind||(kind==='lesson'&&r.format==='course'));return items.length?`<div class="material-group"><h4>${formats[kind]}</h4>${items.map(resourceCard).join('')}</div>`:'';}).join('')}${resources.length?'':'<p class="muted">暂无资料</p>'}${n.blueprint_ids?.length?`<p class="muted">实训骨架：${n.blueprint_ids.map(esc).join('、')}</p>`:''}</section><section class="detail-section"><h3>概念出处</h3>${citations.map(s=>s.url?`<a class="resource" href="${esc(s.url)}" target="_blank" rel="noopener noreferrer">${esc(s.title)} ↗</a>`:`<p>${esc(s.title)}</p>`).join('')}</section>`;
     $('detailContent').insertAdjacentHTML('beforeend',documentProof(n));
+    $('detailContent').insertAdjacentHTML('afterbegin',PracticeAssessment.detail(nodeState(n.id).auto_assessment,courseId,student));
     bindJumps();
     $('detailContent').querySelectorAll('[data-resource]').forEach(link=>link.onclick=()=>{
       if(view==='published'&&student)writeLearner('/resource-use',{node_id:n.id,resource_id:link.dataset.resource,course_version:graph.version}).catch(error=>toast(`资料已打开，选择记录未保存：${error.message}`,true));
@@ -281,7 +285,11 @@
     const token=++loadToken,result=await api(`?${new URLSearchParams({student_id:view==='draft'?'':id,view})}`);
     if(token!==loadToken)return;
     graph=result.graph;learner=result.learner||{};summary=result.summary||{};publication=result.publication||{};student=view==='draft'?'':id;pathResult=null;relationSelection=null;structureSelection=null;
-    if(view==='published')try{localStorage.setItem('learningAgent.student',id);}catch{}
+    const hasAuto=Object.values(learner.states||{}).some(s=>s.auto_assessment);
+    const hasState=Object.values(learner.states||{}).some(s=>s.status&&s.status!=='unknown');
+    $('colorMode').querySelector('[value="auto"]').disabled=!hasAuto;
+    if(!colorChoice||($('colorMode').value==='auto'&&!hasAuto))$('colorMode').value=view==='draft'?'family':hasAuto?'auto':hasState?'mastery':'family';
+    if(view==='published')try{localStorage.setItem(studentStorageKey,id);}catch{}
     $('workbench').hidden=!graph;$('unpublished').hidden=!!graph;updateStats();
     if(!graph){
       try{const response=await fetch('/api/courses'),data=await response.json(),course=data.courses?.find(c=>c.id===courseId||(!courseId&&c.is_default));if(course){$('activeCourseTitle').textContent=course.title;document.title=course.title+' · 待发布';}}catch{}
@@ -289,6 +297,7 @@
     }
     if(!selected){chapter='all';selected=graph.nodes[0]?.id;}
     if(restore&&learner.profile?.current_position?.node_id&&node(learner.profile.current_position.node_id)){selected=learner.profile.current_position.node_id;chapter=node(selected).chapter_id;}
+    if(restore&&node(requestedNode)){selected=requestedNode;chapter=node(selected).chapter_id;document.body.classList.add('details-open');}
     syncSelection();renderSidebar();renderDetail();await renderGraph();
   }
 
@@ -488,9 +497,10 @@
   $('closeDetail').onclick=()=>document.body.classList.remove('details-open');
   $('statsButton').onclick=()=>$('statsDialog').showModal();
   $('levelFilter').onchange=()=>{collapsed.clear();renderGraph();};
-  $('colorMode').value=view==='draft'?'family':'mastery';
+  $('colorMode').value='family';
   $('colorMode').querySelector('[value="mastery"]').disabled=view==='draft';
-  $('colorMode').onchange=()=>{renderSidebar();renderGraph();};
+  $('colorMode').onchange=()=>{colorChoice=true;renderSidebar();renderGraph();};
+  window.addEventListener('focus',()=>{if(student&&view==='published'&&graph&&!document.querySelector('dialog[open]'))loadStudent(student).catch(error=>toast(error.message,true));});
   document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{activeTab=b.dataset.tab;renderDetail();});
   document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>{mode=b.dataset.mode;renderManager();});
   $('manageButton').onclick=()=>{if(graph){renderManager();$('manager').showModal();}};document.querySelector('.close-dialog').onclick=()=>$('manager').close();
@@ -501,7 +511,10 @@
   $('profileInlineButton').onclick=()=>{renderProfile();$('profileDialog').showModal();};
   $('resumeButton').onclick=()=>{const id=learner.profile?.current_position?.node_id;if(node(id)){activeTab='detail';selectNode(id,true,false);toast('已恢复上次知识节点。');}else toast('上次节点不在当前发布版本中，请重新选择。',true);};
   $('reportButton').onclick=event=>{if(!student){toast('请先加载学习编号。',true);return;}busy(event.target,async()=>download(await api(`/learner/export?student_id=${encodeURIComponent(student)}`),`${student}-画像与原始证据.json`));};
-  let initial='';if(view==='published')try{initial=localStorage.getItem('learningAgent.student')||'';}catch{}
+  let initial='';if(view==='published'){
+    try{initial=localStorage.getItem(studentStorageKey)||'';}catch{}
+    initial=new URL(location.href).searchParams.get('student_id')||initial;
+  }
   $('studentId').value=initial;
   NetworkView.bindTheme(()=>network?.redraw());updateToolbar();
   loadStudent(initial,true).catch(error=>{$('graphMessage').textContent=error.message;toast(error.message,true);});

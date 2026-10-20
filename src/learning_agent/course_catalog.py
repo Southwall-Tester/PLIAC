@@ -51,6 +51,7 @@ def metadata(course_store, *, is_default=False):
     summary = graph_summary(graph)
     presentation = getattr(course_store, "config", {}).get("presentation", graph.get("presentation", {}))
     available = publication["published_version"] is not None or not course_store.content_editable
+    published_graph = course_store.load_graph() if available else None
     overview = graph.get("overview", "")
     description = presentation.get("description", overview if isinstance(overview, str) else "")
     stats = [{"value": summary[key], "label": label} for key, label in
@@ -71,6 +72,10 @@ def metadata(course_store, *, is_default=False):
         "capabilities": {"learn": available, "edit": course_store.content_editable, "generate_handouts": True,
                          "objective_assessment": bool(course_store.assessment)},
         "source_summary": source,
+        "activities": [{"title": a.get("title", "课程实训"), "href": a["href"]}
+                       for a in (published_graph or {}).get("activities", []) if a.get("href") in ("/linux-lab", "/ml-lab")],
+        "draft_activities": [{"title": a.get("title", "课程实训"), "href": a["href"]}
+                             for a in graph.get("activities", []) if a.get("href") in ("/linux-lab", "/ml-lab")],
     }
 
 

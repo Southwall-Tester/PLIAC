@@ -10,6 +10,7 @@ from learning_agent.document_api import router as document_router
 from learning_agent.documents import ocr_threads
 from .api import router as learning_router
 from .ml_api import router as ml_router
+from .linux_api import router as linux_router
 from .margin import router as margin_router, close_jobs
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -28,6 +29,12 @@ app.include_router(courses_router)
 app.include_router(document_router)
 app.include_router(learning_router)
 app.include_router(ml_router)
+app.include_router(linux_router)
+
+
+@app.get("/linux-lab")
+def linux_lab():
+    return FileResponse(ROOT / "static/linux-lab.html")
 
 
 @app.get("/ml-lab")
@@ -66,7 +73,7 @@ def workbench():
 
 @app.get("/health")
 def health():
-    return {"app": "learning-agent", "platform": "PLIAC", "capabilities": ["knowledge_graph", "learning_workspace", "acceptance_course", "ml_lab", "course_home", "study_rhythm", "learnmargin_graph", "scoped_learning_units"],
+    return {"app": "learning-agent", "platform": "PLIAC", "capabilities": ["knowledge_graph", "learning_workspace", "acceptance_course", "ml_lab", "linuxlab", "linuxlab_diagnostic_drafts", "linuxlab_dialogue_diagnostics", "course_home", "study_rhythm", "learnmargin_graph", "scoped_learning_units"],
             "version": app.version, "specification": "v7_20261008", "ocr_threads": ocr_threads()}
 
 

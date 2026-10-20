@@ -15,14 +15,15 @@
     const {courses}=await api();
     $('courseList').innerHTML=courses.filter(course=>managing||course.capabilities.learn).map(course=>{
       const query=new URLSearchParams({course_id:course.id}).toString(),view=course.presentation;
-      const actions=[['handout','/course-reader','讲义与知识图谱']];
+      const actions=[['graph',course.capabilities.learn?'/knowledge':'/author','课程知识图谱'],['handout','/course-reader','AI 讲义']];
       if(course.capabilities.learn)actions.push(['learning','/learn','课程练习']);
+      for(const activity of (managing?course.draft_activities:course.activities)||[])if(['/linux-lab','/ml-lab'].includes(activity.href))actions.push(['activity',activity.href,esc(activity.title)]);
       if(managing){
         if(course.capabilities.edit)actions.push(['edit','/author','编辑图谱']);
         if(course.published_version)actions.push(['published','/knowledge','查看发布版']);
         if(course.capabilities.learn)actions.push(['review','/review','教学复核']);
       }
-      return `<article class="course-card" data-course-id="${esc(course.id)}"><div class="course-status"><span>${esc(view.label)}</span>${managing?`<span>v${esc(course.published_version||course.draft_version)}</span>`:''}</div><h2>${esc(course.title)}</h2><p class="muted">${esc(view.description)}</p><p class="course-counts">${view.stats.map(stat=>`<span>${Number(stat.value)} ${esc(stat.label)}</span>`).join('')}</p><div class="course-actions">${actions.map(([kind,path,label])=>`<a class="${kind}-course" href="${path}?${query}">${label}</a>`).join('')}</div></article>`;
+      return `<article class="course-card" data-course-id="${esc(course.id)}"><div class="course-status"><span>${esc(view.label)}</span>${managing?`<span>v${esc(course.published_version||course.draft_version)}</span>`:''}</div><h2>${esc(course.title)}</h2><p class="muted">${esc(view.description)}</p><p class="course-counts">${view.stats.map(stat=>`<span>${Number(stat.value)} ${esc(stat.label)}</span>`).join('')}</p><div class="course-actions">${actions.map(([kind,path,label])=>`<a class="${kind}-course" href="${path}?${query}${managing&&path==='/linux-lab'?'&mode=preview':''}">${label}</a>`).join('')}</div></article>`;
     }).join('')||'<p class="muted">暂无可学习的课程。</p>';
 
   }

@@ -1,0 +1,13 @@
+.auto-assessment{overflow-wrap:anywhere;line-height:1.65}
+.auto-assessment ul{padding-left:20px}
+.auto-assessment li{margin:5px 0}
+.auto-assessment p{margin:8px 0}
+.auto-assessment .evidence-ref{font-size:12px;opacity:.8}
+.auto-assessment summary,#masteryList>details>summary{cursor:pointer}
+.assessment-dimensions{margin:12px 0;padding:10px 12px;background:rgba(100,140,125,.07);border-radius:8px}
+.assessment-dimensions>div{display:grid;grid-template-columns:6em minmax(0,1fr);gap:10px;padding:5px 0}
+.assessment-dimensions dt{font-weight:600}
+.assessment-dimensions dd{margin:0}
+.behavior-evidence{display:block;font-size:12px;opacity:.75;overflow-wrap:anywhere}
+.behavior-note{font-size:12px;opacity:.8}
+#masteryList>details{padding:9px 0;border-bottom:1px solid var(--border,#cdd2ce)}

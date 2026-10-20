@@ -7,15 +7,17 @@
   <script src="/static/theme.js?v=28"></script>
   <link rel="stylesheet" href="/static/theme.css?v=1"/>
   <link rel="stylesheet" href="/static/app.css?v=27"/>
-  <link rel="stylesheet" href="/static/network.css?v=27"/>
+  <link rel="stylesheet" href="/static/network.css?v=28"/>
   <link rel="stylesheet" href="/static/graph-menu.css?v=27"/>
+  <link rel="stylesheet" href="/static/practice-assessment.css?v=1"/>
   <script defer src="/static/vendor/g6-5.1.1.min.js"></script>
   <script defer src="/static/vendor/pixi-8.19.0.min.js"></script>
   <script defer src="/static/network-layout.js?v=29"></script>
   <script defer src="/static/graph-encoding.js?v=27"></script>
   <script defer src="/static/network-pixi.js?v=27"></script>
   <script defer src="/static/network-view.js?v=29"></script>
-  <script defer src="/static/app.js?v=29"></script>
+  <script defer src="/static/practice-assessment.js?v=2"></script>
+  <script defer src="/static/app.js?v=33"></script>
 </head>
 <body>
   <header class="topbar">
@@ -40,9 +42,9 @@
         <section class="learner-box"><label for="studentId">学习记录</label><form id="studentForm"><input id="studentId" autocomplete="off" maxlength="64" placeholder="学习编号" aria-label="匿名编号"/><button class="button primary compact" type="submit">加载</button></form><p id="learnerNote"></p><button id="resumeButton" class="text-button" hidden>恢复上次学习位置</button><button id="profileInlineButton" class="text-button profile-inline" type="button">学习画像与目标</button></section>
         <div class="sidebar-label">学习单元</div><div id="chapters" class="chapters"></div>
         <label class="search"><span>⌕</span><input id="search" type="search" placeholder="搜索名称或别名" aria-label="搜索知识点"/></label>
-        <label class="filter-label" for="statusFilter">节点状态<select id="statusFilter"><option value="all">全部状态</option><option value="unknown">尚未涉及</option><option value="uncertain">待核验</option><option value="needs_review">需要补学</option><option value="mastered">已掌握</option><option value="due">到期复测</option></select></label>
+        <label class="filter-label" for="statusFilter">节点状态<select id="statusFilter"><option value="all">全部状态</option><option value="unknown">尚未涉及</option><option value="uncertain">待核验</option><option value="needs_review">需要补学</option><option value="mastered">已掌握</option><option value="due">到期复测</option><option value="auto:needs_practice">实训 · 需要练习</option><option value="auto:assisted">实训 · 借助提示完成</option><option value="auto:referenced">实训 · 参考资料完成</option><option value="auto:developing">实训 · 初步掌握</option><option value="auto:proficient">实训 · 较稳定</option><option value="auto:insufficient">实训 · 证据不足</option></select></label>
         <label class="filter-label" for="levelFilter">层级<select id="levelFilter"><option value="concept">全部展开</option><option value="chapter">课程与单元</option><option value="root">课程</option></select></label>
-        <label class="filter-label" for="colorMode">着色<select id="colorMode"><option value="family">单元族群</option><option value="mastery">掌握状态</option></select></label>
+        <label class="filter-label" for="colorMode">着色<select id="colorMode"><option value="family">单元族群</option><option value="mastery">确认状态</option><option value="auto" disabled>实训自动评估</option></select></label>
         <div class="sidebar-label node-list-title">知识点 <span id="listCount"></span></div><div id="nodeList" class="node-list"></div>
         <button id="reportButton" class="button report-button">导出画像与证据引用</button>
       </aside>

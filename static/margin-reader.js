@@ -136,6 +136,8 @@
     const data=await get('/api/handouts?'+new URLSearchParams(selection));
     if(revision!==refreshRevision)return;
     scopeData=data.scope;selection=Object.fromEntries(scopeFields.map(k=>[k,data.scope[k]||'']));
+    const graphQuery=new URLSearchParams({course_id:courseId,...(selection.node_id?{node_id:selection.node_id}:{})});
+    $('savedGraphLink').href=(data.source_view==='draft'?'/author':'/knowledge')+'?'+graphQuery;
     $('title').textContent=shown&&lesson?lesson.title:data.scope.title;
     $('scopeTitle').textContent=data.scope.kind==='course'?data.title:data.title+' / '+data.scope.title;
     $('parentScope').href=data.scope.parent_url;

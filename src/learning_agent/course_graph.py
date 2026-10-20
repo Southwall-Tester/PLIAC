@@ -459,17 +459,19 @@ class CourseGraphStore:
             _atomic_json(self.graph_path, saved)
         return {"graph": saved, "summary": graph_summary(saved), "publication": self.publication()}
 
-    def publish(self, expected_version, published_by, note):
+    def publish(self, expected_version, published_by, note, *, personal_use=False):
         _integer(expected_version, "预期草稿版本", 1)
         _text(published_by, "发布人", 200)
         _text(note, "发布说明", 2000)
+        if not isinstance(personal_use, bool):
+            _fail("个人使用发布选项须为布尔值。")
         with self._writer():
             graph = self.load_graph("draft")
             if graph["version"] != expected_version:
                 _fail("草稿已变化，请重新审核当前版本。", 409)
             validate_graph(graph)
             pending = [item["id"] for item in [*graph["nodes"], *graph["edges"], *graph["resources"]] if item["review_status"] != "reviewed"]
-            if pending:
+            if pending and not personal_use:
                 _fail(f"还有 {len(pending)} 个节点、关系或资源未人工审核，不能发布。", 409)
             path = self.output_dir / "published" / f"v{graph['version']}.json"
             if path.exists():
@@ -481,6 +483,8 @@ class CourseGraphStore:
             versions = _read_json(previous).get("published_versions", []) if previous.exists() else []
             pointer = {"published_version": graph["version"], "published_versions": sorted(set(versions + [graph["version"]])), "published_by": published_by,
                        "published_at": self._stamp(), "note": note}
+            if personal_use:
+                pointer.update(publication_mode="personal_use", unreviewed_item_count=len(pending))
             _atomic_json(self.output_dir / "publication.json", pointer)
         return {"graph": student_graph(graph), "summary": graph_summary(graph), "publication": self.publication()}
 
@@ -582,8 +586,11 @@ class CourseGraphStore:
         # same skill, even when its final text happens to match an old snapshot.
         course_diagnoses = [d for d in learner["diagnoses"] if d["course_id"] == graph["id"]]
         history = {}
-        if course_diagnoses:
-            oldest_version = min(d["course_version"] for d in course_diagnoses)
+        assessment_versions = [entry["assessment"]["course_version"]
+                               for entry in learner.get("workspace", {}).get("linuxlab", {}).values()
+                               if entry.get("assessment", {}).get("course_id") == graph["id"]]
+        if course_diagnoses or assessment_versions:
+            oldest_version = min([d["course_version"] for d in course_diagnoses] + assessment_versions)
             for version in self._published_history():
                 if oldest_version < version <= graph["version"]:
                     snapshot = graph if version == graph["version"] else self.load_graph("published", version)
@@ -633,6 +640,9 @@ class CourseGraphStore:
                     state["due"] = True
             state.update(status=status, reason=reason)
             states[ident] = state
+        from .practice_assessment import derive
+        for ident, estimate in derive(learner, graph, history).items():
+            states[ident]["auto_assessment"] = estimate
         learner["states"] = states
         return learner
 

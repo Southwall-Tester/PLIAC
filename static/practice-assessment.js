@@ -1,0 +1,29 @@
+(() => {
+  'use strict';
+  const labels={not_observed:'尚未涉及',insufficient:'证据不足',needs_practice:'需要练习',assisted:'借助提示完成',referenced:'参考资料完成',developing:'初步掌握',proficient:'较稳定'};
+  const colors={not_observed:'#bdc4ca',insufficient:'#d8cba4',needs_practice:'#e79596',assisted:'#e5b46c',referenced:'#d2bf79',developing:'#8fc7b6',proficient:'#58ac89'};
+  const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  function behaviorDetail(b,courseId,studentId){
+    if(!b)return '';
+    const sequenceLabels={corrected_after_reference:'出错 → 查阅 → 修正并通过检查',reference_then_success:'查阅 → 操作并通过检查',same_error_after_reference:'出错 → 查阅 → 同类错误仍出现',difficulty_after_reference:'查阅 → 后续仍有失败',review_after_success:'成功操作 → 查阅复查',awaiting_attempt:'已查阅，等待后续可验证操作',uncertain:'过程不完整或使用过修复，不能判断查阅效果'};
+    const facetLabels={passed:'检查通过',corrected:'修正后通过',difficulty:'检查存在问题',observed:'记录到对应操作角色',unknown:'直接证据不足'};
+    const issueLabels={location:'当前位置',directory:'目录准备',beacon:'隐藏项查找',backup:'副本完整性',original:'原件保留',move:'移动结果',cleanup:'清理范围',preserve:'文件保留',seal:'归档读取',extraction:'解包结果',log_record:'有效日志记录',config_format:'配置格式',config_duplicate:'重复配置键',config_value:'配置值',config_keys:'配置字段',permissions:'权限设置',receipt:'脚本执行结果',process_identity:'进程身份',archive_layout:'归档路径结构',archive_content:'归档内容',archive_permissions:'归档权限',archive_format:'归档格式'};
+    const patterns=(b.error_patterns||[]).filter(e=>e.episodes>=2).map(e=>`<li>${esc(issueLabels[e.issue_code]||'相关检查')}：${Number(e.episodes)} 个不同问题段，涉及 ${Number(e.runs)} 个周目；${Number(e.resolved)} 个已在后续操作与检查中修正。</li>`).join('');
+    const sequences=(b.sequences||[]).map(s=>`<li>第 ${Number(s.phase)} 关 · ${esc(s.topic)}：${esc(sequenceLabels[s.status]||s.status)}${s.repeated_issue_codes?.length?'；期间出现同类检查错误':''}<span class="behavior-evidence">依据：${esc(s.evidence_refs.join('、'))}</span></li>`).join('')+(b.sequence_count>(b.sequences||[]).length?'<li>每关展示最近 20 次查阅的行为顺序；完整记录保留在原始报告中。</li>':'');
+    const facets=(b.facets||[]).map(f=>`<li><strong>${esc(f.label)}</strong>：${esc(facetLabels[f.status]||f.status)}${f.failure_episodes?` · ${Number(f.failure_episodes)} 个失败问题段`:''}<span class="behavior-evidence">${f.evidence_refs.length?'依据：'+esc(f.evidence_refs.join('、')):'没有足够记录，不推断理解程度'}</span></li>`).join('');
+    const followups=(b.followup?.records||[]).map(f=>`<li>第 ${Number(f.phase)} 关：${f.status==='independent_followup'?'后续周目无辅助通过':'后续周目自行纠错后通过'}；与先前观察间隔 ${Number(f.gap_hours)} 小时。<a href="/linux-lab?${new URLSearchParams({course_id:courseId,student_id:studentId,binding_id:f.prior_binding_id})}">查看先前求助或出错的周目</a></li>`).join('');
+    return `<div class="behavior-assessment"><dl class="assessment-dimensions">${(b.dimensions||[]).map(d=>`<div data-dimension="${esc(d.id)}"><dt>${esc(d.label)}</dt><dd>${esc(d.summary)}</dd></div>`).join('')}</dl>${sequences?`<h4>查阅前后发生了什么</h4><ul class="behavior-sequences">${sequences}</ul><p class="behavior-note">这是观察到的先后顺序，不能据此确定查阅造成了学习效果。</p>`:''}${facets?`<h4>具体检查项</h4><ul class="assessment-facets">${facets}</ul><p class="behavior-note">检查项描述本次操作和产物，尚不能证明对原理的理解。</p>`:''}${patterns?`<h4>重复出现的检查问题</h4><ul>${patterns}</ul>`:''}${followups?`<h4>后续独立复测</h4><ul class="behavior-followups">${followups}</ul><p class="behavior-note">当前比较同类任务；尚未自动核验新任务迁移。</p>`:''}</div>`;
+  }
+  function detail(a,courseId,studentId){
+    if(!a)return '';
+    const fluency={recurring_errors:'反复易错',isolated_slip:'偶发失误',no_recorded_errors:'未记录到输入问题'};
+    const comparisons={insufficient_baseline:'个人基线不足',interrupted:'包含无法解释的长空档',slower:'比自身近期更费时',slower_with_difficulty:'更费时且伴随困难证据',typical:'接近自身近期表现'};
+    const process=a.fluency?`<p class="fluency-summary">输入熟练度：${esc(fluency[a.fluency.status])} · 最近 ${Number(a.fluency.recent_runs)} 个周目共 ${Number(a.fluency.problem_episodes)} 个问题段，当前未修正 ${Number(a.fluency.unresolved_episodes)} 个。</p>`:'';
+    const timing=(a.timing||[]).map(t=>`<li>第 ${Number(t.phase)} 关：${t.available?`连续操作间隔合计 ${Number(t.continuous_seconds)} 秒，长空档 ${Number(t.unobserved_seconds)} 秒；${esc(comparisons[t.comparison])}${t.baseline_seconds!==undefined?`（个人基线 ${Number(t.baseline_seconds)} 秒）`:''}`:esc(t.reason)}</li>`).join('');
+    const sources={notes:'课程笔记',lab_help:'平台帮助',command_help:'命令帮助',man:'man 手册',shell_help:'Bash 帮助'};
+    const reference=a.reference_usage;
+    const referenceHtml=reference?.lookups?.length?`<div class="reference-summary"><p>资料查阅：最近 ${Number(reference.recent_runs)} 个周目中，${Number(reference.supported_runs)} 个在成功操作前查阅${reference.recurring?' · 反复查阅依赖':''}。</p><ul>${reference.lookups.map(r=>`<li>第 ${Number(r.phase)} 关 · ${esc(sources[r.source]||r.source)} · ${esc(r.topic)} · ${r.use==='before_success'?'成功操作前查阅':'仅记录查阅，不作为完成依赖'}</li>`).join('')}</ul></div>`:'';
+    return `<section class="detail-section auto-assessment" data-level="${esc(a.level)}"><h3>实训掌握估计 · ${esc(a.label)}</h3><p>${esc(a.scope)} · 自动评估 · 证据把握：${esc(a.confidence)}</p><ul>${a.reasons.map(r=>`<li>${esc(r)}</li>`).join('')}</ul>${behaviorDetail(a.behavior,courseId,studentId)}${process}${referenceHtml}<p><strong>下一步：</strong>${esc(a.next_action)}</p><p>已观察 ${Number(a.runs_observed)} 个周目${a.updated_at?' · 更新于 '+esc(new Date(a.updated_at).toLocaleString('zh-CN')):''}</p><details><summary>查看依据与适用范围</summary>${timing?`<h4>任务环节用时</h4><ul>${timing}</ul><p>仅估计记录之间的间隔，不能区分思考、查资料和程序运行；不限制学习时间。</p>`:''}${a.evidence.map(e=>`<p><a href="/linux-lab?${new URLSearchParams({course_id:courseId,student_id:studentId,binding_id:e.binding_id})}">查看对应实训周目</a> · 课程 v${Number(e.course_version)}</p><p class="evidence-ref">${esc(e.refs.join('、'))}<br>原始报告：${esc(e.raw_digest)}</p>`).join('')}<ul>${a.limitations.map(l=>`<li>${esc(l)}</li>`).join('')}</ul>${a.excluded_version_records?`<p>已排除 ${Number(a.excluded_version_records)} 条不适用于当前节点版本的记录。</p>`:''}</details></section>`;
+  }
+  window.PracticeAssessment={labels,colors,detail};
+})();

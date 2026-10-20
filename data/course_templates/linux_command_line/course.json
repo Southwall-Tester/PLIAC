@@ -1,0 +1,5965 @@
+{
+  "schema_version": 1,
+  "id": "811cf1ea02b554fa9987cce724b5f02a",
+  "title": "Linux 命令入门：从路径到 Shell 自动化",
+  "version": 1,
+  "overview": "面向初学者的 8 单元课程：46 个知识点，逐点中文解释、操作示例、自检题、评分参考与来源。配套 LinuxLab 九关真实终端实训；图谱与教学材料由智能体编写，等待教师审核。",
+  "created_at": "2026-10-10T00:00:00Z",
+  "delivery_mode": "formal",
+  "presentation": {
+    "label": "自编课程 · 待审核",
+    "description": "8 个单元，从路径定位到文本管道、权限、进程和 Shell 脚本；逐点提供例子与自检。"
+  },
+  "chapters": [
+    {
+      "id": "shell",
+      "title": "01 认识命令行",
+      "description": "理解 Shell、参数、帮助与引号。"
+    },
+    {
+      "id": "paths",
+      "title": "02 目录与路径",
+      "description": "判断当前位置，准确定位文件。"
+    },
+    {
+      "id": "files",
+      "title": "03 文件操作与归档",
+      "description": "在练习目录中创建、复制、移动、删除和打包文件。"
+    },
+    {
+      "id": "search",
+      "title": "04 查看与查找",
+      "description": "区分文件名匹配、内容搜索与正则表达式。"
+    },
+    {
+      "id": "streams",
+      "title": "05 数据流与管道",
+      "description": "追踪输入输出，组合命令完成文本统计。"
+    },
+    {
+      "id": "permissions",
+      "title": "06 用户与权限",
+      "description": "区分文件、目录权限并作最小必要授权。"
+    },
+    {
+      "id": "processes",
+      "title": "07 进程与作业",
+      "description": "识别进程、发送信号、理解前后台作业。"
+    },
+    {
+      "id": "scripts",
+      "title": "08 Shell 自动化",
+      "description": "用变量、退出状态、循环和脚本组织重复工作。"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "shell",
+      "chapter_id": "shell",
+      "title": "Shell 命令解释器",
+      "description": "终端提供文字交互界面，Shell 负责读取命令、展开参数并调用程序。Bash 是一种 Shell；Linux 是操作系统内核，三者不是同一个对象。命令既可能是 Shell 内建，也可能是外部程序。",
+      "objectives": [
+        "解释Shell 命令解释器的行为，并独立回答本节点情境题。"
+      ],
+      "aliases": [],
+      "misconception": "把终端窗口、Bash 和 Linux 当作同一概念。",
+      "source_ids": [
+        "source_01"
+      ],
+      "review_status": "draft",
+      "check_question": "关闭终端窗口和执行一条 ls 命令分别涉及什么角色？",
+      "expected_answer": "终端负责交互界面；Bash 读取并解释 ls，通常启动外部 ls 程序。关闭窗口不等于卸载 Bash 或关闭整个 Linux 系统。",
+      "check_task": {
+        "id": "check_shell",
+        "version": 1,
+        "rubric": [
+          "终端负责交互界面；Bash 读取并解释 ls，通常启动外部 ls 程序。关闭窗口不等于卸载 Bash 或关闭整个 Linux 系统。",
+          "说明理由，并区分题目给定条件与自己的假设。"
+        ],
+        "hint_levels": [
+          "先定位题目中涉及的对象、输入和预期结果。",
+          "注意这个常见误解：把终端窗口、Bash 和 Linux 当作同一概念。",
+          "回到概念：终端提供文字交互界面，Shell 负责读取命令、展开参数并调用程序。Bash 是一种 Shell；Linux 是操作系统内核，三者不是同一个对象。命令既可能是 Shell 内建，也可能是外部程序。",
+          "关键要点：终端负责交互界面；Bash 读取并解释 ls，通常启动外部 ls 程序。关闭窗口不等于卸载 Bash 或关闭整个 Linux 系统。"
+        ]
+      },
+      "lesson_content": [
+        {
+          "id": "concept",
+          "heading": "概念与边界",
+          "text": "终端提供文字交互界面，Shell 负责读取命令、展开参数并调用程序。Bash 是一种 Shell；Linux 是操作系统内核，三者不是同一个对象。命令既可能是 Shell 内建，也可能是外部程序。"
+        },
+        {
+          "id": "example",
+          "heading": "操作示例",
+          "text": "在 Bash 中输入 `type cd` 与 `type ls`，比较内建命令和外部程序的查询结果。若环境定义了别名，结果可能先显示别名。"
+        },
+        {
+          "id": "check",
+          "heading": "停下来检验",
+          "text": "关闭终端窗口和执行一条 ls 命令分别涉及什么角色？"
+        },
+        {
+          "id": "source",
+          "heading": "参考来源",
+          "text": "本节为自编中文教学材料，技术依据：[查看文档](https://www.gnu.org/software/bash/manual/html_node/What-is-a-shell_003f.html)。先修关系为本课教学设计，待教师核验。"
+        }
+      ],
+      "provenance": {
+        "kind": "agent_authored",
+        "policy_version": "authored-linux-command-v1",
+        "human_review": false
+      },
+      "evidence_refs": [
+        {
+          "source_id": "source_01",
+          "locator": "What is a shell_003f",
+          "lesson_section_id": "concept",
+          "interpretation": "自编解释；来源链接是技术核验入口，非逐字引文。"
+        }
+      ]
+    },
+    {
+      "id": "syntax",
+      "chapter_id": "shell",
+      "title": "命令参数",
+      "description": "简单命令通常由命令名和若干参数构成。选项改变行为，操作数指明处理对象。Shell 完成分词和展开后，把参数交给命令；不同命令的选项含义需要分别查证。",
+      "objectives": [
+        "解释命令参数的行为，并独立回答本节点情境题。"
+      ],
+      "aliases": [],
+      "misconception": "认为所有命令的 -r 都表示递归。",
+      "source_ids": [
+        "source_02"
+      ],
+      "review_status": "draft",
+      "check_question": "在 ls -l notes 中，哪一项是路径，哪一项控制显示方式？",
+      "expected_answer": "notes 是路径操作数，-l 控制长格式显示。-l 不是文件名，ls 不会因此改变 notes 的内容。",
+      "check_task": {
+        "id": "check_syntax",
+        "version": 1,
+        "rubric": [
+          "notes 是路径操作数，-l 控制长格式显示。-l 不是文件名，ls 不会因此改变 notes 的内容。",
+          "说明理由，并区分题目给定条件与自己的假设。"
+        ],
+        "hint_levels": [
+          "先定位题目中涉及的对象、输入和预期结果。",
+          "注意这个常见误解：认为所有命令的 -r 都表示递归。",
+          "回到概念：简单命令通常由命令名和若干参数构成。选项改变行为，操作数指明处理对象。Shell 完成分词和展开后，把参数交给命令；不同命令的选项含义需要分别查证。",
+          "关键要点：notes 是路径操作数，-l 控制长格式显示。-l 不是文件名，ls 不会因此改变 notes 的内容。"
+        ]
+      },
+      "lesson_content": [
+        {
+          "id": "concept",
+          "heading": "概念与边界",
+          "text": "简单命令通常由命令名和若干参数构成。选项改变行为，操作数指明处理对象。Shell 完成分词和展开后，把参数交给命令；不同命令的选项含义需要分别查证。"
+        },
+        {
+          "id": "example",
+          "heading": "操作示例",
+          "text": "`ls -l notes` 中，ls 是命令名，-l 是选项，notes 是操作数。GNU 命令常用 `--` 结束选项，如 `ls -- -report`。"
+        },
+        {
+          "id": "check",
+          "heading": "停下来检验",
+          "text": "在 ls -l notes 中，哪一项是路径，哪一项控制显示方式？"
+        },
+        {
+          "id": "source",
+          "heading": "参考来源",
+          "text": "本节为自编中文教学材料，技术依据：[查看文档](https://www.gnu.org/software/bash/manual/html_node/Simple-Commands.html)。先修关系为本课教学设计，待教师核验。"
+        }
+      ],
+      "provenance": {
+        "kind": "agent_authored",
+        "policy_version": "authored-linux-command-v1",
+        "human_review": false
+      },
+      "evidence_refs": [
+        {
+          "source_id": "source_02",
+          "locator": "Simple Commands",
+          "lesson_section_id": "concept",
+          "interpretation": "自编解释；来源链接是技术核验入口，非逐字引文。"
+        }
+      ]
+    },
+    {
+      "id": "help",
+      "chapter_id": "shell",
+      "title": "命令帮助检索",
+      "description": "遇到不熟悉的选项，应先查本机帮助。Bash 内建命令可用 help；外部程序常提供 --help，系统手册可用 man。帮助内容与当前安装版本相关，不能把某个命令的选项照搬给另一个。",
+      "objectives": [
+        "解释命令帮助检索的行为，并独立回答本节点情境题。"
+      ],
+      "aliases": [],
+      "misconception": "man cd 没有结果就认为 cd 不存在。",
+      "source_ids": [
+        "source_03"
+      ],
+      "review_status": "draft",
+      "check_question": "如何确认当前 Bash 的 cd 支持哪些选项？",
+      "expected_answer": "使用 help cd，必要时用 type cd 确认它是否为内建或被函数覆盖。不能仅凭是否存在独立 man 页面判断。",
+      "check_task": {
+        "id": "check_help",
+        "version": 1,
+        "rubric": [
+          "使用 help cd，必要时用 type cd 确认它是否为内建或被函数覆盖。不能仅凭是否存在独立 man 页面判断。",
+          "说明理由，并区分题目给定条件与自己的假设。"
+        ],
+        "hint_levels": [
+          "先定位题目中涉及的对象、输入和预期结果。",
+          "注意这个常见误解：man cd 没有结果就认为 cd 不存在。",
+          "回到概念：遇到不熟悉的选项，应先查本机帮助。Bash 内建命令可用 help；外部程序常提供 --help，系统手册可用 man。帮助内容与当前安装版本相关，不能把某个命令的选项照搬给另一个。",
+          "关键要点：使用 help cd，必要时用 type cd 确认它是否为内建或被函数覆盖。不能仅凭是否存在独立 man 页面判断。"
+        ]
+      },
+      "lesson_content": [
+        {
+          "id": "concept",
+          "heading": "概念与边界",
+          "text": "遇到不熟悉的选项，应先查本机帮助。Bash 内建命令可用 help；外部程序常提供 --help，系统手册可用 man。帮助内容与当前安装版本相关，不能把某个命令的选项照搬给另一个。"
+        },
+        {
+          "id": "example",
+          "heading": "操作示例",
+          "text": "`help cd` 查询 Bash 的 cd；`ls --help` 查询 GNU ls；安装了手册时用 `man ls`，按 q 退出。"
+        },
+        {
+          "id": "check",
+          "heading": "停下来检验",
+          "text": "如何确认当前 Bash 的 cd 支持哪些选项？"
+        },
+        {
+          "id": "source",
+          "heading": "参考来源",
+          "text": "本节为自编中文教学材料，技术依据：[查看文档](https://www.gnu.org/software/bash/manual/html_node/Bash-Builtins.html)。先修关系为本课教学设计，待教师核验。"
+        }
+      ],
+      "provenance": {
+        "kind": "agent_authored",
+        "policy_version": "authored-linux-command-v1",
+        "human_review": false
+      },
+      "evidence_refs": [
+        {
+          "source_id": "source_03",
+          "locator": "Bash Builtins",
+          "lesson_section_id": "concept",
+          "interpretation": "自编解释；来源链接是技术核验入口，非逐字引文。"
+        }
+      ]
+    },
+    {
+      "id": "quoting",
+      "chapter_id": "shell",
+      "title": "Shell 引号",
+      "description": "引号控制 Shell 对字符的解释。单引号基本保留字面内容；双引号保留参数展开等少数处理，同时保护空格。包含空格的路径通常应作为一个带引号的参数传递。",
+      "objectives": [
+        "解释Shell 引号的行为，并独立回答本节点情境题。"
+      ],
+      "aliases": [],
+      "misconception": "认为引号只是装饰，或单双引号的变量展开完全相同。",
+      "source_ids": [
+        "source_04"
+      ],
+      "review_status": "draft",
+      "check_question": "文件夹名为 my notes，应传几个参数给 ls？请写出命令。",
+      "expected_answer": "传入一个路径参数：ls 'my notes' 或 ls \"my notes\"。不加引号会被分为 my 与 notes 两个参数。",
+      "check_task": {
+        "id": "check_quoting",
+        "version": 1,
+        "rubric": [
+          "传入一个路径参数：ls 'my notes' 或 ls \"my notes\"。不加引号会被分为 my 与 notes 两个参数。",
+          "说明理由，并区分题目给定条件与自己的假设。"
+        ],
+        "hint_levels": [
+          "先定位题目中涉及的对象、输入和预期结果。",
+          "注意这个常见误解：认为引号只是装饰，或单双引号的变量展开完全相同。",
+          "回到概念：引号控制 Shell 对字符的解释。单引号基本保留字面内容；双引号保留参数展开等少数处理，同时保护空格。包含空格的路径通常应作为一个带引号的参数传递。",
+          "关键要点：传入一个路径参数：ls 'my notes' 或 ls \"my notes\"。不加引号会被分为 my 与 notes 两个参数。"
+        ]
+      },
+      "lesson_content": [
+        {
+          "id": "concept",
+          "heading": "概念与边界",
+          "text": "引号控制 Shell 对字符的解释。单引号基本保留字面内容；双引号保留参数展开等少数处理，同时保护空格。包含空格的路径通常应作为一个带引号的参数传递。"
+        },
+        {
+          "id": "example",
+          "heading": "操作示例",
+          "text": "`ls 'my notes'` 传入一个路径参数；`ls my notes` 传入两个。变量用 `printf '%s\\n' \"$HOME\"` 可在展开后保留为一个参数。"
+        },
+        {
+          "id": "check",
+          "heading": "停下来检验",
+          "text": "文件夹名为 my notes，应传几个参数给 ls？请写出命令。"
+        },
+        {
+          "id": "source",
+          "heading": "参考来源",
+          "text": "本节为自编中文教学材料，技术依据：[查看文档](https://www.gnu.org/software/bash/manual/html_node/Quoting.html)。先修关系为本课教学设计，待教师核验。"
+        }
+      ],
+      "provenance": {
+        "kind": "agent_authored",
+        "policy_version": "authored-linux-command-v1",
+        "human_review": false
+      },
+      "evidence_refs": [
+        {
+          "source_id": "source_04",
+          "locator": "Quoting",
+          "lesson_section_id": "concept",
+          "interpretation": "自编解释；来源链接是技术核验入口，非逐字引文。"
+        }
+      ]
+    },
+    {
+      "id": "cwd",
+      "chapter_id": "paths",
+      "title": "当前工作目录",
+      "description": "每个进程都有当前工作目录，相对路径从它开始解析。pwd 显示当前位置。执行 ls 只列出内容，不改变工作目录；不要根据终端上最后看到的目录名猜测当前位置。",
+      "objectives": [
+        "解释当前工作目录的行为，并独立回答本节点情境题。"
+      ],
+      "aliases": [],
+      "misconception": "列出某目录就等于进入该目录。",
+      "source_ids": [
+        "source_05"
+      ],
+      "review_status": "draft",
+      "check_question": "当前位于 /home/lin，执行 ls /tmp 后相对路径 notes 从哪里开始？",
+      "expected_answer": "仍从 /home/lin 开始，指向 /home/lin/notes。ls /tmp 没有改变工作目录。",
+      "check_task": {
+        "id": "check_cwd",
+        "version": 1,
+        "rubric": [
+          "仍从 /home/lin 开始，指向 /home/lin/notes。ls /tmp 没有改变工作目录。",
+          "说明理由，并区分题目给定条件与自己的假设。"
+        ],
+        "hint_levels": [
+          "先定位题目中涉及的对象、输入和预期结果。",
+          "注意这个常见误解：列出某目录就等于进入该目录。",
+          "回到概念：每个进程都有当前工作目录，相对路径从它开始解析。pwd 显示当前位置。执行 ls 只列出内容，不改变工作目录；不要根据终端上最后看到的目录名猜测当前位置。",
+          "关键要点：仍从 /home/lin 开始，指向 /home/lin/notes。ls /tmp 没有改变工作目录。"
+        ]
+      },
+      "lesson_content": [
+        {
+          "id": "concept",
+          "heading": "概念与边界",
+          "text": "每个进程都有当前工作目录，相对路径从它开始解析。pwd 显示当前位置。执行 ls 只列出内容，不改变工作目录；不要根据终端上最后看到的目录名猜测当前位置。"
+        },
+        {
+          "id": "example",
+          "heading": "操作示例",
+          "text": "先执行 `pwd`，再执行 `ls /tmp`，然后再次 `pwd`。两次位置应相同，除非中间另有改变目录的操作。"
+        },
+        {
+          "id": "check",
+          "heading": "停下来检验",
+          "text": "当前位于 /home/lin，执行 ls /tmp 后相对路径 notes 从哪里开始？"
+        },
+        {
+          "id": "source",
+          "heading": "参考来源",
+          "text": "本节为自编中文教学材料，技术依据：[查看文档](https://www.gnu.org/software/coreutils/manual/html_node/pwd-invocation.html)。先修关系为本课教学设计，待教师核验。"
+        }
+      ],
+      "provenance": {
+        "kind": "agent_authored",
+        "policy_version": "authored-linux-command-v1",
+        "human_review": false
+      },
+      "evidence_refs": [
+        {
+          "source_id": "source_05",
+          "locator": "pwd invocation",
+          "lesson_section_id": "concept",
+          "interpretation": "自编解释；来源链接是技术核验入口，非逐字引文。"
+        }
+      ]
+    },
+    {
+      "id": "absolute",
+      "chapter_id": "paths",
+      "title": "绝对路径",
+      "description": "在本课程的 Linux 文件系统中，以 / 开头的路径从根目录解析。绝对路径不依赖当前工作目录，但它指向的对象可能不存在，也可能因权限不足无法访问。",
+      "objectives": [
+        "解释绝对路径的行为，并独立回答本节点情境题。"
+      ],
+      "aliases": [],
+      "misconception": "以为绝对路径保证文件存在。",
+      "source_ids": [
+        "source_06"
+      ],
+      "review_status": "draft",
+      "check_question": "在 /tmp 中访问 /home/lin/notes，是相对路径还是绝对路径？",
+      "expected_answer": "是绝对路径，因为以 / 开头；对象是否存在、是否可访问还要另行检查。",
+      "check_task": {
+        "id": "check_absolute",
+        "version": 1,
+        "rubric": [
+          "是绝对路径，因为以 / 开头；对象是否存在、是否可访问还要另行检查。",
+          "说明理由，并区分题目给定条件与自己的假设。"
+        ],
+        "hint_levels": [
+          "先定位题目中涉及的对象、输入和预期结果。",
+          "注意这个常见误解：以为绝对路径保证文件存在。",
+          "回到概念：在本课程的 Linux 文件系统中，以 / 开头的路径从根目录解析。绝对路径不依赖当前工作目录，但它指向的对象可能不存在，也可能因权限不足无法访问。",
+          "关键要点：是绝对路径，因为以 / 开头；对象是否存在、是否可访问还要另行检查。"
+        ]
+      },
+      "lesson_content": [
+        {
+          "id": "concept",
+          "heading": "概念与边界",
+          "text": "在本课程的 Linux 文件系统中，以 / 开头的路径从根目录解析。绝对路径不依赖当前工作目录，但它指向的对象可能不存在，也可能因权限不足无法访问。"
+        },
+        {
+          "id": "example",
+          "heading": "操作示例",
+          "text": "`/home/lin/notes` 从根目录定位；无论当前在 /tmp 还是 /home/lin，路径的起点都相同。"
+        },
+        {
+          "id": "check",
+          "heading": "停下来检验",
+          "text": "在 /tmp 中访问 /home/lin/notes，是相对路径还是绝对路径？"
+        },
+        {
+          "id": "source",
+          "heading": "参考来源",
+          "text": "本节为自编中文教学材料，技术依据：[查看文档](https://swcarpentry.github.io/shell-novice/02-filedir.html)。先修关系为本课教学设计，待教师核验。"
+        }
+      ],
+      "provenance": {
+        "kind": "agent_authored",
+        "policy_version": "authored-linux-command-v1",
+        "human_review": false
+      },
+      "evidence_refs": [
+        {
+          "source_id": "source_06",
+          "locator": "Navigating Files and Directories / paths",
+          "lesson_section_id": "concept",
+          "interpretation": "自编解释；来源链接是技术核验入口，非逐字引文。"
+        }
+      ]
+    },
+    {
+      "id": "relative",
+      "chapter_id": "paths",
+      "title": "相对路径",
+      "description": "相对路径不以 / 开头，从当前工作目录解析。. 表示当前目录，.. 表示父目录。判断路径时应先确定当前位置，再逐段解析，而不是记住固定字符串。",
+      "objectives": [
+        "解释相对路径的行为，并独立回答本节点情境题。"
+      ],
+      "aliases": [],
+      "misconception": "把 ../data 和 ./data 当作同一个位置。",
+      "source_ids": [
+        "source_06"
+      ],
+      "review_status": "draft",
+      "check_question": "从 /home/lin/project 出发，../../tmp 对应哪个绝对路径？假定没有符号链接。",
+      "expected_answer": "先到 /home/lin，再到 /home，再进入 tmp，因此是 /home/tmp，而不是 /tmp。",
+      "check_task": {
+        "id": "check_relative",
+        "version": 1,
+        "rubric": [
+          "先到 /home/lin，再到 /home，再进入 tmp，因此是 /home/tmp，而不是 /tmp。",
+          "说明理由，并区分题目给定条件与自己的假设。"
+        ],
+        "hint_levels": [
+          "先定位题目中涉及的对象、输入和预期结果。",
+          "注意这个常见误解：把 ../data 和 ./data 当作同一个位置。",
+          "回到概念：相对路径不以 / 开头，从当前工作目录解析。. 表示当前目录，.. 表示父目录。判断路径时应先确定当前位置，再逐段解析，而不是记住固定字符串。",
+          "关键要点：先到 /home/lin，再到 /home，再进入 tmp，因此是 /home/tmp，而不是 /tmp。"
+        ]
+      },
+      "lesson_content": [
+        {
+          "id": "concept",
+          "heading": "概念与边界",
+          "text": "相对路径不以 / 开头，从当前工作目录解析。. 表示当前目录，.. 表示父目录。判断路径时应先确定当前位置，再逐段解析，而不是记住固定字符串。"
+        },
+        {
+          "id": "example",
+          "heading": "操作示例",
+          "text": "当前目录为 /home/lin/project，`../data` 指向 /home/lin/data；`./data` 指向 /home/lin/project/data。本例假定路径中没有符号链接。"
+        },
+        {
+          "id": "check",
+          "heading": "停下来检验",
+          "text": "从 /home/lin/project 出发，../../tmp 对应哪个绝对路径？假定没有符号链接。"
+        },
+        {
+          "id": "source",
+          "heading": "参考来源",
+          "text": "本节为自编中文教学材料，技术依据：[查看文档](https://swcarpentry.github.io/shell-novice/02-filedir.html)。先修关系为本课教学设计，待教师核验。"
+        }
+      ],
+      "provenance": {
+        "kind": "agent_authored",
+        "policy_version": "authored-linux-command-v1",
+        "human_review": false
+      },
+      "evidence_refs": [
+        {
+          "source_id": "source_06",
+          "locator": "Navigating Files and Directories / paths",
+          "lesson_section_id": "concept",
+          "interpretation": "自编解释；来源链接是技术核验入口，非逐字引文。"
+        }
+      ]
+    },
+    {
+      "id": "cd",
+      "chapter_id": "paths",
+      "title": "cd 切换目录",
+      "description": "cd 改变当前 Shell 的工作目录，后续相对路径随之改变。目标必须是可进入的目录。未给参数时通常进入 HOME；cd .. 进入父目录。子进程的 cd 不会修改父 Shell 的位置。",
+      "objectives": [
+        "解释cd 切换目录的行为，并独立回答本节点情境题。"
+      ],
+      "aliases": [],
+      "misconception": "以为单独运行脚本中的 cd 能永久改变调用者目录。",
+      "source_ids": [
+        "source_07"
+      ],
+      "review_status": "draft",
+      "check_question": "为什么 bash change-dir.sh 内的 cd /tmp 不会改变外层 Shell 的目录？",
+      "expected_answer": "脚本运行在另一个 Bash 进程中，改变的是该进程的工作目录；父 Shell 的工作目录不受影响。",
+      "check_task": {
+        "id": "check_cd",
+        "version": 1,
+        "rubric": [
+          "脚本运行在另一个 Bash 进程中，改变的是该进程的工作目录；父 Shell 的工作目录不受影响。",
+          "说明理由，并区分题目给定条件与自己的假设。"
+        ],
+        "hint_levels": [
+          "先定位题目中涉及的对象、输入和预期结果。",
+          "注意这个常见误解：以为单独运行脚本中的 cd 能永久改变调用者目录。",
+          "回到概念：cd 改变当前 Shell 的工作目录，后续相对路径随之改变。目标必须是可进入的目录。未给参数时通常进入 HOME；cd .. 进入父目录。子进程的 cd 不会修改父 Shell 的位置。",
+          "关键要点：脚本运行在另一个 Bash 进程中，改变的是该进程的工作目录；父 Shell 的工作目录不受影响。"
+        ]
+      },
+      "lesson_content": [
+        {
+          "id": "concept",
+          "heading": "概念与边界",
+          "text": "cd 改变当前 Shell 的工作目录，后续相对路径随之改变。目标必须是可进入的目录。未给参数时通常进入 HOME；cd .. 进入父目录。子进程的 cd 不会修改父 Shell 的位置。"
+        },
+        {
+          "id": "example",
+          "heading": "操作示例",
+          "text": "`cd /tmp` 后用 `pwd` 核对。脚本内部执行 cd，只影响脚本进程及其子进程，不会把调用它的交互 Shell 带过去。"
+        },
+        {
+          "id": "check",
+          "heading": "停下来检验",
+          "text": "为什么 bash change-dir.sh 内的 cd /tmp 不会改变外层 Shell 的目录？"
+        },
+        {
+          "id": "source",
+          "heading": "参考来源",
+          "text": "本节为自编中文教学材料，技术依据：[查看文档](https://www.gnu.org/software/bash/manual/html_node/Bourne-Shell-Builtins.html)。先修关系为本课教学设计，待教师核验。"
+        }
+      ],
+      "provenance": {
+        "kind": "agent_authored",
+        "policy_version": "authored-linux-command-v1",
+        "human_review": false
+      },
+      "evidence_refs": [
+        {
+          "source_id": "source_07",
+          "locator": "Bourne Shell Builtins",
+          "lesson_section_id": "concept",
+          "interpretation": "自编解释；来源链接是技术核验入口，非逐字引文。"
+        }
+      ]
+    },
+    {
+      "id": "ls",
+      "chapter_id": "paths",
+      "title": "ls 列出目录项",
+      "description": "ls 查看文件名或目录内容。-l 使用长格式，-a 包括点开头的隐藏名称，-d 显示目录自身。ls 的输出格式面向阅读，脚本处理任意文件名时不应靠拆分 ls 输出。",
+      "objectives": [
+        "解释ls 列出目录项的行为，并独立回答本节点情境题。"
+      ],
+      "aliases": [],
+      "misconception": "ls 看不到文件就断定目录为空。",
+      "source_ids": [
+        "source_08"
+      ],
+      "review_status": "draft",
+      "check_question": "检查当前目录自身的权限应使用 ls -l . 还是 ls -ld .？",
+      "expected_answer": "使用 ls -ld .。-d 阻止展开为目录内容，-l 显示该目录项的长格式信息。",
+      "check_task": {
+        "id": "check_ls",
+        "version": 1,
+        "rubric": [
+          "使用 ls -ld .。-d 阻止展开为目录内容，-l 显示该目录项的长格式信息。",
+          "说明理由，并区分题目给定条件与自己的假设。"
+        ],
+        "hint_levels": [
+          "先定位题目中涉及的对象、输入和预期结果。",
+          "注意这个常见误解：ls 看不到文件就断定目录为空。",
+          "回到概念：ls 查看文件名或目录内容。-l 使用长格式，-a 包括点开头的隐藏名称，-d 显示目录自身。ls 的输出格式面向阅读，脚本处理任意文件名时不应靠拆分 ls 输出。",
+          "关键要点：使用 ls -ld .。-d 阻止展开为目录内容，-l 显示该目录项的长格式信息。"
+        ]
+      },
+      "lesson_content": [
+        {
+          "id": "concept",
+          "heading": "概念与边界",
+          "text": "ls 查看文件名或目录内容。-l 使用长格式，-a 包括点开头的隐藏名称，-d 显示目录自身。ls 的输出格式面向阅读，脚本处理任意文件名时不应靠拆分 ls 输出。"
+        },
+        {
+          "id": "example",
+          "heading": "操作示例",
+          "text": "比较 `ls -l .` 与 `ls -ld .`：前者列出目录内容，后者显示当前目录自身。"
+        },
+        {
+          "id": "check",
+          "heading": "停下来检验",
+          "text": "检查当前目录自身的权限应使用 ls -l . 还是 ls -ld .？"
+        },
+        {
+          "id": "source",
+          "heading": "参考来源",
+          "text": "本节为自编中文教学材料，技术依据：[查看文档](https://www.gnu.org/software/coreutils/manual/html_node/ls-invocation.html)。先修关系为本课教学设计，待教师核验。"
+        }
+      ],
+      "provenance": {
+        "kind": "agent_authored",
+        "policy_version": "authored-linux-command-v1",
+        "human_review": false
+      },
+      "evidence_refs": [
+        {
+          "source_id": "source_08",
+          "locator": "ls invocation",
+          "lesson_section_id": "concept",
+          "interpretation": "自编解释；来源链接是技术核验入口，非逐字引文。"
+        }
+      ]
+    },
+    {
+      "id": "mkdir",
+      "chapter_id": "files",
+      "title": "mkdir 创建目录",
+      "description": "mkdir 创建目录；默认要求父目录已经存在。-p 可以补建缺少的父目录，已有目录通常不会导致失败。创建目录不等于改变当前位置。",
+      "objectives": [
+        "解释mkdir 创建目录的行为，并独立回答本节点情境题。"
+      ],
+      "aliases": [],
+      "misconception": "认为 mkdir 会自动进入新目录。",
+      "source_ids": [
+        "source_09"
+      ],
+      "review_status": "draft",
+      "check_question": "父目录 project 尚不存在，如何一次创建 project/data？",
+      "expected_answer": "使用 mkdir -p project/data。创建后当前工作目录不变，如需进入还应执行 cd。",
+      "check_task": {
+        "id": "check_mkdir",
+        "version": 1,
+        "rubric": [
+          "使用 mkdir -p project/data。创建后当前工作目录不变，如需进入还应执行 cd。",
+          "说明理由，并区分题目给定条件与自己的假设。"
+        ],
+        "hint_levels": [
+          "先定位题目中涉及的对象、输入和预期结果。",
+          "注意这个常见误解：认为 mkdir 会自动进入新目录。",
+          "回到概念：mkdir 创建目录；默认要求父目录已经存在。-p 可以补建缺少的父目录，已有目录通常不会导致失败。创建目录不等于改变当前位置。",
+          "关键要点：使用 mkdir -p project/data。创建后当前工作目录不变，如需进入还应执行 cd。"
+        ]
+      },
+      "lesson_content": [
+        {
+          "id": "concept",
+          "heading": "概念与边界",
+          "text": "mkdir 创建目录；默认要求父目录已经存在。-p 可以补建缺少的父目录，已有目录通常不会导致失败。创建目录不等于改变当前位置。"
+        },
+        {
+          "id": "example",
+          "heading": "操作示例",
+          "text": "在专用练习目录中运行 `mkdir -p project/data`，随后用 `ls -ld project/data` 核对。"
+        },
+        {
+          "id": "check",
+          "heading": "停下来检验",
+          "text": "父目录 project 尚不存在，如何一次创建 project/data？"
+        },
+        {
+          "id": "source",
+          "heading": "参考来源",
+          "text": "本节为自编中文教学材料，技术依据：[查看文档](https://www.gnu.org/software/coreutils/manual/html_node/mkdir-invocation.html)。先修关系为本课教学设计，待教师核验。"
+        }
+      ],
+      "provenance": {
+        "kind": "agent_authored",
+        "policy_version": "authored-linux-command-v1",
+        "human_review": false
+      },
+      "evidence_refs": [
+        {
+          "source_id": "source_09",
+          "locator": "mkdir invocation",
+          "lesson_section_id": "concept",
+          "interpretation": "自编解释；来源链接是技术核验入口，非逐字引文。"
+        }
+      ]
+    },
+    {
+      "id": "cp",
+      "chapter_id": "files",
+      "title": "cp 复制文件",
+      "description": "cp 把源内容复制到目标，源文件通常保留。目标是已有目录时，文件复制到该目录内；目标是文件路径时，可能覆盖它。复制目录通常需要递归选项。",
+      "objectives": [
+        "解释cp 复制文件的行为，并独立回答本节点情境题。"
+      ],
+      "aliases": [],
+      "misconception": "把复制当成移动，或者忽略目标已存在时的覆盖。",
+      "source_ids": [
+        "source_10"
+      ],
+      "review_status": "draft",
+      "check_question": "cp notes.txt backup/ 成功后，原 notes.txt 是否还在？",
+      "expected_answer": "通常仍在；复制在 backup 中生成副本，并未删除源文件。目标原有同名文件可能被覆盖。",
+      "check_task": {
+        "id": "check_cp",
+        "version": 1,
+        "rubric": [
+          "通常仍在；复制在 backup 中生成副本，并未删除源文件。目标原有同名文件可能被覆盖。",
+          "说明理由，并区分题目给定条件与自己的假设。"
+        ],
+        "hint_levels": [
+          "先定位题目中涉及的对象、输入和预期结果。",
+          "注意这个常见误解：把复制当成移动，或者忽略目标已存在时的覆盖。",
+          "回到概念：cp 把源内容复制到目标，源文件通常保留。目标是已有目录时，文件复制到该目录内；目标是文件路径时，可能覆盖它。复制目录通常需要递归选项。",
+          "关键要点：通常仍在；复制在 backup 中生成副本，并未删除源文件。目标原有同名文件可能被覆盖。"
+        ]
+      },
+      "lesson_content": [
+        {
+          "id": "concept",
+          "heading": "概念与边界",
+          "text": "cp 把源内容复制到目标，源文件通常保留。目标是已有目录时，文件复制到该目录内；目标是文件路径时，可能覆盖它。复制目录通常需要递归选项。"
+        },
+        {
+          "id": "example",
+          "heading": "操作示例",
+          "text": "在练习目录已有 notes.txt 和 backup/ 时，`cp -i notes.txt backup/` 创建或替换 backup/notes.txt；-i 在覆盖前询问。"
+        },
+        {
+          "id": "check",
+          "heading": "停下来检验",
+          "text": "cp notes.txt backup/ 成功后，原 notes.txt 是否还在？"
+        },
+        {
+          "id": "source",
+          "heading": "参考来源",
+          "text": "本节为自编中文教学材料，技术依据：[查看文档](https://www.gnu.org/software/coreutils/manual/html_node/cp-invocation.html)。先修关系为本课教学设计，待教师核验。"
+        }
+      ],
+      "provenance": {
+        "kind": "agent_authored",
+        "policy_version": "authored-linux-command-v1",
+        "human_review": false
+      },
+      "evidence_refs": [
+        {
+          "source_id": "source_10",
+          "locator": "cp invocation",
+          "lesson_section_id": "concept",
+          "interpretation": "自编解释；来源链接是技术核验入口，非逐字引文。"
+        }
+      ]
+    },
+    {
+      "id": "mv",
+      "chapter_id": "files",
+      "title": "mv 移动与重命名",
+      "description": "mv 用于移动或重命名目录项。目标为已有目录时放入该目录；目标为新路径时改用该名称。成功移动后原路径通常不再指向原对象，已有目标还可能被覆盖。",
+      "objectives": [
+        "解释mv 移动与重命名的行为，并独立回答本节点情境题。"
+      ],
+      "aliases": [],
+      "misconception": "把 mv 当成会保留原件的 cp。",
+      "source_ids": [
+        "source_11"
+      ],
+      "review_status": "draft",
+      "check_question": "将 draft.txt 改名为 final.txt 后，应在哪个路径找它？",
+      "expected_answer": "成功重命名后在 final.txt 找到它，draft.txt 原名称消失；这不是额外生成一份副本。",
+      "check_task": {
+        "id": "check_mv",
+        "version": 1,
+        "rubric": [
+          "成功重命名后在 final.txt 找到它，draft.txt 原名称消失；这不是额外生成一份副本。",
+          "说明理由，并区分题目给定条件与自己的假设。"
+        ],
+        "hint_levels": [
+          "先定位题目中涉及的对象、输入和预期结果。",
+          "注意这个常见误解：把 mv 当成会保留原件的 cp。",
+          "回到概念：mv 用于移动或重命名目录项。目标为已有目录时放入该目录；目标为新路径时改用该名称。成功移动后原路径通常不再指向原对象，已有目标还可能被覆盖。",
+          "关键要点：成功重命名后在 final.txt 找到它，draft.txt 原名称消失；这不是额外生成一份副本。"
+        ]
+      },
+      "lesson_content": [
+        {
+          "id": "concept",
+          "heading": "概念与边界",
+          "text": "mv 用于移动或重命名目录项。目标为已有目录时放入该目录；目标为新路径时改用该名称。成功移动后原路径通常不再指向原对象，已有目标还可能被覆盖。"
+        },
+        {
+          "id": "example",
+          "heading": "操作示例",
+          "text": "在练习目录执行 `mv -i draft.txt final.txt`，观察原名称与新名称。跨文件系统的移动实现可能涉及复制后删除。"
+        },
+        {
+          "id": "check",
+          "heading": "停下来检验",
+          "text": "将 draft.txt 改名为 final.txt 后，应在哪个路径找它？"
+        },
+        {
+          "id": "source",
+          "heading": "参考来源",
+          "text": "本节为自编中文教学材料，技术依据：[查看文档](https://www.gnu.org/software/coreutils/manual/html_node/mv-invocation.html)。先修关系为本课教学设计，待教师核验。"
+        }
+      ],
+      "provenance": {
+        "kind": "agent_authored",
+        "policy_version": "authored-linux-command-v1",
+        "human_review": false
+      },
+      "evidence_refs": [
+        {
+          "source_id": "source_11",
+          "locator": "mv invocation",
+          "lesson_section_id": "concept",
+          "interpretation": "自编解释；来源链接是技术核验入口，非逐字引文。"
+        }
+      ]
+    },
+    {
+      "id": "rm",
+      "chapter_id": "files",
+      "title": "rm 删除目录项",
+      "description": "rm 删除指定文件名，通常不经过桌面回收站。删除目录需要递归等选项；本课只在专用练习目录删除明确命名的样本。先核对路径，再删除；不要把未知通配符直接交给 rm。",
+      "objectives": [
+        "解释rm 删除目录项的行为，并独立回答本节点情境题。"
+      ],
+      "aliases": [],
+      "misconception": "以为 rm 一定可从回收站恢复。",
+      "source_ids": [
+        "source_12"
+      ],
+      "review_status": "draft",
+      "check_question": "删除练习目录内 scratch.txt 前，应核对哪些信息？",
+      "expected_answer": "核对 pwd、明确的相对或绝对路径及文件内容确为可丢弃样本；rm -i 只增加确认，不提供回收站恢复保证。",
+      "check_task": {
+        "id": "check_rm",
+        "version": 1,
+        "rubric": [
+          "核对 pwd、明确的相对或绝对路径及文件内容确为可丢弃样本；rm -i 只增加确认，不提供回收站恢复保证。",
+          "说明理由，并区分题目给定条件与自己的假设。"
+        ],
+        "hint_levels": [
+          "先定位题目中涉及的对象、输入和预期结果。",
+          "注意这个常见误解：以为 rm 一定可从回收站恢复。",
+          "回到概念：rm 删除指定文件名，通常不经过桌面回收站。删除目录需要递归等选项；本课只在专用练习目录删除明确命名的样本。先核对路径，再删除；不要把未知通配符直接交给 rm。",
+          "关键要点：核对 pwd、明确的相对或绝对路径及文件内容确为可丢弃样本；rm -i 只增加确认，不提供回收站恢复保证。"
+        ]
+      },
+      "lesson_content": [
+        {
+          "id": "concept",
+          "heading": "概念与边界",
+          "text": "rm 删除指定文件名，通常不经过桌面回收站。删除目录需要递归等选项；本课只在专用练习目录删除明确命名的样本。先核对路径，再删除；不要把未知通配符直接交给 rm。"
+        },
+        {
+          "id": "example",
+          "heading": "操作示例",
+          "text": "先用 `ls -- ./scratch.txt` 确认样本，再执行 `rm -i -- ./scratch.txt`。这是真实删除，仅对可丢弃样本操作。"
+        },
+        {
+          "id": "check",
+          "heading": "停下来检验",
+          "text": "删除练习目录内 scratch.txt 前，应核对哪些信息？"
+        },
+        {
+          "id": "source",
+          "heading": "参考来源",
+          "text": "本节为自编中文教学材料，技术依据：[查看文档](https://www.gnu.org/software/coreutils/manual/html_node/rm-invocation.html)。先修关系为本课教学设计，待教师核验。"
+        }
+      ],
+      "provenance": {
+        "kind": "agent_authored",
+        "policy_version": "authored-linux-command-v1",
+        "human_review": false
+      },
+      "evidence_refs": [
+        {
+          "source_id": "source_12",
+          "locator": "rm invocation",
+          "lesson_section_id": "concept",
+          "interpretation": "自编解释；来源链接是技术核验入口，非逐字引文。"
+        }
+      ]
+    },
+    {
+      "id": "symlink",
+      "chapter_id": "files",
+      "title": "符号链接",
+      "description": "符号链接保存指向目标的路径。访问链接通常会继续解析目标；目标被移走后可能形成悬空链接。相对链接目标按链接所在目录解析，而不是按访问者的当前目录解析。",
+      "objectives": [
+        "解释符号链接的行为，并独立回答本节点情境题。"
+      ],
+      "aliases": [],
+      "misconception": "把链接当成独立内容副本。",
+      "source_ids": [
+        "source_13"
+      ],
+      "review_status": "draft",
+      "check_question": "把 notes.txt 移到别处后，指向它的符号链接一定还能读取内容吗？",
+      "expected_answer": "不一定；原目标路径不存在时链接会悬空。符号链接保存的是路径，不是文件内容副本。",
+      "check_task": {
+        "id": "check_symlink",
+        "version": 1,
+        "rubric": [
+          "不一定；原目标路径不存在时链接会悬空。符号链接保存的是路径，不是文件内容副本。",
+          "说明理由，并区分题目给定条件与自己的假设。"
+        ],
+        "hint_levels": [
+          "先定位题目中涉及的对象、输入和预期结果。",
+          "注意这个常见误解：把链接当成独立内容副本。",
+          "回到概念：符号链接保存指向目标的路径。访问链接通常会继续解析目标；目标被移走后可能形成悬空链接。相对链接目标按链接所在目录解析，而不是按访问者的当前目录解析。",
+          "关键要点：不一定；原目标路径不存在时链接会悬空。符号链接保存的是路径，不是文件内容副本。"
+        ]
+      },
+      "lesson_content": [
+        {
+          "id": "concept",
+          "heading": "概念与边界",
+          "text": "符号链接保存指向目标的路径。访问链接通常会继续解析目标；目标被移走后可能形成悬空链接。相对链接目标按链接所在目录解析，而不是按访问者的当前目录解析。"
+        },
+        {
+          "id": "example",
+          "heading": "操作示例",
+          "text": "在练习目录中用 `ln -s notes.txt latest` 建立链接。删除 latest 这个链接名不会直接删除 notes.txt。"
+        },
+        {
+          "id": "check",
+          "heading": "停下来检验",
+          "text": "把 notes.txt 移到别处后，指向它的符号链接一定还能读取内容吗？"
+        },
+        {
+          "id": "source",
+          "heading": "参考来源",
+          "text": "本节为自编中文教学材料，技术依据：[查看文档](https://www.gnu.org/software/coreutils/manual/html_node/ln-invocation.html)。先修关系为本课教学设计，待教师核验。"
+        }
+      ],
+      "provenance": {
+        "kind": "agent_authored",
+        "policy_version": "authored-linux-command-v1",
+        "human_review": false
+      },
+      "evidence_refs": [
+        {
+          "source_id": "source_13",
+          "locator": "ln invocation",
+          "lesson_section_id": "concept",
+          "interpretation": "自编解释；来源链接是技术核验入口，非逐字引文。"
+        }
+      ]
+    },
+    {
+      "id": "tar",
+      "chapter_id": "files",
+      "title": "tar 归档",
+      "description": "归档把多个文件及相关元数据组织进一个包，压缩是另一项操作。GNU tar 的 -c 创建归档，-t 列出归档内容，-x 解包，-f 指定归档文件。解包前应先检查内容。",
+      "objectives": [
+        "解释tar 归档的行为，并独立回答本节点情境题。"
+      ],
+      "aliases": [],
+      "misconception": "把所有 .tar 文件都当成压缩文件。",
+      "source_ids": [
+        "source_14"
+      ],
+      "review_status": "draft",
+      "check_question": "tar -cf notes.tar notes 一定会压缩内容吗？如何先查看包里有哪些文件？",
+      "expected_answer": "不一定，此命令只归档；用 tar -tf notes.tar 查看成员，再决定是否在隔离目录解包。",
+      "check_task": {
+        "id": "check_tar",
+        "version": 1,
+        "rubric": [
+          "不一定，此命令只归档；用 tar -tf notes.tar 查看成员，再决定是否在隔离目录解包。",
+          "说明理由，并区分题目给定条件与自己的假设。"
+        ],
+        "hint_levels": [
+          "先定位题目中涉及的对象、输入和预期结果。",
+          "注意这个常见误解：把所有 .tar 文件都当成压缩文件。",
+          "回到概念：归档把多个文件及相关元数据组织进一个包，压缩是另一项操作。GNU tar 的 -c 创建归档，-t 列出归档内容，-x 解包，-f 指定归档文件。解包前应先检查内容。",
+          "关键要点：不一定，此命令只归档；用 tar -tf notes.tar 查看成员，再决定是否在隔离目录解包。"
+        ]
+      },
+      "lesson_content": [
+        {
+          "id": "concept",
+          "heading": "概念与边界",
+          "text": "归档把多个文件及相关元数据组织进一个包，压缩是另一项操作。GNU tar 的 -c 创建归档，-t 列出归档内容，-x 解包，-f 指定归档文件。解包前应先检查内容。"
+        },
+        {
+          "id": "example",
+          "heading": "操作示例",
+          "text": "在练习目录用 `tar -cf notes.tar notes` 打包 notes/；用 `tar -tf notes.tar` 查看内容。此处未开启 gzip 压缩。"
+        },
+        {
+          "id": "check",
+          "heading": "停下来检验",
+          "text": "tar -cf notes.tar notes 一定会压缩内容吗？如何先查看包里有哪些文件？"
+        },
+        {
+          "id": "source",
+          "heading": "参考来源",
+          "text": "本节为自编中文教学材料，技术依据：[查看文档](https://www.gnu.org/software/tar/manual/html_node/Basic-tar.html)。先修关系为本课教学设计，待教师核验。"
+        }
+      ],
+      "provenance": {
+        "kind": "agent_authored",
+        "policy_version": "authored-linux-command-v1",
+        "human_review": false
+      },
+      "evidence_refs": [
+        {
+          "source_id": "source_14",
+          "locator": "Basic tar",
+          "lesson_section_id": "concept",
+          "interpretation": "自编解释；来源链接是技术核验入口，非逐字引文。"
+        }
+      ]
+    },
+    {
+      "id": "cat",
+      "chapter_id": "search",
+      "title": "cat 输出文件内容",
+      "description": "cat 顺序读取文件并写到标准输出，可用于查看较短文本或连接多个文件。它本身不编辑源文件。大文件或二进制文件不适合直接全部输出到终端。",
+      "objectives": [
+        "解释cat 输出文件内容的行为，并独立回答本节点情境题。"
+      ],
+      "aliases": [],
+      "misconception": "以为 cat 会自动修改或合并源文件。",
+      "source_ids": [
+        "source_15"
+      ],
+      "review_status": "draft",
+      "check_question": "cat first.txt second.txt 是否会把第二个文件写进第一个文件？",
+      "expected_answer": "不会；它把两份内容顺序写到标准输出，源文件不因此改变。保存到新文件需要另行重定向。",
+      "check_task": {
+        "id": "check_cat",
+        "version": 1,
+        "rubric": [
+          "不会；它把两份内容顺序写到标准输出，源文件不因此改变。保存到新文件需要另行重定向。",
+          "说明理由，并区分题目给定条件与自己的假设。"
+        ],
+        "hint_levels": [
+          "先定位题目中涉及的对象、输入和预期结果。",
+          "注意这个常见误解：以为 cat 会自动修改或合并源文件。",
+          "回到概念：cat 顺序读取文件并写到标准输出，可用于查看较短文本或连接多个文件。它本身不编辑源文件。大文件或二进制文件不适合直接全部输出到终端。",
+          "关键要点：不会；它把两份内容顺序写到标准输出，源文件不因此改变。保存到新文件需要另行重定向。"
+        ]
+      },
+      "lesson_content": [
+        {
+          "id": "concept",
+          "heading": "概念与边界",
+          "text": "cat 顺序读取文件并写到标准输出，可用于查看较短文本或连接多个文件。它本身不编辑源文件。大文件或二进制文件不适合直接全部输出到终端。"
+        },
+        {
+          "id": "example",
+          "heading": "操作示例",
+          "text": "`cat first.txt second.txt` 按参数顺序输出两份内容，默认不会自动在文件之间添加分隔标题。"
+        },
+        {
+          "id": "check",
+          "heading": "停下来检验",
+          "text": "cat first.txt second.txt 是否会把第二个文件写进第一个文件？"
+        },
+        {
+          "id": "source",
+          "heading": "参考来源",
+          "text": "本节为自编中文教学材料，技术依据：[查看文档](https://www.gnu.org/software/coreutils/manual/html_node/cat-invocation.html)。先修关系为本课教学设计，待教师核验。"
+        }
+      ],
+      "provenance": {
+        "kind": "agent_authored",
+        "policy_version": "authored-linux-command-v1",
+        "human_review": false
+      },
+      "evidence_refs": [
+        {
+          "source_id": "source_15",
+          "locator": "cat invocation",
+          "lesson_section_id": "concept",
+          "interpretation": "自编解释；来源链接是技术核验入口，非逐字引文。"
+        }
+      ]
+    },
+    {
+      "id": "grep",
+      "chapter_id": "search",
+      "title": "grep 文本筛选",
+      "description": "grep 筛选与模式匹配的文本行。-F 按固定字符串匹配，-n 显示行号，-i 忽略大小写。搜索内容与搜索文件名是两种任务；本课先用 -F 避免把标点误作正则。",
+      "objectives": [
+        "解释grep 文本筛选的行为，并独立回答本节点情境题。"
+      ],
+      "aliases": [],
+      "misconception": "把 grep 的模式当成 Shell 文件名通配符。",
+      "source_ids": [
+        "source_16"
+      ],
+      "review_status": "draft",
+      "check_question": "查找 app.log 中包含字面字符串 a.b 的行，怎样避免点号表示任意字符？",
+      "expected_answer": "使用 grep -F 'a.b' app.log；-F 把模式作为固定字符串，点号保持字面含义。",
+      "check_task": {
+        "id": "check_grep",
+        "version": 1,
+        "rubric": [
+          "使用 grep -F 'a.b' app.log；-F 把模式作为固定字符串，点号保持字面含义。",
+          "说明理由，并区分题目给定条件与自己的假设。"
+        ],
+        "hint_levels": [
+          "先定位题目中涉及的对象、输入和预期结果。",
+          "注意这个常见误解：把 grep 的模式当成 Shell 文件名通配符。",
+          "回到概念：grep 筛选与模式匹配的文本行。-F 按固定字符串匹配，-n 显示行号，-i 忽略大小写。搜索内容与搜索文件名是两种任务；本课先用 -F 避免把标点误作正则。",
+          "关键要点：使用 grep -F 'a.b' app.log；-F 把模式作为固定字符串，点号保持字面含义。"
+        ]
+      },
+      "lesson_content": [
+        {
+          "id": "concept",
+          "heading": "概念与边界",
+          "text": "grep 筛选与模式匹配的文本行。-F 按固定字符串匹配，-n 显示行号，-i 忽略大小写。搜索内容与搜索文件名是两种任务；本课先用 -F 避免把标点误作正则。"
+        },
+        {
+          "id": "example",
+          "heading": "操作示例",
+          "text": "`grep -nF 'ERROR' app.log` 显示包含 ERROR 的行及行号。它不是查找文件名中含 ERROR 的文件。"
+        },
+        {
+          "id": "check",
+          "heading": "停下来检验",
+          "text": "查找 app.log 中包含字面字符串 a.b 的行，怎样避免点号表示任意字符？"
+        },
+        {
+          "id": "source",
+          "heading": "参考来源",
+          "text": "本节为自编中文教学材料，技术依据：[查看文档](https://www.gnu.org/software/grep/manual/html_node/Matching-Control.html)。先修关系为本课教学设计，待教师核验。"
+        }
+      ],
+      "provenance": {
+        "kind": "agent_authored",
+        "policy_version": "authored-linux-command-v1",
+        "human_review": false
+      },
+      "evidence_refs": [
+        {
+          "source_id": "source_16",
+          "locator": "Matching Control",
+          "lesson_section_id": "concept",
+          "interpretation": "自编解释；来源链接是技术核验入口，非逐字引文。"
+        }
+      ]
+    },
+    {
+      "id": "find",
+      "chapter_id": "search",
+      "title": "find 文件查找",
+      "description": "find 从给定起点遍历文件树，再按名称、类型等条件筛选。-name 的模式应加引号，交由 find 对每个名称匹配。只查文件可结合 -type f。",
+      "objectives": [
+        "解释find 文件查找的行为，并独立回答本节点情境题。"
+      ],
+      "aliases": [],
+      "misconception": "以为 find 在文件内容中搜索单词。",
+      "source_ids": [
+        "source_17"
+      ],
+      "review_status": "draft",
+      "check_question": "为什么 find . -name '*.txt' 中的星号通常要加引号？",
+      "expected_answer": "让模式原样传给 find，而不是先由 Shell 展开为当前目录中若干文件名；find 才能在遍历时对每个名称匹配。",
+      "check_task": {
+        "id": "check_find",
+        "version": 1,
+        "rubric": [
+          "让模式原样传给 find，而不是先由 Shell 展开为当前目录中若干文件名；find 才能在遍历时对每个名称匹配。",
+          "说明理由，并区分题目给定条件与自己的假设。"
+        ],
+        "hint_levels": [
+          "先定位题目中涉及的对象、输入和预期结果。",
+          "注意这个常见误解：以为 find 在文件内容中搜索单词。",
+          "回到概念：find 从给定起点遍历文件树，再按名称、类型等条件筛选。-name 的模式应加引号，交由 find 对每个名称匹配。只查文件可结合 -type f。",
+          "关键要点：让模式原样传给 find，而不是先由 Shell 展开为当前目录中若干文件名；find 才能在遍历时对每个名称匹配。"
+        ]
+      },
+      "lesson_content": [
+        {
+          "id": "concept",
+          "heading": "概念与边界",
+          "text": "find 从给定起点遍历文件树，再按名称、类型等条件筛选。-name 的模式应加引号，交由 find 对每个名称匹配。只查文件可结合 -type f。"
+        },
+        {
+          "id": "example",
+          "heading": "操作示例",
+          "text": "`find . -type f -name '*.log'` 从当前目录向下查找普通日志文件。引号防止当前 Shell 提前展开 *.log。"
+        },
+        {
+          "id": "check",
+          "heading": "停下来检验",
+          "text": "为什么 find . -name '*.txt' 中的星号通常要加引号？"
+        },
+        {
+          "id": "source",
+          "heading": "参考来源",
+          "text": "本节为自编中文教学材料，技术依据：[查看文档](https://www.gnu.org/software/findutils/manual/html_node/find_html/Name.html)。先修关系为本课教学设计，待教师核验。"
+        }
+      ],
+      "provenance": {
+        "kind": "agent_authored",
+        "policy_version": "authored-linux-command-v1",
+        "human_review": false
+      },
+      "evidence_refs": [
+        {
+          "source_id": "source_17",
+          "locator": "Name",
+          "lesson_section_id": "concept",
+          "interpretation": "自编解释；来源链接是技术核验入口，非逐字引文。"
+        }
+      ]
+    },
+    {
+      "id": "glob",
+      "chapter_id": "search",
+      "title": "文件名通配展开",
+      "description": "Bash 可把未引用的文件名模式展开为匹配路径。* 匹配任意长度，? 匹配单个字符。默认设置下点开头名称通常不被 * 匹配；无匹配时的行为还受 Shell 选项影响。",
+      "objectives": [
+        "解释文件名通配展开的行为，并独立回答本节点情境题。"
+      ],
+      "aliases": [],
+      "misconception": "把文件名通配符等同于 grep 正则。",
+      "source_ids": [
+        "source_18"
+      ],
+      "review_status": "draft",
+      "check_question": "文件 a.log 与 b.log 存在时，带引号的 '*.log' 会被 Bash 展开吗？",
+      "expected_answer": "不会。单引号保留字面字符串 *.log；未引用的模式才按当前 Shell 的文件名展开规则处理。",
+      "check_task": {
+        "id": "check_glob",
+        "version": 1,
+        "rubric": [
+          "不会。单引号保留字面字符串 *.log；未引用的模式才按当前 Shell 的文件名展开规则处理。",
+          "说明理由，并区分题目给定条件与自己的假设。"
+        ],
+        "hint_levels": [
+          "先定位题目中涉及的对象、输入和预期结果。",
+          "注意这个常见误解：把文件名通配符等同于 grep 正则。",
+          "回到概念：Bash 可把未引用的文件名模式展开为匹配路径。* 匹配任意长度，? 匹配单个字符。默认设置下点开头名称通常不被 * 匹配；无匹配时的行为还受 Shell 选项影响。",
+          "关键要点：不会。单引号保留字面字符串 *.log；未引用的模式才按当前 Shell 的文件名展开规则处理。"
+        ]
+      },
+      "lesson_content": [
+        {
+          "id": "concept",
+          "heading": "概念与边界",
+          "text": "Bash 可把未引用的文件名模式展开为匹配路径。* 匹配任意长度，? 匹配单个字符。默认设置下点开头名称通常不被 * 匹配；无匹配时的行为还受 Shell 选项影响。"
+        },
+        {
+          "id": "example",
+          "heading": "操作示例",
+          "text": "存在 a.log、b.log 时，`printf '%s\\n' *.log` 通常收到两个路径参数；`printf '%s\\n' '*.log'` 输出字面模式。"
+        },
+        {
+          "id": "check",
+          "heading": "停下来检验",
+          "text": "文件 a.log 与 b.log 存在时，带引号的 '*.log' 会被 Bash 展开吗？"
+        },
+        {
+          "id": "source",
+          "heading": "参考来源",
+          "text": "本节为自编中文教学材料，技术依据：[查看文档](https://www.gnu.org/software/bash/manual/html_node/Filename-Expansion.html)。先修关系为本课教学设计，待教师核验。"
+        }
+      ],
+      "provenance": {
+        "kind": "agent_authored",
+        "policy_version": "authored-linux-command-v1",
+        "human_review": false
+      },
+      "evidence_refs": [
+        {
+          "source_id": "source_18",
+          "locator": "Filename Expansion",
+          "lesson_section_id": "concept",
+          "interpretation": "自编解释；来源链接是技术核验入口，非逐字引文。"
+        }
+      ]
+    },
+    {
+      "id": "regex",
+      "chapter_id": "search",
+      "title": "正则表达式",
+      "description": "正则表达式描述文本模式。使用 grep -E 时，^ 表示行首，$ 表示行尾，. 表示任意单个字符，* 重复前一个元素。它与 Shell 文件名模式采用不同语法和匹配对象。",
+      "objectives": [
+        "解释正则表达式的行为，并独立回答本节点情境题。"
+      ],
+      "aliases": [],
+      "misconception": "以为正则中的 *.log 与文件名模式 *.log 含义一样。",
+      "source_ids": [
+        "source_19"
+      ],
+      "review_status": "draft",
+      "check_question": "只保留以 WARN 开头的文本行，应使用什么 grep 模式？",
+      "expected_answer": "使用 grep -E '^WARN' app.log。^ 约束行首；仅写 WARN 会匹配行中其他位置。",
+      "check_task": {
+        "id": "check_regex",
+        "version": 1,
+        "rubric": [
+          "使用 grep -E '^WARN' app.log。^ 约束行首；仅写 WARN 会匹配行中其他位置。",
+          "说明理由，并区分题目给定条件与自己的假设。"
+        ],
+        "hint_levels": [
+          "先定位题目中涉及的对象、输入和预期结果。",
+          "注意这个常见误解：以为正则中的 *.log 与文件名模式 *.log 含义一样。",
+          "回到概念：正则表达式描述文本模式。使用 grep -E 时，^ 表示行首，$ 表示行尾，. 表示任意单个字符，* 重复前一个元素。它与 Shell 文件名模式采用不同语法和匹配对象。",
+          "关键要点：使用 grep -E '^WARN' app.log。^ 约束行首；仅写 WARN 会匹配行中其他位置。"
+        ]
+      },
+      "lesson_content": [
+        {
+          "id": "concept",
+          "heading": "概念与边界",
+          "text": "正则表达式描述文本模式。使用 grep -E 时，^ 表示行首，$ 表示行尾，. 表示任意单个字符，* 重复前一个元素。它与 Shell 文件名模式采用不同语法和匹配对象。"
+        },
+        {
+          "id": "example",
+          "heading": "操作示例",
+          "text": "`grep -E '^ERROR' app.log` 匹配以 ERROR 开头的行；`grep -F 'ERROR' app.log` 在行内任意位置查固定字符串。"
+        },
+        {
+          "id": "check",
+          "heading": "停下来检验",
+          "text": "只保留以 WARN 开头的文本行，应使用什么 grep 模式？"
+        },
+        {
+          "id": "source",
+          "heading": "参考来源",
+          "text": "本节为自编中文教学材料，技术依据：[查看文档](https://www.gnu.org/software/grep/manual/html_node/Regular-Expressions.html)。先修关系为本课教学设计，待教师核验。"
+        }
+      ],
+      "provenance": {
+        "kind": "agent_authored",
+        "policy_version": "authored-linux-command-v1",
+        "human_review": false
+      },
+      "evidence_refs": [
+        {
+          "source_id": "source_19",
+          "locator": "Regular Expressions",
+          "lesson_section_id": "concept",
+          "interpretation": "自编解释；来源链接是技术核验入口，非逐字引文。"
+        }
+      ]
+    },
+    {
+      "id": "streams",
+      "chapter_id": "streams",
+      "title": "标准输入输出流",
+      "description": "进程通常通过三个约定的描述符通信：0 为标准输入，1 为标准输出，2 为标准错误。屏幕上混在一起的文字可能来自不同流。文件参数与标准输入也不是同一概念。",
+      "objectives": [
+        "解释标准输入输出流的行为，并独立回答本节点情境题。"
+      ],
+      "aliases": [],
+      "misconception": "看到输出都在终端，就认为标准输出和标准错误是一条流。",
+      "source_ids": [
+        "source_20"
+      ],
+      "review_status": "draft",
+      "check_question": "为何命令的普通结果和错误信息可以分别写入两个文件？",
+      "expected_answer": "它们通常使用不同描述符：1 是标准输出，2 是标准错误；Shell 可分别重定向。",
+      "check_task": {
+        "id": "check_streams",
+        "version": 1,
+        "rubric": [
+          "它们通常使用不同描述符：1 是标准输出，2 是标准错误；Shell 可分别重定向。",
+          "说明理由，并区分题目给定条件与自己的假设。"
+        ],
+        "hint_levels": [
+          "先定位题目中涉及的对象、输入和预期结果。",
+          "注意这个常见误解：看到输出都在终端，就认为标准输出和标准错误是一条流。",
+          "回到概念：进程通常通过三个约定的描述符通信：0 为标准输入，1 为标准输出，2 为标准错误。屏幕上混在一起的文字可能来自不同流。文件参数与标准输入也不是同一概念。",
+          "关键要点：它们通常使用不同描述符：1 是标准输出，2 是标准错误；Shell 可分别重定向。"
+        ]
+      },
+      "lesson_content": [
+        {
+          "id": "concept",
+          "heading": "概念与边界",
+          "text": "进程通常通过三个约定的描述符通信：0 为标准输入，1 为标准输出，2 为标准错误。屏幕上混在一起的文字可能来自不同流。文件参数与标准输入也不是同一概念。"
+        },
+        {
+          "id": "example",
+          "heading": "操作示例",
+          "text": "`wc -l < notes.txt` 让文件成为标准输入；`wc -l notes.txt` 把路径作为参数交给 wc。二者读相同内容，但输出中的文件名可能不同。"
+        },
+        {
+          "id": "check",
+          "heading": "停下来检验",
+          "text": "为何命令的普通结果和错误信息可以分别写入两个文件？"
+        },
+        {
+          "id": "source",
+          "heading": "参考来源",
+          "text": "本节为自编中文教学材料，技术依据：[查看文档](https://www.gnu.org/software/bash/manual/html_node/Redirections.html)。先修关系为本课教学设计，待教师核验。"
+        }
+      ],
+      "provenance": {
+        "kind": "agent_authored",
+        "policy_version": "authored-linux-command-v1",
+        "human_review": false
+      },
+      "evidence_refs": [
+        {
+          "source_id": "source_20",
+          "locator": "Redirections",
+          "lesson_section_id": "concept",
+          "interpretation": "自编解释；来源链接是技术核验入口，非逐字引文。"
+        }
+      ]
+    },
+    {
+      "id": "redirect",
+      "chapter_id": "streams",
+      "title": "覆盖输出重定向",
+      "description": "默认未启用 noclobber 时，> 将标准输出写入目标，已有目标会先被截断。重定向由 Shell 在执行命令前设置，因此不能用 cat file > file 原地保留内容。",
+      "objectives": [
+        "解释覆盖输出重定向的行为，并独立回答本节点情境题。"
+      ],
+      "aliases": [],
+      "misconception": "以为 > 会等命令读取完输入后才清空目标。",
+      "source_ids": [
+        "source_21"
+      ],
+      "review_status": "draft",
+      "check_question": "为什么 cat notes.txt > notes.txt 可能把原内容清空？",
+      "expected_answer": "Shell 通常在启动 cat 前打开并截断目标，而输入和目标是同一文件。应写到另一个文件后再核对。",
+      "check_task": {
+        "id": "check_redirect",
+        "version": 1,
+        "rubric": [
+          "Shell 通常在启动 cat 前打开并截断目标，而输入和目标是同一文件。应写到另一个文件后再核对。",
+          "说明理由，并区分题目给定条件与自己的假设。"
+        ],
+        "hint_levels": [
+          "先定位题目中涉及的对象、输入和预期结果。",
+          "注意这个常见误解：以为 > 会等命令读取完输入后才清空目标。",
+          "回到概念：默认未启用 noclobber 时，> 将标准输出写入目标，已有目标会先被截断。重定向由 Shell 在执行命令前设置，因此不能用 cat file > file 原地保留内容。",
+          "关键要点：Shell 通常在启动 cat 前打开并截断目标，而输入和目标是同一文件。应写到另一个文件后再核对。"
+        ]
+      },
+      "lesson_content": [
+        {
+          "id": "concept",
+          "heading": "概念与边界",
+          "text": "默认未启用 noclobber 时，> 将标准输出写入目标，已有目标会先被截断。重定向由 Shell 在执行命令前设置，因此不能用 cat file > file 原地保留内容。"
+        },
+        {
+          "id": "example",
+          "heading": "操作示例",
+          "text": "`printf '%s\\n' 'hello' > greeting.txt` 新建或覆盖 greeting.txt；终端没有显示 hello，不代表命令没有运行。"
+        },
+        {
+          "id": "check",
+          "heading": "停下来检验",
+          "text": "为什么 cat notes.txt > notes.txt 可能把原内容清空？"
+        },
+        {
+          "id": "source",
+          "heading": "参考来源",
+          "text": "本节为自编中文教学材料，技术依据：[查看文档](https://www.gnu.org/software/bash/manual/html_node/Redirections.html#Redirecting-Output)。先修关系为本课教学设计，待教师核验。"
+        }
+      ],
+      "provenance": {
+        "kind": "agent_authored",
+        "policy_version": "authored-linux-command-v1",
+        "human_review": false
+      },
+      "evidence_refs": [
+        {
+          "source_id": "source_21",
+          "locator": "Redirecting Output",
+          "lesson_section_id": "concept",
+          "interpretation": "自编解释；来源链接是技术核验入口，非逐字引文。"
+        }
+      ]
+    },
+    {
+      "id": "append",
+      "chapter_id": "streams",
+      "title": "追加输出重定向",
+      "description": ">> 把标准输出追加到文件末尾；文件不存在时可创建。与 > 的覆盖行为不同，追加不会自动添加记录分隔符，换行应由输出命令提供。",
+      "objectives": [
+        "解释追加输出重定向的行为，并独立回答本节点情境题。"
+      ],
+      "aliases": [],
+      "misconception": "把 >> 和 > 当成等价写法。",
+      "source_ids": [
+        "source_22"
+      ],
+      "review_status": "draft",
+      "check_question": "要保留现有日志并加一行 done，应选择 > 还是 >>？",
+      "expected_answer": "选择 >>，例如 printf '%s\\n' 'done' >> progress.log；printf 负责输出换行，重定向负责追加。",
+      "check_task": {
+        "id": "check_append",
+        "version": 1,
+        "rubric": [
+          "选择 >>，例如 printf '%s\\n' 'done' >> progress.log；printf 负责输出换行，重定向负责追加。",
+          "说明理由，并区分题目给定条件与自己的假设。"
+        ],
+        "hint_levels": [
+          "先定位题目中涉及的对象、输入和预期结果。",
+          "注意这个常见误解：把 >> 和 > 当成等价写法。",
+          "回到概念：>> 把标准输出追加到文件末尾；文件不存在时可创建。与 > 的覆盖行为不同，追加不会自动添加记录分隔符，换行应由输出命令提供。",
+          "关键要点：选择 >>，例如 printf '%s\\n' 'done' >> progress.log；printf 负责输出换行，重定向负责追加。"
+        ]
+      },
+      "lesson_content": [
+        {
+          "id": "concept",
+          "heading": "概念与边界",
+          "text": ">> 把标准输出追加到文件末尾；文件不存在时可创建。与 > 的覆盖行为不同，追加不会自动添加记录分隔符，换行应由输出命令提供。"
+        },
+        {
+          "id": "example",
+          "heading": "操作示例",
+          "text": "连续两次执行 `printf '%s\\n' 'done' >> progress.log`，通常得到两行 done。"
+        },
+        {
+          "id": "check",
+          "heading": "停下来检验",
+          "text": "要保留现有日志并加一行 done，应选择 > 还是 >>？"
+        },
+        {
+          "id": "source",
+          "heading": "参考来源",
+          "text": "本节为自编中文教学材料，技术依据：[查看文档](https://www.gnu.org/software/bash/manual/html_node/Redirections.html#Appending-Redirected-Output)。先修关系为本课教学设计，待教师核验。"
+        }
+      ],
+      "provenance": {
+        "kind": "agent_authored",
+        "policy_version": "authored-linux-command-v1",
+        "human_review": false
+      },
+      "evidence_refs": [
+        {
+          "source_id": "source_22",
+          "locator": "Appending Redirected Output",
+          "lesson_section_id": "concept",
+          "interpretation": "自编解释；来源链接是技术核验入口，非逐字引文。"
+        }
+      ]
+    },
+    {
+      "id": "stderr",
+      "chapter_id": "streams",
+      "title": "标准错误重定向",
+      "description": "2> 将标准错误写到文件。2>&1 把描述符 2 指向当时描述符 1 指向的位置；重定向按从左到右处理，因此排列顺序会改变最终去向。",
+      "objectives": [
+        "解释标准错误重定向的行为，并独立回答本节点情境题。"
+      ],
+      "aliases": [],
+      "misconception": "认为所有重定向排列顺序都无关紧要。",
+      "source_ids": [
+        "source_23"
+      ],
+      "review_status": "draft",
+      "check_question": "cmd > both.log 2>&1 与 cmd 2>&1 > both.log 的标准错误去向相同吗？",
+      "expected_answer": "通常不同。前者复制已指向文件的描述符 1；后者先复制原来的描述符 1，再单独把 1 改到文件。",
+      "check_task": {
+        "id": "check_stderr",
+        "version": 1,
+        "rubric": [
+          "通常不同。前者复制已指向文件的描述符 1；后者先复制原来的描述符 1，再单独把 1 改到文件。",
+          "说明理由，并区分题目给定条件与自己的假设。"
+        ],
+        "hint_levels": [
+          "先定位题目中涉及的对象、输入和预期结果。",
+          "注意这个常见误解：认为所有重定向排列顺序都无关紧要。",
+          "回到概念：2> 将标准错误写到文件。2>&1 把描述符 2 指向当时描述符 1 指向的位置；重定向按从左到右处理，因此排列顺序会改变最终去向。",
+          "关键要点：通常不同。前者复制已指向文件的描述符 1；后者先复制原来的描述符 1，再单独把 1 改到文件。"
+        ]
+      },
+      "lesson_content": [
+        {
+          "id": "concept",
+          "heading": "概念与边界",
+          "text": "2> 将标准错误写到文件。2>&1 把描述符 2 指向当时描述符 1 指向的位置；重定向按从左到右处理，因此排列顺序会改变最终去向。"
+        },
+        {
+          "id": "example",
+          "heading": "操作示例",
+          "text": "`cmd > out.log 2>&1` 将两条输出流汇入 out.log；`cmd 2>&1 > out.log` 通常只把标准输出写入文件，标准错误仍去原标准输出位置。这里 cmd 是占位命令。"
+        },
+        {
+          "id": "check",
+          "heading": "停下来检验",
+          "text": "cmd > both.log 2>&1 与 cmd 2>&1 > both.log 的标准错误去向相同吗？"
+        },
+        {
+          "id": "source",
+          "heading": "参考来源",
+          "text": "本节为自编中文教学材料，技术依据：[查看文档](https://www.gnu.org/software/bash/manual/html_node/Redirections.html#Duplicating-File-Descriptors)。先修关系为本课教学设计，待教师核验。"
+        }
+      ],
+      "provenance": {
+        "kind": "agent_authored",
+        "policy_version": "authored-linux-command-v1",
+        "human_review": false
+      },
+      "evidence_refs": [
+        {
+          "source_id": "source_23",
+          "locator": "Duplicating File Descriptors",
+          "lesson_section_id": "concept",
+          "interpretation": "自编解释；来源链接是技术核验入口，非逐字引文。"
+        }
+      ]
+    },
+    {
+      "id": "pipe",
+      "chapter_id": "streams",
+      "title": "管道",
+      "description": "普通管道 | 把左侧命令的标准输出接到右侧命令的标准输入。传递的是数据流，不是自动传递文件名参数。标准错误默认不经过普通管道。",
+      "objectives": [
+        "解释管道的行为，并独立回答本节点情境题。"
+      ],
+      "aliases": [],
+      "misconception": "以为右侧命令获得的是左侧文件路径，或所有错误都会流入管道。",
+      "source_ids": [
+        "source_24"
+      ],
+      "review_status": "draft",
+      "check_question": "grep -F 'ERROR' app.log | wc -l 数的是文件总行数还是匹配行数？",
+      "expected_answer": "数匹配行数，wc 接收的是 grep 输出的文本行。grep 的标准错误默认不会进入这个普通管道。",
+      "check_task": {
+        "id": "check_pipe",
+        "version": 1,
+        "rubric": [
+          "数匹配行数，wc 接收的是 grep 输出的文本行。grep 的标准错误默认不会进入这个普通管道。",
+          "说明理由，并区分题目给定条件与自己的假设。"
+        ],
+        "hint_levels": [
+          "先定位题目中涉及的对象、输入和预期结果。",
+          "注意这个常见误解：以为右侧命令获得的是左侧文件路径，或所有错误都会流入管道。",
+          "回到概念：普通管道 | 把左侧命令的标准输出接到右侧命令的标准输入。传递的是数据流，不是自动传递文件名参数。标准错误默认不经过普通管道。",
+          "关键要点：数匹配行数，wc 接收的是 grep 输出的文本行。grep 的标准错误默认不会进入这个普通管道。"
+        ]
+      },
+      "lesson_content": [
+        {
+          "id": "concept",
+          "heading": "概念与边界",
+          "text": "普通管道 | 把左侧命令的标准输出接到右侧命令的标准输入。传递的是数据流，不是自动传递文件名参数。标准错误默认不经过普通管道。"
+        },
+        {
+          "id": "example",
+          "heading": "操作示例",
+          "text": "`grep -F 'ERROR' app.log | wc -l` 先筛选错误行，再数这些行；wc 读取管道输入。"
+        },
+        {
+          "id": "check",
+          "heading": "停下来检验",
+          "text": "grep -F 'ERROR' app.log | wc -l 数的是文件总行数还是匹配行数？"
+        },
+        {
+          "id": "source",
+          "heading": "参考来源",
+          "text": "本节为自编中文教学材料，技术依据：[查看文档](https://www.gnu.org/software/bash/manual/html_node/Pipelines.html)。先修关系为本课教学设计，待教师核验。"
+        }
+      ],
+      "provenance": {
+        "kind": "agent_authored",
+        "policy_version": "authored-linux-command-v1",
+        "human_review": false
+      },
+      "evidence_refs": [
+        {
+          "source_id": "source_24",
+          "locator": "Pipelines",
+          "lesson_section_id": "concept",
+          "interpretation": "自编解释；来源链接是技术核验入口，非逐字引文。"
+        }
+      ]
+    },
+    {
+      "id": "sort",
+      "chapter_id": "streams",
+      "title": "sort 排序",
+      "description": "sort 对输入行排序后写到标准输出，默认不改变源文件。默认排序受区域设置影响；-n 按数值比较。应根据数据含义选择排序方式。",
+      "objectives": [
+        "解释sort 排序的行为，并独立回答本节点情境题。"
+      ],
+      "aliases": [],
+      "misconception": "数字看起来像数字，就认为默认按数值排序。",
+      "source_ids": [
+        "source_25"
+      ],
+      "review_status": "draft",
+      "check_question": "要把每行一个数的 scores.txt 从小到大排序，应加什么选项？",
+      "expected_answer": "使用 sort -n scores.txt；它把排序结果写到标准输出，默认不覆盖 scores.txt。",
+      "check_task": {
+        "id": "check_sort",
+        "version": 1,
+        "rubric": [
+          "使用 sort -n scores.txt；它把排序结果写到标准输出，默认不覆盖 scores.txt。",
+          "说明理由，并区分题目给定条件与自己的假设。"
+        ],
+        "hint_levels": [
+          "先定位题目中涉及的对象、输入和预期结果。",
+          "注意这个常见误解：数字看起来像数字，就认为默认按数值排序。",
+          "回到概念：sort 对输入行排序后写到标准输出，默认不改变源文件。默认排序受区域设置影响；-n 按数值比较。应根据数据含义选择排序方式。",
+          "关键要点：使用 sort -n scores.txt；它把排序结果写到标准输出，默认不覆盖 scores.txt。"
+        ]
+      },
+      "lesson_content": [
+        {
+          "id": "concept",
+          "heading": "概念与边界",
+          "text": "sort 对输入行排序后写到标准输出，默认不改变源文件。默认排序受区域设置影响；-n 按数值比较。应根据数据含义选择排序方式。"
+        },
+        {
+          "id": "example",
+          "heading": "操作示例",
+          "text": "文本行 10、2、1 在 C 区域的字典序下为 1、10、2；`sort -n` 的结果为 1、2、10。"
+        },
+        {
+          "id": "check",
+          "heading": "停下来检验",
+          "text": "要把每行一个数的 scores.txt 从小到大排序，应加什么选项？"
+        },
+        {
+          "id": "source",
+          "heading": "参考来源",
+          "text": "本节为自编中文教学材料，技术依据：[查看文档](https://www.gnu.org/software/coreutils/manual/html_node/sort-invocation.html)。先修关系为本课教学设计，待教师核验。"
+        }
+      ],
+      "provenance": {
+        "kind": "agent_authored",
+        "policy_version": "authored-linux-command-v1",
+        "human_review": false
+      },
+      "evidence_refs": [
+        {
+          "source_id": "source_25",
+          "locator": "sort invocation",
+          "lesson_section_id": "concept",
+          "interpretation": "自编解释；来源链接是技术核验入口，非逐字引文。"
+        }
+      ]
+    },
+    {
+      "id": "uniq",
+      "chapter_id": "streams",
+      "title": "uniq 相邻重复行处理",
+      "description": "uniq 合并相邻的重复行，-c 统计每组相邻重复次数。若要统计全文件相同文本的出现次数，可先排序让相同行相邻，但排序会改变原顺序。",
+      "objectives": [
+        "解释uniq 相邻重复行处理的行为，并独立回答本节点情境题。"
+      ],
+      "aliases": [],
+      "misconception": "认为 uniq 会自动找出全文件所有重复行。",
+      "source_ids": [
+        "source_26"
+      ],
+      "review_status": "draft",
+      "check_question": "输入 A、B、A 直接经过 uniq 会得到几行？怎样统计每种行的次数？",
+      "expected_answer": "仍是三行，因为重复 A 不相邻。可用 sort names.txt | uniq -c 统计，但原始顺序会丢失。",
+      "check_task": {
+        "id": "check_uniq",
+        "version": 1,
+        "rubric": [
+          "仍是三行，因为重复 A 不相邻。可用 sort names.txt | uniq -c 统计，但原始顺序会丢失。",
+          "说明理由，并区分题目给定条件与自己的假设。"
+        ],
+        "hint_levels": [
+          "先定位题目中涉及的对象、输入和预期结果。",
+          "注意这个常见误解：认为 uniq 会自动找出全文件所有重复行。",
+          "回到概念：uniq 合并相邻的重复行，-c 统计每组相邻重复次数。若要统计全文件相同文本的出现次数，可先排序让相同行相邻，但排序会改变原顺序。",
+          "关键要点：仍是三行，因为重复 A 不相邻。可用 sort names.txt | uniq -c 统计，但原始顺序会丢失。"
+        ]
+      },
+      "lesson_content": [
+        {
+          "id": "concept",
+          "heading": "概念与边界",
+          "text": "uniq 合并相邻的重复行，-c 统计每组相邻重复次数。若要统计全文件相同文本的出现次数，可先排序让相同行相邻，但排序会改变原顺序。"
+        },
+        {
+          "id": "example",
+          "heading": "操作示例",
+          "text": "输入 A、B、A 时直接 uniq 仍有三行；先 sort 再 uniq 可得到 A、B 两行。"
+        },
+        {
+          "id": "check",
+          "heading": "停下来检验",
+          "text": "输入 A、B、A 直接经过 uniq 会得到几行？怎样统计每种行的次数？"
+        },
+        {
+          "id": "source",
+          "heading": "参考来源",
+          "text": "本节为自编中文教学材料，技术依据：[查看文档](https://www.gnu.org/software/coreutils/manual/html_node/uniq-invocation.html)。先修关系为本课教学设计，待教师核验。"
+        }
+      ],
+      "provenance": {
+        "kind": "agent_authored",
+        "policy_version": "authored-linux-command-v1",
+        "human_review": false
+      },
+      "evidence_refs": [
+        {
+          "source_id": "source_26",
+          "locator": "uniq invocation",
+          "lesson_section_id": "concept",
+          "interpretation": "自编解释；来源链接是技术核验入口，非逐字引文。"
+        }
+      ]
+    },
+    {
+      "id": "wc",
+      "chapter_id": "streams",
+      "title": "wc 文本计数",
+      "description": "wc 默认报告换行数、词数和字节数。-l 数换行符，-c 数字节，-m 数字符，不能在多字节文本中混用。最后一段没有换行时，-l 不把它算作一个换行。",
+      "objectives": [
+        "解释wc 文本计数的行为，并独立回答本节点情境题。"
+      ],
+      "aliases": [],
+      "misconception": "把 wc -l 当作不考虑结尾换行的可见行计数。",
+      "source_ids": [
+        "source_27"
+      ],
+      "review_status": "draft",
+      "check_question": "printf 'hello' | wc -l 的结果是多少，为什么？",
+      "expected_answer": "是 0，因为 printf 未输出换行符，而 wc -l 统计换行符数量。",
+      "check_task": {
+        "id": "check_wc",
+        "version": 1,
+        "rubric": [
+          "是 0，因为 printf 未输出换行符，而 wc -l 统计换行符数量。",
+          "说明理由，并区分题目给定条件与自己的假设。"
+        ],
+        "hint_levels": [
+          "先定位题目中涉及的对象、输入和预期结果。",
+          "注意这个常见误解：把 wc -l 当作不考虑结尾换行的可见行计数。",
+          "回到概念：wc 默认报告换行数、词数和字节数。-l 数换行符，-c 数字节，-m 数字符，不能在多字节文本中混用。最后一段没有换行时，-l 不把它算作一个换行。",
+          "关键要点：是 0，因为 printf 未输出换行符，而 wc -l 统计换行符数量。"
+        ]
+      },
+      "lesson_content": [
+        {
+          "id": "concept",
+          "heading": "概念与边界",
+          "text": "wc 默认报告换行数、词数和字节数。-l 数换行符，-c 数字节，-m 数字符，不能在多字节文本中混用。最后一段没有换行时，-l 不把它算作一个换行。"
+        },
+        {
+          "id": "example",
+          "heading": "操作示例",
+          "text": "`printf 'abc' | wc -l` 输出 0；`printf 'abc\\n' | wc -l` 输出 1。中文字符的字节数可能大于字符数。"
+        },
+        {
+          "id": "check",
+          "heading": "停下来检验",
+          "text": "printf 'hello' | wc -l 的结果是多少，为什么？"
+        },
+        {
+          "id": "source",
+          "heading": "参考来源",
+          "text": "本节为自编中文教学材料，技术依据：[查看文档](https://www.gnu.org/software/coreutils/manual/html_node/wc-invocation.html)。先修关系为本课教学设计，待教师核验。"
+        }
+      ],
+      "provenance": {
+        "kind": "agent_authored",
+        "policy_version": "authored-linux-command-v1",
+        "human_review": false
+      },
+      "evidence_refs": [
+        {
+          "source_id": "source_27",
+          "locator": "wc invocation",
+          "lesson_section_id": "concept",
+          "interpretation": "自编解释；来源链接是技术核验入口，非逐字引文。"
+        }
+      ]
+    },
+    {
+      "id": "identity",
+      "chapter_id": "permissions",
+      "title": "用户与组身份",
+      "description": "Linux 使用用户 ID 和组 ID 表示身份。文件有属主和属组，进程的有效身份参与权限判断。id 可查看当前用户及组信息；用户名相似不代表权限相同。",
+      "objectives": [
+        "解释用户与组身份的行为，并独立回答本节点情境题。"
+      ],
+      "aliases": [],
+      "misconception": "认为只要知道文件名就一定可以读取。",
+      "source_ids": [
+        "source_28"
+      ],
+      "review_status": "draft",
+      "check_question": "权限判断为什么既需要身份信息，也需要目标的权限信息？",
+      "expected_answer": "身份决定适用属主、组或其他用户的权限类别；权限位以及目录访问条件决定能做什么，不能只看名称。",
+      "check_task": {
+        "id": "check_identity",
+        "version": 1,
+        "rubric": [
+          "身份决定适用属主、组或其他用户的权限类别；权限位以及目录访问条件决定能做什么，不能只看名称。",
+          "说明理由，并区分题目给定条件与自己的假设。"
+        ],
+        "hint_levels": [
+          "先定位题目中涉及的对象、输入和预期结果。",
+          "注意这个常见误解：认为只要知道文件名就一定可以读取。",
+          "回到概念：Linux 使用用户 ID 和组 ID 表示身份。文件有属主和属组，进程的有效身份参与权限判断。id 可查看当前用户及组信息；用户名相似不代表权限相同。",
+          "关键要点：身份决定适用属主、组或其他用户的权限类别；权限位以及目录访问条件决定能做什么，不能只看名称。"
+        ]
+      },
+      "lesson_content": [
+        {
+          "id": "concept",
+          "heading": "概念与边界",
+          "text": "Linux 使用用户 ID 和组 ID 表示身份。文件有属主和属组，进程的有效身份参与权限判断。id 可查看当前用户及组信息；用户名相似不代表权限相同。"
+        },
+        {
+          "id": "example",
+          "heading": "操作示例",
+          "text": "运行 `id`，区分 uid、gid 和附加组。读取他人文件是否允许，还要结合文件及沿途目录权限。"
+        },
+        {
+          "id": "check",
+          "heading": "停下来检验",
+          "text": "权限判断为什么既需要身份信息，也需要目标的权限信息？"
+        },
+        {
+          "id": "source",
+          "heading": "参考来源",
+          "text": "本节为自编中文教学材料，技术依据：[查看文档](https://www.gnu.org/software/coreutils/manual/html_node/id-invocation.html)。先修关系为本课教学设计，待教师核验。"
+        }
+      ],
+      "provenance": {
+        "kind": "agent_authored",
+        "policy_version": "authored-linux-command-v1",
+        "human_review": false
+      },
+      "evidence_refs": [
+        {
+          "source_id": "source_28",
+          "locator": "id invocation",
+          "lesson_section_id": "concept",
+          "interpretation": "自编解释；来源链接是技术核验入口，非逐字引文。"
+        }
+      ]
+    },
+    {
+      "id": "file_permissions",
+      "chapter_id": "permissions",
+      "title": "普通文件权限",
+      "description": "传统模式位分别给属主、组、其他用户设置 r、w、x。对普通文件，r 允许读取内容，w 允许写内容，x 允许尝试执行。执行还要求格式、解释器等条件成立。ACL 等机制可能进一步影响结果。",
+      "objectives": [
+        "解释普通文件权限的行为，并独立回答本节点情境题。"
+      ],
+      "aliases": [],
+      "misconception": "以为 x 保证文件一定能成功执行。",
+      "source_ids": [
+        "source_29"
+      ],
+      "review_status": "draft",
+      "check_question": "普通文件 rw-r----- 的属组成员能否按这些传统权限位修改内容？",
+      "expected_answer": "不能；组类别只有 r，没有 w。本题假定没有 ACL 等额外授权。",
+      "check_task": {
+        "id": "check_file_permissions",
+        "version": 1,
+        "rubric": [
+          "不能；组类别只有 r，没有 w。本题假定没有 ACL 等额外授权。",
+          "说明理由，并区分题目给定条件与自己的假设。"
+        ],
+        "hint_levels": [
+          "先定位题目中涉及的对象、输入和预期结果。",
+          "注意这个常见误解：以为 x 保证文件一定能成功执行。",
+          "回到概念：传统模式位分别给属主、组、其他用户设置 r、w、x。对普通文件，r 允许读取内容，w 允许写内容，x 允许尝试执行。执行还要求格式、解释器等条件成立。ACL 等机制可能进一步影响结果。",
+          "关键要点：不能；组类别只有 r，没有 w。本题假定没有 ACL 等额外授权。"
+        ]
+      },
+      "lesson_content": [
+        {
+          "id": "concept",
+          "heading": "概念与边界",
+          "text": "传统模式位分别给属主、组、其他用户设置 r、w、x。对普通文件，r 允许读取内容，w 允许写内容，x 允许尝试执行。执行还要求格式、解释器等条件成立。ACL 等机制可能进一步影响结果。"
+        },
+        {
+          "id": "example",
+          "heading": "操作示例",
+          "text": "普通文件模式 rw-r----- 表示属主可读写、组可读、其他无权限。没有 x 时不能仅靠 ./file 直接执行。"
+        },
+        {
+          "id": "check",
+          "heading": "停下来检验",
+          "text": "普通文件 rw-r----- 的属组成员能否按这些传统权限位修改内容？"
+        },
+        {
+          "id": "source",
+          "heading": "参考来源",
+          "text": "本节为自编中文教学材料，技术依据：[查看文档](https://www.gnu.org/software/coreutils/manual/html_node/Mode-Structure.html)。先修关系为本课教学设计，待教师核验。"
+        }
+      ],
+      "provenance": {
+        "kind": "agent_authored",
+        "policy_version": "authored-linux-command-v1",
+        "human_review": false
+      },
+      "evidence_refs": [
+        {
+          "source_id": "source_29",
+          "locator": "Mode Structure",
+          "lesson_section_id": "concept",
+          "interpretation": "自编解释；来源链接是技术核验入口，非逐字引文。"
+        }
+      ]
+    },
+    {
+      "id": "directory_permissions",
+      "chapter_id": "permissions",
+      "title": "目录权限",
+      "description": "对目录，r 用于列出名称，x 用于搜索或穿越，w 用于修改目录项，通常还需 x 配合。删除文件名主要取决于父目录的权限，并受 sticky bit 等规则约束，不等同于文件内容可写。",
+      "objectives": [
+        "解释目录权限的行为，并独立回答本节点情境题。"
+      ],
+      "aliases": [],
+      "misconception": "认为目录的 r、w、x 和普通文件的意义完全一致。",
+      "source_ids": [
+        "source_29"
+      ],
+      "review_status": "draft",
+      "check_question": "文件没有写权限，是否就一定无法删除这个文件名？",
+      "expected_answer": "不一定。删除目录项主要检查父目录的写和搜索权限，还可能受 sticky bit、只读文件系统等约束；文件内容写权限不是唯一条件。",
+      "check_task": {
+        "id": "check_directory_permissions",
+        "version": 1,
+        "rubric": [
+          "不一定。删除目录项主要检查父目录的写和搜索权限，还可能受 sticky bit、只读文件系统等约束；文件内容写权限不是唯一条件。",
+          "说明理由，并区分题目给定条件与自己的假设。"
+        ],
+        "hint_levels": [
+          "先定位题目中涉及的对象、输入和预期结果。",
+          "注意这个常见误解：认为目录的 r、w、x 和普通文件的意义完全一致。",
+          "回到概念：对目录，r 用于列出名称，x 用于搜索或穿越，w 用于修改目录项，通常还需 x 配合。删除文件名主要取决于父目录的权限，并受 sticky bit 等规则约束，不等同于文件内容可写。",
+          "关键要点：不一定。删除目录项主要检查父目录的写和搜索权限，还可能受 sticky bit、只读文件系统等约束；文件内容写权限不是唯一条件。"
+        ]
+      },
+      "lesson_content": [
+        {
+          "id": "concept",
+          "heading": "概念与边界",
+          "text": "对目录，r 用于列出名称，x 用于搜索或穿越，w 用于修改目录项，通常还需 x 配合。删除文件名主要取决于父目录的权限，并受 sticky bit 等规则约束，不等同于文件内容可写。"
+        },
+        {
+          "id": "example",
+          "heading": "操作示例",
+          "text": "对目录只有 x 而无 r 时，在其他条件允许下可访问已知名称，但不能列出目录名称清单。"
+        },
+        {
+          "id": "check",
+          "heading": "停下来检验",
+          "text": "文件没有写权限，是否就一定无法删除这个文件名？"
+        },
+        {
+          "id": "source",
+          "heading": "参考来源",
+          "text": "本节为自编中文教学材料，技术依据：[查看文档](https://www.gnu.org/software/coreutils/manual/html_node/Mode-Structure.html)。先修关系为本课教学设计，待教师核验。"
+        }
+      ],
+      "provenance": {
+        "kind": "agent_authored",
+        "policy_version": "authored-linux-command-v1",
+        "human_review": false
+      },
+      "evidence_refs": [
+        {
+          "source_id": "source_29",
+          "locator": "Mode Structure",
+          "lesson_section_id": "concept",
+          "interpretation": "自编解释；来源链接是技术核验入口，非逐字引文。"
+        }
+      ]
+    },
+    {
+      "id": "chmod",
+      "chapter_id": "permissions",
+      "title": "chmod 修改模式位",
+      "description": "chmod 修改模式位，可使用符号形式或八进制形式。r、w、x 分别对应 4、2、1；u、g、o 分别代表属主、组、其他。只为任务增加必要权限，避免用 777 掩盖问题。",
+      "objectives": [
+        "解释chmod 修改模式位的行为，并独立回答本节点情境题。"
+      ],
+      "aliases": [],
+      "misconception": "权限错误一律用 chmod 777 解决。",
+      "source_ids": [
+        "source_30"
+      ],
+      "review_status": "draft",
+      "check_question": "chmod 640 notes.txt 分别授予属主、组、其他什么权限？",
+      "expected_answer": "6=4+2，属主读写；4 为组只读；0 为其他无权限。没有给任何类别执行位。",
+      "check_task": {
+        "id": "check_chmod",
+        "version": 1,
+        "rubric": [
+          "6=4+2，属主读写；4 为组只读；0 为其他无权限。没有给任何类别执行位。",
+          "说明理由，并区分题目给定条件与自己的假设。"
+        ],
+        "hint_levels": [
+          "先定位题目中涉及的对象、输入和预期结果。",
+          "注意这个常见误解：权限错误一律用 chmod 777 解决。",
+          "回到概念：chmod 修改模式位，可使用符号形式或八进制形式。r、w、x 分别对应 4、2、1；u、g、o 分别代表属主、组、其他。只为任务增加必要权限，避免用 777 掩盖问题。",
+          "关键要点：6=4+2，属主读写；4 为组只读；0 为其他无权限。没有给任何类别执行位。"
+        ]
+      },
+      "lesson_content": [
+        {
+          "id": "concept",
+          "heading": "概念与边界",
+          "text": "chmod 修改模式位，可使用符号形式或八进制形式。r、w、x 分别对应 4、2、1；u、g、o 分别代表属主、组、其他。只为任务增加必要权限，避免用 777 掩盖问题。"
+        },
+        {
+          "id": "example",
+          "heading": "操作示例",
+          "text": "`chmod u+x report.sh` 给属主增加执行位；`chmod 640 notes.txt` 设置属主读写、组只读、其他无权限。"
+        },
+        {
+          "id": "check",
+          "heading": "停下来检验",
+          "text": "chmod 640 notes.txt 分别授予属主、组、其他什么权限？"
+        },
+        {
+          "id": "source",
+          "heading": "参考来源",
+          "text": "本节为自编中文教学材料，技术依据：[查看文档](https://www.gnu.org/software/coreutils/manual/html_node/chmod-invocation.html)。先修关系为本课教学设计，待教师核验。"
+        }
+      ],
+      "provenance": {
+        "kind": "agent_authored",
+        "policy_version": "authored-linux-command-v1",
+        "human_review": false
+      },
+      "evidence_refs": [
+        {
+          "source_id": "source_30",
+          "locator": "chmod invocation",
+          "lesson_section_id": "concept",
+          "interpretation": "自编解释；来源链接是技术核验入口，非逐字引文。"
+        }
+      ]
+    },
+    {
+      "id": "process",
+      "chapter_id": "processes",
+      "title": "进程",
+      "description": "进程是程序的一次运行实例，具有 PID、工作目录、打开的文件描述符和运行状态。同一程序可以有多个进程。PID 会被系统重新使用，不应把很久以前记录的 PID 当成永远有效。",
+      "objectives": [
+        "解释进程的行为，并独立回答本节点情境题。"
+      ],
+      "aliases": [],
+      "misconception": "把磁盘上的程序文件等同于正在运行的进程。",
+      "source_ids": [
+        "source_31"
+      ],
+      "review_status": "draft",
+      "check_question": "同一个程序运行两次，是否必然共享一个 PID？",
+      "expected_answer": "不是；独立启动通常形成不同进程和 PID。PID 标识运行实例，不是程序文件名。",
+      "check_task": {
+        "id": "check_process",
+        "version": 1,
+        "rubric": [
+          "不是；独立启动通常形成不同进程和 PID。PID 标识运行实例，不是程序文件名。",
+          "说明理由，并区分题目给定条件与自己的假设。"
+        ],
+        "hint_levels": [
+          "先定位题目中涉及的对象、输入和预期结果。",
+          "注意这个常见误解：把磁盘上的程序文件等同于正在运行的进程。",
+          "回到概念：进程是程序的一次运行实例，具有 PID、工作目录、打开的文件描述符和运行状态。同一程序可以有多个进程。PID 会被系统重新使用，不应把很久以前记录的 PID 当成永远有效。",
+          "关键要点：不是；独立启动通常形成不同进程和 PID。PID 标识运行实例，不是程序文件名。"
+        ]
+      },
+      "lesson_content": [
+        {
+          "id": "concept",
+          "heading": "概念与边界",
+          "text": "进程是程序的一次运行实例，具有 PID、工作目录、打开的文件描述符和运行状态。同一程序可以有多个进程。PID 会被系统重新使用，不应把很久以前记录的 PID 当成永远有效。"
+        },
+        {
+          "id": "example",
+          "heading": "操作示例",
+          "text": "同时启动两个 sleep，会出现两个运行实例，即使它们来自同一个程序。具体 PID 由本次系统运行决定。"
+        },
+        {
+          "id": "check",
+          "heading": "停下来检验",
+          "text": "同一个程序运行两次，是否必然共享一个 PID？"
+        },
+        {
+          "id": "source",
+          "heading": "参考来源",
+          "text": "本节为自编中文教学材料，技术依据：[查看文档](https://man7.org/linux/man-pages/man5/proc_pid.5.html)。先修关系为本课教学设计，待教师核验。"
+        }
+      ],
+      "provenance": {
+        "kind": "agent_authored",
+        "policy_version": "authored-linux-command-v1",
+        "human_review": false
+      },
+      "evidence_refs": [
+        {
+          "source_id": "source_31",
+          "locator": "proc_pid(5) DESCRIPTION",
+          "lesson_section_id": "concept",
+          "interpretation": "自编解释；来源链接是技术核验入口，非逐字引文。"
+        }
+      ]
+    },
+    {
+      "id": "ps",
+      "chapter_id": "processes",
+      "title": "ps 进程快照",
+      "description": "ps 展示调用时的进程信息快照。选择选项会改变显示范围，-p 可按 PID 查询，-o 可指定列。不能把一次快照理解为持续监控，也不能把进程名称当唯一身份。",
+      "objectives": [
+        "解释ps 进程快照的行为，并独立回答本节点情境题。"
+      ],
+      "aliases": [],
+      "misconception": "以为 ps 输出会自动持续刷新。",
+      "source_ids": [
+        "source_32"
+      ],
+      "review_status": "draft",
+      "check_question": "要确认一个 PID 对应哪个进程，为什么应同时查看命令和状态？",
+      "expected_answer": "PID 可能复用，进程也可能已经退出或变换状态；应核对当前快照中的 PID、命令及状态，不能只凭旧记录操作。",
+      "check_task": {
+        "id": "check_ps",
+        "version": 1,
+        "rubric": [
+          "PID 可能复用，进程也可能已经退出或变换状态；应核对当前快照中的 PID、命令及状态，不能只凭旧记录操作。",
+          "说明理由，并区分题目给定条件与自己的假设。"
+        ],
+        "hint_levels": [
+          "先定位题目中涉及的对象、输入和预期结果。",
+          "注意这个常见误解：以为 ps 输出会自动持续刷新。",
+          "回到概念：ps 展示调用时的进程信息快照。选择选项会改变显示范围，-p 可按 PID 查询，-o 可指定列。不能把一次快照理解为持续监控，也不能把进程名称当唯一身份。",
+          "关键要点：PID 可能复用，进程也可能已经退出或变换状态；应核对当前快照中的 PID、命令及状态，不能只凭旧记录操作。"
+        ]
+      },
+      "lesson_content": [
+        {
+          "id": "concept",
+          "heading": "概念与边界",
+          "text": "ps 展示调用时的进程信息快照。选择选项会改变显示范围，-p 可按 PID 查询，-o 可指定列。不能把一次快照理解为持续监控，也不能把进程名称当唯一身份。"
+        },
+        {
+          "id": "example",
+          "heading": "操作示例",
+          "text": "`ps -p PID -o pid,ppid,stat,comm` 按实际 PID 查询进程；PID 是需要替换的占位符，不是字面命令参数。"
+        },
+        {
+          "id": "check",
+          "heading": "停下来检验",
+          "text": "要确认一个 PID 对应哪个进程，为什么应同时查看命令和状态？"
+        },
+        {
+          "id": "source",
+          "heading": "参考来源",
+          "text": "本节为自编中文教学材料，技术依据：[查看文档](https://man7.org/linux/man-pages/man1/ps.1.html)。先修关系为本课教学设计，待教师核验。"
+        }
+      ],
+      "provenance": {
+        "kind": "agent_authored",
+        "policy_version": "authored-linux-command-v1",
+        "human_review": false
+      },
+      "evidence_refs": [
+        {
+          "source_id": "source_32",
+          "locator": "ps(1) DESCRIPTION",
+          "lesson_section_id": "concept",
+          "interpretation": "自编解释；来源链接是技术核验入口，非逐字引文。"
+        }
+      ]
+    },
+    {
+      "id": "signal",
+      "chapter_id": "processes",
+      "title": "进程信号",
+      "description": "信号用于通知进程事件。TERM 通常请求终止，程序可捕获并清理；KILL 不能被捕获或忽略。kill 这个命令负责发送信号，不保证任意信号都会立即终止目标。",
+      "objectives": [
+        "解释进程信号的行为，并独立回答本节点情境题。"
+      ],
+      "aliases": [],
+      "misconception": "认为 kill 只能发送 KILL，或一开始就必须使用 -9。",
+      "source_ids": [
+        "source_33"
+      ],
+      "review_status": "draft",
+      "check_question": "为什么正常停止程序通常先考虑 TERM 而不是 KILL？",
+      "expected_answer": "TERM 允许程序进行退出处理，KILL 不给程序清理机会；具体是否退出仍取决于程序行为及状态。",
+      "check_task": {
+        "id": "check_signal",
+        "version": 1,
+        "rubric": [
+          "TERM 允许程序进行退出处理，KILL 不给程序清理机会；具体是否退出仍取决于程序行为及状态。",
+          "说明理由，并区分题目给定条件与自己的假设。"
+        ],
+        "hint_levels": [
+          "先定位题目中涉及的对象、输入和预期结果。",
+          "注意这个常见误解：认为 kill 只能发送 KILL，或一开始就必须使用 -9。",
+          "回到概念：信号用于通知进程事件。TERM 通常请求终止，程序可捕获并清理；KILL 不能被捕获或忽略。kill 这个命令负责发送信号，不保证任意信号都会立即终止目标。",
+          "关键要点：TERM 允许程序进行退出处理，KILL 不给程序清理机会；具体是否退出仍取决于程序行为及状态。"
+        ]
+      },
+      "lesson_content": [
+        {
+          "id": "concept",
+          "heading": "概念与边界",
+          "text": "信号用于通知进程事件。TERM 通常请求终止，程序可捕获并清理；KILL 不能被捕获或忽略。kill 这个命令负责发送信号，不保证任意信号都会立即终止目标。"
+        },
+        {
+          "id": "example",
+          "heading": "操作示例",
+          "text": "对自己创建的练习进程，先核对 PID，再用 `kill -TERM PID` 请求退出，之后重新检查。不要把示例 PID 用于未知进程。"
+        },
+        {
+          "id": "check",
+          "heading": "停下来检验",
+          "text": "为什么正常停止程序通常先考虑 TERM 而不是 KILL？"
+        },
+        {
+          "id": "source",
+          "heading": "参考来源",
+          "text": "本节为自编中文教学材料，技术依据：[查看文档](https://man7.org/linux/man-pages/man7/signal.7.html)。先修关系为本课教学设计，待教师核验。"
+        }
+      ],
+      "provenance": {
+        "kind": "agent_authored",
+        "policy_version": "authored-linux-command-v1",
+        "human_review": false
+      },
+      "evidence_refs": [
+        {
+          "source_id": "source_33",
+          "locator": "signal(7) DESCRIPTION",
+          "lesson_section_id": "concept",
+          "interpretation": "自编解释；来源链接是技术核验入口，非逐字引文。"
+        }
+      ]
+    },
+    {
+      "id": "jobs",
+      "chapter_id": "processes",
+      "title": "Shell 作业控制",
+      "description": "交互式 Bash 可把一个管道作为作业管理。& 后台启动，jobs 显示当前 Shell 的作业，fg 恢复前台；Ctrl-Z 通常暂停前台作业。作业号与系统 PID 不是同一编号。",
+      "objectives": [
+        "解释Shell 作业控制的行为，并独立回答本节点情境题。"
+      ],
+      "aliases": [],
+      "misconception": "把暂停理解为结束，或把后台运行当作永久脱离终端。",
+      "source_ids": [
+        "source_34"
+      ],
+      "review_status": "draft",
+      "check_question": "Ctrl-Z 后的程序与正常退出的程序有什么区别？",
+      "expected_answer": "前者通常处于停止状态，仍是可恢复的作业；退出表示进程已结束。后台或暂停也不自动保证关闭终端后继续运行。",
+      "check_task": {
+        "id": "check_jobs",
+        "version": 1,
+        "rubric": [
+          "前者通常处于停止状态，仍是可恢复的作业；退出表示进程已结束。后台或暂停也不自动保证关闭终端后继续运行。",
+          "说明理由，并区分题目给定条件与自己的假设。"
+        ],
+        "hint_levels": [
+          "先定位题目中涉及的对象、输入和预期结果。",
+          "注意这个常见误解：把暂停理解为结束，或把后台运行当作永久脱离终端。",
+          "回到概念：交互式 Bash 可把一个管道作为作业管理。& 后台启动，jobs 显示当前 Shell 的作业，fg 恢复前台；Ctrl-Z 通常暂停前台作业。作业号与系统 PID 不是同一编号。",
+          "关键要点：前者通常处于停止状态，仍是可恢复的作业；退出表示进程已结束。后台或暂停也不自动保证关闭终端后继续运行。"
+        ]
+      },
+      "lesson_content": [
+        {
+          "id": "concept",
+          "heading": "概念与边界",
+          "text": "交互式 Bash 可把一个管道作为作业管理。& 后台启动，jobs 显示当前 Shell 的作业，fg 恢复前台；Ctrl-Z 通常暂停前台作业。作业号与系统 PID 不是同一编号。"
+        },
+        {
+          "id": "example",
+          "heading": "操作示例",
+          "text": "在专用终端运行 `sleep 30 &`，用 `jobs` 查看，再用 `fg` 带回前台，按 Ctrl-C 结束自己的练习任务。"
+        },
+        {
+          "id": "check",
+          "heading": "停下来检验",
+          "text": "Ctrl-Z 后的程序与正常退出的程序有什么区别？"
+        },
+        {
+          "id": "source",
+          "heading": "参考来源",
+          "text": "本节为自编中文教学材料，技术依据：[查看文档](https://www.gnu.org/software/bash/manual/html_node/Job-Control-Basics.html)。先修关系为本课教学设计，待教师核验。"
+        }
+      ],
+      "provenance": {
+        "kind": "agent_authored",
+        "policy_version": "authored-linux-command-v1",
+        "human_review": false
+      },
+      "evidence_refs": [
+        {
+          "source_id": "source_34",
+          "locator": "Job Control Basics",
+          "lesson_section_id": "concept",
+          "interpretation": "自编解释；来源链接是技术核验入口，非逐字引文。"
+        }
+      ]
+    },
+    {
+      "id": "variable",
+      "chapter_id": "scripts",
+      "title": "Shell 变量",
+      "description": "Bash 变量用 name=value 赋值，等号两边不能随意加空格。读取常用 $name 或 ${name}。传递可能含空格的值时使用双引号。普通 Shell 变量不会自动成为子进程的环境变量。",
+      "objectives": [
+        "解释Shell 变量的行为，并独立回答本节点情境题。"
+      ],
+      "aliases": [],
+      "misconception": "认为 name = value 与 name=value 等价，或变量赋值自动导出。",
+      "source_ids": [
+        "source_35"
+      ],
+      "review_status": "draft",
+      "check_question": "变量 name 的值含空格，传给 ls 时怎样保证仍是一个参数？",
+      "expected_answer": "使用 ls -- \"$name\"；双引号保护展开结果中的空格，-- 结束 GNU ls 的选项解析。",
+      "check_task": {
+        "id": "check_variable",
+        "version": 1,
+        "rubric": [
+          "使用 ls -- \"$name\"；双引号保护展开结果中的空格，-- 结束 GNU ls 的选项解析。",
+          "说明理由，并区分题目给定条件与自己的假设。"
+        ],
+        "hint_levels": [
+          "先定位题目中涉及的对象、输入和预期结果。",
+          "注意这个常见误解：认为 name = value 与 name=value 等价，或变量赋值自动导出。",
+          "回到概念：Bash 变量用 name=value 赋值，等号两边不能随意加空格。读取常用 $name 或 ${name}。传递可能含空格的值时使用双引号。普通 Shell 变量不会自动成为子进程的环境变量。",
+          "关键要点：使用 ls -- \"$name\"；双引号保护展开结果中的空格，-- 结束 GNU ls 的选项解析。"
+        ]
+      },
+      "lesson_content": [
+        {
+          "id": "concept",
+          "heading": "概念与边界",
+          "text": "Bash 变量用 name=value 赋值，等号两边不能随意加空格。读取常用 $name 或 ${name}。传递可能含空格的值时使用双引号。普通 Shell 变量不会自动成为子进程的环境变量。"
+        },
+        {
+          "id": "example",
+          "heading": "操作示例",
+          "text": "`name='my notes'` 后用 `printf '%s\\n' \"$name\"` 输出；`export name` 才把它标记为向后续子进程传递的环境变量。"
+        },
+        {
+          "id": "check",
+          "heading": "停下来检验",
+          "text": "变量 name 的值含空格，传给 ls 时怎样保证仍是一个参数？"
+        },
+        {
+          "id": "source",
+          "heading": "参考来源",
+          "text": "本节为自编中文教学材料，技术依据：[查看文档](https://www.gnu.org/software/bash/manual/html_node/Shell-Parameters.html)。先修关系为本课教学设计，待教师核验。"
+        }
+      ],
+      "provenance": {
+        "kind": "agent_authored",
+        "policy_version": "authored-linux-command-v1",
+        "human_review": false
+      },
+      "evidence_refs": [
+        {
+          "source_id": "source_35",
+          "locator": "Shell Parameters",
+          "lesson_section_id": "concept",
+          "interpretation": "自编解释；来源链接是技术核验入口，非逐字引文。"
+        }
+      ]
+    },
+    {
+      "id": "exit_status",
+      "chapter_id": "scripts",
+      "title": "退出状态",
+      "description": "命令返回退出状态，约定 0 表示成功，非零表示其他结果。$? 表示最近命令状态，应及时读取。grep 的 1 表示没有匹配，不应一概当作程序崩溃；管道状态还受 pipefail 影响。",
+      "objectives": [
+        "解释退出状态的行为，并独立回答本节点情境题。"
+      ],
+      "aliases": [],
+      "misconception": "把非零状态一概当成同一种错误，或认为管道中任一步失败都自动反映在最终状态。",
+      "source_ids": [
+        "source_36"
+      ],
+      "review_status": "draft",
+      "check_question": "默认未启用 pipefail 时，false | true 的状态是什么？",
+      "expected_answer": "通常为 0，因为最后一个命令 true 成功。启用 pipefail 会改变管道状态规则，不能把默认状态当全部步骤成功的证明。",
+      "check_task": {
+        "id": "check_exit_status",
+        "version": 1,
+        "rubric": [
+          "通常为 0，因为最后一个命令 true 成功。启用 pipefail 会改变管道状态规则，不能把默认状态当全部步骤成功的证明。",
+          "说明理由，并区分题目给定条件与自己的假设。"
+        ],
+        "hint_levels": [
+          "先定位题目中涉及的对象、输入和预期结果。",
+          "注意这个常见误解：把非零状态一概当成同一种错误，或认为管道中任一步失败都自动反映在最终状态。",
+          "回到概念：命令返回退出状态，约定 0 表示成功，非零表示其他结果。$? 表示最近命令状态，应及时读取。grep 的 1 表示没有匹配，不应一概当作程序崩溃；管道状态还受 pipefail 影响。",
+          "关键要点：通常为 0，因为最后一个命令 true 成功。启用 pipefail 会改变管道状态规则，不能把默认状态当全部步骤成功的证明。"
+        ]
+      },
+      "lesson_content": [
+        {
+          "id": "concept",
+          "heading": "概念与边界",
+          "text": "命令返回退出状态，约定 0 表示成功，非零表示其他结果。$? 表示最近命令状态，应及时读取。grep 的 1 表示没有匹配，不应一概当作程序崩溃；管道状态还受 pipefail 影响。"
+        },
+        {
+          "id": "example",
+          "heading": "操作示例",
+          "text": "运行 `grep -F 'ERROR' app.log` 后立即检查 `printf '%s\\n' \"$?\"`。默认情况下，管道一般返回最后一个命令的状态。"
+        },
+        {
+          "id": "check",
+          "heading": "停下来检验",
+          "text": "默认未启用 pipefail 时，false | true 的状态是什么？"
+        },
+        {
+          "id": "source",
+          "heading": "参考来源",
+          "text": "本节为自编中文教学材料，技术依据：[查看文档](https://www.gnu.org/software/bash/manual/html_node/Exit-Status.html)。先修关系为本课教学设计，待教师核验。"
+        }
+      ],
+      "provenance": {
+        "kind": "agent_authored",
+        "policy_version": "authored-linux-command-v1",
+        "human_review": false
+      },
+      "evidence_refs": [
+        {
+          "source_id": "source_36",
+          "locator": "Exit Status",
+          "lesson_section_id": "concept",
+          "interpretation": "自编解释；来源链接是技术核验入口，非逐字引文。"
+        }
+      ]
+    },
+    {
+      "id": "for_loop",
+      "chapter_id": "scripts",
+      "title": "for 循环",
+      "description": "for 依次把列表中的项赋给变量，并执行 do 与 done 之间的命令。循环处理文件名时仍要保护空格；列表成员个数与文本字符个数不是同一回事。",
+      "objectives": [
+        "解释for 循环的行为，并独立回答本节点情境题。"
+      ],
+      "aliases": [],
+      "misconception": "以为含空格的一个带引号文件名会循环两次。",
+      "source_ids": [
+        "source_37"
+      ],
+      "review_status": "draft",
+      "check_question": "for file in 'a one.txt' 'b.txt' 的循环体执行几次？",
+      "expected_answer": "两次。列表有两个词，a one.txt 被引号保护为一个词；在循环体中引用变量也应使用双引号。",
+      "check_task": {
+        "id": "check_for_loop",
+        "version": 1,
+        "rubric": [
+          "两次。列表有两个词，a one.txt 被引号保护为一个词；在循环体中引用变量也应使用双引号。",
+          "说明理由，并区分题目给定条件与自己的假设。"
+        ],
+        "hint_levels": [
+          "先定位题目中涉及的对象、输入和预期结果。",
+          "注意这个常见误解：以为含空格的一个带引号文件名会循环两次。",
+          "回到概念：for 依次把列表中的项赋给变量，并执行 do 与 done 之间的命令。循环处理文件名时仍要保护空格；列表成员个数与文本字符个数不是同一回事。",
+          "关键要点：两次。列表有两个词，a one.txt 被引号保护为一个词；在循环体中引用变量也应使用双引号。"
+        ]
+      },
+      "lesson_content": [
+        {
+          "id": "concept",
+          "heading": "概念与边界",
+          "text": "for 依次把列表中的项赋给变量，并执行 do 与 done 之间的命令。循环处理文件名时仍要保护空格；列表成员个数与文本字符个数不是同一回事。"
+        },
+        {
+          "id": "example",
+          "heading": "操作示例",
+          "text": "`for file in 'a one.txt' 'b.txt'; do printf '%s\\n' \"$file\"; done` 循环两次，分别输出两个完整文件名。"
+        },
+        {
+          "id": "check",
+          "heading": "停下来检验",
+          "text": "for file in 'a one.txt' 'b.txt' 的循环体执行几次？"
+        },
+        {
+          "id": "source",
+          "heading": "参考来源",
+          "text": "本节为自编中文教学材料，技术依据：[查看文档](https://www.gnu.org/software/bash/manual/html_node/Looping-Constructs.html)。先修关系为本课教学设计，待教师核验。"
+        }
+      ],
+      "provenance": {
+        "kind": "agent_authored",
+        "policy_version": "authored-linux-command-v1",
+        "human_review": false
+      },
+      "evidence_refs": [
+        {
+          "source_id": "source_37",
+          "locator": "Looping Constructs",
+          "lesson_section_id": "concept",
+          "interpretation": "自编解释；来源链接是技术核验入口，非逐字引文。"
+        }
+      ]
+    },
+    {
+      "id": "script",
+      "chapter_id": "scripts",
+      "title": "Bash 脚本",
+      "description": "脚本将命令保存为可重复执行的文本。bash file.sh 指定解释器读取文件；./file.sh 直接执行时需要可执行权限和适当的解释器声明。脚本接收位置参数，应按任务检查输入。",
+      "objectives": [
+        "解释Bash 脚本的行为，并独立回答本节点情境题。"
+      ],
+      "aliases": [],
+      "misconception": "认为 bash file.sh 与 ./file.sh 对执行权限的要求完全相同。",
+      "source_ids": [
+        "source_38"
+      ],
+      "review_status": "draft",
+      "check_question": "文件可读但没有执行位，bash show.sh 与 ./show.sh 是否一定都能运行？",
+      "expected_answer": "不一定。bash show.sh 由解释器读取可读文件，不要求文件自身执行位；./show.sh 需要执行权限，还需有效解释器等条件。",
+      "check_task": {
+        "id": "check_script",
+        "version": 1,
+        "rubric": [
+          "不一定。bash show.sh 由解释器读取可读文件，不要求文件自身执行位；./show.sh 需要执行权限，还需有效解释器等条件。",
+          "说明理由，并区分题目给定条件与自己的假设。"
+        ],
+        "hint_levels": [
+          "先定位题目中涉及的对象、输入和预期结果。",
+          "注意这个常见误解：认为 bash file.sh 与 ./file.sh 对执行权限的要求完全相同。",
+          "回到概念：脚本将命令保存为可重复执行的文本。bash file.sh 指定解释器读取文件；./file.sh 直接执行时需要可执行权限和适当的解释器声明。脚本接收位置参数，应按任务检查输入。",
+          "关键要点：不一定。bash show.sh 由解释器读取可读文件，不要求文件自身执行位；./show.sh 需要执行权限，还需有效解释器等条件。"
+        ]
+      },
+      "lesson_content": [
+        {
+          "id": "concept",
+          "heading": "概念与边界",
+          "text": "脚本将命令保存为可重复执行的文本。bash file.sh 指定解释器读取文件；./file.sh 直接执行时需要可执行权限和适当的解释器声明。脚本接收位置参数，应按任务检查输入。"
+        },
+        {
+          "id": "example",
+          "heading": "操作示例",
+          "text": "脚本首行可写 `#!/usr/bin/env bash`，后续用 `printf '%s\\n' \"$1\"` 输出首个参数。`bash show.sh 'my notes'` 传入一个位置参数。"
+        },
+        {
+          "id": "check",
+          "heading": "停下来检验",
+          "text": "文件可读但没有执行位，bash show.sh 与 ./show.sh 是否一定都能运行？"
+        },
+        {
+          "id": "source",
+          "heading": "参考来源",
+          "text": "本节为自编中文教学材料，技术依据：[查看文档](https://www.gnu.org/software/bash/manual/html_node/Shell-Scripts.html)。先修关系为本课教学设计，待教师核验。"
+        }
+      ],
+      "provenance": {
+        "kind": "agent_authored",
+        "policy_version": "authored-linux-command-v1",
+        "human_review": false
+      },
+      "evidence_refs": [
+        {
+          "source_id": "source_38",
+          "locator": "Shell Scripts",
+          "lesson_section_id": "concept",
+          "interpretation": "自编解释；来源链接是技术核验入口，非逐字引文。"
+        }
+      ]
+    },
+    {
+      "id": "tail",
+      "chapter_id": "search",
+      "title": "tail 末尾观察",
+      "description": "tail 默认输出文件末尾若干行；-n 指定行数，-f 持续观察追加内容。看到末尾只代表缩小观察范围，不代表最后一行就是所需业务记录。",
+      "objectives": [
+        "解释tail 末尾观察的行为，并独立回答本节点情境题。"
+      ],
+      "aliases": [],
+      "misconception": "把最后一行或 tail -f 当作业务筛选规则。",
+      "source_ids": [
+        "source_39"
+      ],
+      "review_status": "draft",
+      "check_question": "末尾十行仍没有目标记录，能否断言它不存在？",
+      "expected_answer": "不能；tail -n 10 只展示末尾窗口，需扩大范围或根据记录类型筛选。",
+      "check_task": {
+        "id": "check_tail",
+        "version": 1,
+        "rubric": [
+          "不能；tail -n 10 只展示末尾窗口，需扩大范围或根据记录类型筛选。",
+          "说明理由，并区分题目给定条件与自己的假设。"
+        ],
+        "hint_levels": [
+          "先定位题目中涉及的对象、输入和预期结果。",
+          "注意这个常见误解：把最后一行或 tail -f 当作业务筛选规则。",
+          "回到概念：tail 默认输出文件末尾若干行；-n 指定行数，-f 持续观察追加内容。看到末尾只代表缩小观察范围，不代表最后一行就是所需业务记录。",
+          "关键要点：不能；tail -n 10 只展示末尾窗口，需扩大范围或根据记录类型筛选。"
+        ]
+      },
+      "lesson_content": [
+        {
+          "id": "concept",
+          "heading": "概念与边界",
+          "text": "tail 默认输出文件末尾若干行；-n 指定行数，-f 持续观察追加内容。看到末尾只代表缩小观察范围，不代表最后一行就是所需业务记录。"
+        },
+        {
+          "id": "example",
+          "heading": "操作示例",
+          "text": "在无关练习文件 events.log 上使用 `tail -n 5 events.log`；观察持续追加时可用 -f，Ctrl-C 停止观察。"
+        },
+        {
+          "id": "check",
+          "heading": "停下来检验",
+          "text": "末尾十行仍没有目标记录，能否断言它不存在？"
+        },
+        {
+          "id": "source",
+          "heading": "参考来源",
+          "text": "本节为自编中文教学材料，技术依据：[查看文档](https://www.gnu.org/software/coreutils/manual/html_node/tail-invocation.html)。先修关系为本课教学设计，待教师核验。"
+        }
+      ],
+      "provenance": {
+        "kind": "agent_authored",
+        "policy_version": "authored-linux-command-v1",
+        "human_review": false
+      },
+      "evidence_refs": [
+        {
+          "source_id": "source_39",
+          "locator": "tail invocation",
+          "lesson_section_id": "concept",
+          "interpretation": "自编解释；来源链接是技术核验入口，非逐字引文。"
+        }
+      ]
+    },
+    {
+      "id": "log_record",
+      "chapter_id": "search",
+      "title": "日志记录语义",
+      "description": "日志行包含时间、记录类型和业务字段。应先确定所需类型，再在该类型内找最新有效记录；多个字段须来自同一条记录。LinuxLab 的后续心跳不替换最近的有效业务记录，这是本实验的数据约定。",
+      "objectives": [
+        "解释日志记录语义的行为，并独立回答本节点情境题。"
+      ],
+      "aliases": [],
+      "misconception": "混用不同行的字段，或把最新心跳当作最新业务指令。",
+      "source_ids": [
+        "source_40"
+      ],
+      "review_status": "draft",
+      "check_question": "为什么最新一行不一定是最新有效业务记录？",
+      "expected_answer": "最新描述时间，有效还受记录类型及业务条件限制；必须同时满足，不能拼接不同行的字段。",
+      "check_task": {
+        "id": "check_log_record",
+        "version": 1,
+        "rubric": [
+          "最新描述时间，有效还受记录类型及业务条件限制；必须同时满足，不能拼接不同行的字段。",
+          "说明理由，并区分题目给定条件与自己的假设。"
+        ],
+        "hint_levels": [
+          "先定位题目中涉及的对象、输入和预期结果。",
+          "注意这个常见误解：混用不同行的字段，或把最新心跳当作最新业务指令。",
+          "回到概念：日志行包含时间、记录类型和业务字段。应先确定所需类型，再在该类型内找最新有效记录；多个字段须来自同一条记录。LinuxLab 的后续心跳不替换最近的有效业务记录，这是本实验的数据约定。",
+          "关键要点：最新描述时间，有效还受记录类型及业务条件限制；必须同时满足，不能拼接不同行的字段。"
+        ]
+      },
+      "lesson_content": [
+        {
+          "id": "concept",
+          "heading": "概念与边界",
+          "text": "日志行包含时间、记录类型和业务字段。应先确定所需类型，再在该类型内找最新有效记录；多个字段须来自同一条记录。LinuxLab 的后续心跳不替换最近的有效业务记录，这是本实验的数据约定。"
+        },
+        {
+          "id": "example",
+          "heading": "操作示例",
+          "text": "例：10:00 READY PORT=42；10:01 HEARTBEAT。心跳更新并不改变最近 READY 的 PORT。应先解释类型，再提取字段。"
+        },
+        {
+          "id": "check",
+          "heading": "停下来检验",
+          "text": "为什么最新一行不一定是最新有效业务记录？"
+        },
+        {
+          "id": "source",
+          "heading": "参考来源",
+          "text": "本节为自编中文教学材料，技术依据：[查看文档](https://github.com/Southwall-Tester/LinuxLab/blob/main/tasks.py)。先修关系为本课教学设计，待教师核验。"
+        }
+      ],
+      "provenance": {
+        "kind": "agent_authored",
+        "policy_version": "authored-linux-command-v1",
+        "human_review": false
+      },
+      "evidence_refs": [
+        {
+          "source_id": "source_40",
+          "locator": "CONTRACTS / requirements / configuration validation",
+          "lesson_section_id": "concept",
+          "interpretation": "自编解释；来源链接是技术核验入口，非逐字引文。"
+        }
+      ]
+    },
+    {
+      "id": "config_record",
+      "chapter_id": "scripts",
+      "title": "键值配置结构",
+      "description": "配置文件按应用约定组织字段。LinuxLab 使用规定的 KEY=value 格式，必需字段各出现一次且不接受额外字段；修改后要保存到磁盘。这是实验应用的数据格式，并非所有 Linux 配置都遵守同一语法，也不应把未知配置当 Shell 脚本执行。",
+      "objectives": [
+        "解释键值配置结构的行为，并独立回答本节点情境题。"
+      ],
+      "aliases": [],
+      "misconception": "认为在编辑器里看到改动就等于磁盘已保存，或所有配置都可用 source 执行。",
+      "source_ids": [
+        "source_40"
+      ],
+      "review_status": "draft",
+      "check_question": "为什么两行 PORT=42、PORT=43 不能简单当作已正确更新？",
+      "expected_answer": "键重复；解释规则由应用决定，本实验明确拒绝重复。应按规定只保留一次目标值并保存核对。",
+      "check_task": {
+        "id": "check_config_record",
+        "version": 1,
+        "rubric": [
+          "键重复；解释规则由应用决定，本实验明确拒绝重复。应按规定只保留一次目标值并保存核对。",
+          "说明理由，并区分题目给定条件与自己的假设。"
+        ],
+        "hint_levels": [
+          "先定位题目中涉及的对象、输入和预期结果。",
+          "注意这个常见误解：认为在编辑器里看到改动就等于磁盘已保存，或所有配置都可用 source 执行。",
+          "回到概念：配置文件按应用约定组织字段。LinuxLab 使用规定的 KEY=value 格式，必需字段各出现一次且不接受额外字段；修改后要保存到磁盘。这是实验应用的数据格式，并非所有 Linux 配置都遵守同一语法，也不应把未知配置当 Shell 脚本执行。",
+          "关键要点：键重复；解释规则由应用决定，本实验明确拒绝重复。应按规定只保留一次目标值并保存核对。"
+        ]
+      },
+      "lesson_content": [
+        {
+          "id": "concept",
+          "heading": "概念与边界",
+          "text": "配置文件按应用约定组织字段。LinuxLab 使用规定的 KEY=value 格式，必需字段各出现一次且不接受额外字段；修改后要保存到磁盘。这是实验应用的数据格式，并非所有 Linux 配置都遵守同一语法，也不应把未知配置当 Shell 脚本执行。"
+        },
+        {
+          "id": "example",
+          "heading": "操作示例",
+          "text": "无关练习 example.conf 中保留 NAME=demo，将 PORT=42 改为 PORT=43；保存后重新读文件，检查重复键和遗漏键。"
+        },
+        {
+          "id": "check",
+          "heading": "停下来检验",
+          "text": "为什么两行 PORT=42、PORT=43 不能简单当作已正确更新？"
+        },
+        {
+          "id": "source",
+          "heading": "参考来源",
+          "text": "本节为自编中文教学材料，技术依据：[查看文档](https://github.com/Southwall-Tester/LinuxLab/blob/main/tasks.py)。先修关系为本课教学设计，待教师核验。"
+        }
+      ],
+      "provenance": {
+        "kind": "agent_authored",
+        "policy_version": "authored-linux-command-v1",
+        "human_review": false
+      },
+      "evidence_refs": [
+        {
+          "source_id": "source_40",
+          "locator": "CONTRACTS / requirements / configuration validation",
+          "lesson_section_id": "concept",
+          "interpretation": "自编解释；来源链接是技术核验入口，非逐字引文。"
+        }
+      ]
+    },
+    {
+      "id": "vim",
+      "chapter_id": "search",
+      "title": "Vim 模式与保存",
+      "description": "Vim 普通模式解释编辑命令，插入模式写入文本，命令行模式执行保存等操作。普通模式按 i 进入插入，Esc 返回；:w 保存，:wq 保存并退出，:q! 放弃未保存修改并退出。缓冲区变化与磁盘文件变化需要区分。",
+      "objectives": [
+        "解释Vim 模式与保存的行为，并独立回答本节点情境题。"
+      ],
+      "aliases": [],
+      "misconception": "在普通模式直接输入配置文本，或把 :q! 当作保存退出。",
+      "source_ids": [
+        "source_41"
+      ],
+      "review_status": "draft",
+      "check_question": "改动后用 :q! 退出，磁盘会保留刚才的改动吗？",
+      "expected_answer": "未保存的改动会被放弃；需要先 :w 或用 :wq 保存并退出。",
+      "check_task": {
+        "id": "check_vim",
+        "version": 1,
+        "rubric": [
+          "未保存的改动会被放弃；需要先 :w 或用 :wq 保存并退出。",
+          "说明理由，并区分题目给定条件与自己的假设。"
+        ],
+        "hint_levels": [
+          "先定位题目中涉及的对象、输入和预期结果。",
+          "注意这个常见误解：在普通模式直接输入配置文本，或把 :q! 当作保存退出。",
+          "回到概念：Vim 普通模式解释编辑命令，插入模式写入文本，命令行模式执行保存等操作。普通模式按 i 进入插入，Esc 返回；:w 保存，:wq 保存并退出，:q! 放弃未保存修改并退出。缓冲区变化与磁盘文件变化需要区分。",
+          "关键要点：未保存的改动会被放弃；需要先 :w 或用 :wq 保存并退出。"
+        ]
+      },
+      "lesson_content": [
+        {
+          "id": "concept",
+          "heading": "概念与边界",
+          "text": "Vim 普通模式解释编辑命令，插入模式写入文本，命令行模式执行保存等操作。普通模式按 i 进入插入，Esc 返回；:w 保存，:wq 保存并退出，:q! 放弃未保存修改并退出。缓冲区变化与磁盘文件变化需要区分。"
+        },
+        {
+          "id": "example",
+          "heading": "操作示例",
+          "text": "在无关 scratch.txt 中练习：i 输入一行，Esc 后 :w 保存；重新打开确认。可用 :help 或 vimtutor 自主练习。"
+        },
+        {
+          "id": "check",
+          "heading": "停下来检验",
+          "text": "改动后用 :q! 退出，磁盘会保留刚才的改动吗？"
+        },
+        {
+          "id": "source",
+          "heading": "参考来源",
+          "text": "本节为自编中文教学材料，技术依据：[查看文档](https://vimhelp.org/usr_02.txt.html)。先修关系为本课教学设计，待教师核验。"
+        }
+      ],
+      "provenance": {
+        "kind": "agent_authored",
+        "policy_version": "authored-linux-command-v1",
+        "human_review": false
+      },
+      "evidence_refs": [
+        {
+          "source_id": "source_41",
+          "locator": "02.2 Inserting text / 02.4 Saving and exiting",
+          "lesson_section_id": "concept",
+          "interpretation": "自编解释；来源链接是技术核验入口，非逐字引文。"
+        }
+      ]
+    },
+    {
+      "id": "top",
+      "chapter_id": "processes",
+      "title": "top 动态进程观察",
+      "description": "top 动态显示系统进程及资源信息。PID 对应当前运行实例，应结合命令名、所有者和启动语境确认身份，不能只猜最大 CPU 行。进程结束后 PID 可能被复用，旧记录不能证明目标仍在运行。",
+      "objectives": [
+        "解释top 动态进程观察的行为，并独立回答本节点情境题。"
+      ],
+      "aliases": [],
+      "misconception": "把日志序号当作 PID，或认为上一个脚本退出后仍常驻。",
+      "source_ids": [
+        "source_42"
+      ],
+      "review_status": "draft",
+      "check_question": "保存了一个 PID，过一段时间为什么还需要核实身份？",
+      "expected_answer": "原进程可能退出且 PID 可能复用；需重新检查当前实例的命令、身份和任务语境。",
+      "check_task": {
+        "id": "check_top",
+        "version": 1,
+        "rubric": [
+          "原进程可能退出且 PID 可能复用；需重新检查当前实例的命令、身份和任务语境。",
+          "说明理由，并区分题目给定条件与自己的假设。"
+        ],
+        "hint_levels": [
+          "先定位题目中涉及的对象、输入和预期结果。",
+          "注意这个常见误解：把日志序号当作 PID，或认为上一个脚本退出后仍常驻。",
+          "回到概念：top 动态显示系统进程及资源信息。PID 对应当前运行实例，应结合命令名、所有者和启动语境确认身份，不能只猜最大 CPU 行。进程结束后 PID 可能被复用，旧记录不能证明目标仍在运行。",
+          "关键要点：原进程可能退出且 PID 可能复用；需重新检查当前实例的命令、身份和任务语境。"
+        ]
+      },
+      "lesson_content": [
+        {
+          "id": "concept",
+          "heading": "概念与边界",
+          "text": "top 动态显示系统进程及资源信息。PID 对应当前运行实例，应结合命令名、所有者和启动语境确认身份，不能只猜最大 CPU 行。进程结束后 PID 可能被复用，旧记录不能证明目标仍在运行。"
+        },
+        {
+          "id": "example",
+          "heading": "操作示例",
+          "text": "用 `top` 观察本机进程列表，按 q 退出；与 `ps -p PID -o pid,comm,args` 的快照比较。练习只观察自己明确启动的进程。"
+        },
+        {
+          "id": "check",
+          "heading": "停下来检验",
+          "text": "保存了一个 PID，过一段时间为什么还需要核实身份？"
+        },
+        {
+          "id": "source",
+          "heading": "参考来源",
+          "text": "本节为自编中文教学材料，技术依据：[查看文档](https://man7.org/linux/man-pages/man1/top.1.html)。先修关系为本课教学设计，待教师核验。"
+        }
+      ],
+      "provenance": {
+        "kind": "agent_authored",
+        "policy_version": "authored-linux-command-v1",
+        "human_review": false
+      },
+      "evidence_refs": [
+        {
+          "source_id": "source_42",
+          "locator": "top(1) DESCRIPTION",
+          "lesson_section_id": "concept",
+          "interpretation": "自编解释；来源链接是技术核验入口，非逐字引文。"
+        }
+      ]
+    },
+    {
+      "id": "file_integrity",
+      "chapter_id": "files",
+      "title": "文件副本完整性",
+      "description": "完整副本要求明确比较范围：内容、目录层级、隐藏项、文件类型及任务要求的元数据。文件名相同不代表内容相同；复制成功也不能单独证明源文件未被改变。需要在操作前后核对，并保留原始资料。",
+      "objectives": [
+        "解释文件副本完整性的行为，并独立回答本节点情境题。"
+      ],
+      "aliases": [],
+      "misconception": "只看可见文件名，遗漏隐藏项或意外移动了原件。",
+      "source_ids": [
+        "source_10"
+      ],
+      "review_status": "draft",
+      "check_question": "备份中看到了所有可见文件名，是否足以证明完整？",
+      "expected_answer": "不足；还需检查隐藏项、子目录、内容、类型及要求的元数据，并确认原件仍完整。",
+      "check_task": {
+        "id": "check_file_integrity",
+        "version": 1,
+        "rubric": [
+          "不足；还需检查隐藏项、子目录、内容、类型及要求的元数据，并确认原件仍完整。",
+          "说明理由，并区分题目给定条件与自己的假设。"
+        ],
+        "hint_levels": [
+          "先定位题目中涉及的对象、输入和预期结果。",
+          "注意这个常见误解：只看可见文件名，遗漏隐藏项或意外移动了原件。",
+          "回到概念：完整副本要求明确比较范围：内容、目录层级、隐藏项、文件类型及任务要求的元数据。文件名相同不代表内容相同；复制成功也不能单独证明源文件未被改变。需要在操作前后核对，并保留原始资料。",
+          "关键要点：不足；还需检查隐藏项、子目录、内容、类型及要求的元数据，并确认原件仍完整。"
+        ]
+      },
+      "lesson_content": [
+        {
+          "id": "concept",
+          "heading": "概念与边界",
+          "text": "完整副本要求明确比较范围：内容、目录层级、隐藏项、文件类型及任务要求的元数据。文件名相同不代表内容相同；复制成功也不能单独证明源文件未被改变。需要在操作前后核对，并保留原始资料。"
+        },
+        {
+          "id": "example",
+          "heading": "操作示例",
+          "text": "对无关目录 source-notes 建立副本，分别列出含隐藏项的目录树，比较文本内容与类型。先确认目标层级，避免多出一层同名目录。"
+        },
+        {
+          "id": "check",
+          "heading": "停下来检验",
+          "text": "备份中看到了所有可见文件名，是否足以证明完整？"
+        },
+        {
+          "id": "source",
+          "heading": "参考来源",
+          "text": "本节为自编中文教学材料，技术依据：[查看文档](https://www.gnu.org/software/coreutils/manual/html_node/cp-invocation.html)。先修关系为本课教学设计，待教师核验。"
+        }
+      ],
+      "provenance": {
+        "kind": "agent_authored",
+        "policy_version": "authored-linux-command-v1",
+        "human_review": false
+      },
+      "evidence_refs": [
+        {
+          "source_id": "source_10",
+          "locator": "cp invocation",
+          "lesson_section_id": "concept",
+          "interpretation": "自编解释；来源链接是技术核验入口，非逐字引文。"
+        }
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "id": "prerequisite_shell_syntax",
+      "source": "shell",
+      "target": "syntax",
+      "type": "prerequisite",
+      "reason": "区分解释器和程序后，才能解释命令名与参数如何交给程序。",
+      "source_ids": [
+        "source_01",
+        "source_02"
+      ],
+      "review_status": "draft",
+      "basis_kind": "authored_teaching_dependency",
+      "evidence_refs": [
+        {
+          "node_id": "shell",
+          "lesson_section_id": "concept"
+        },
+        {
+          "node_id": "syntax",
+          "lesson_section_id": "concept"
+        }
+      ],
+      "policy_version": "authored-linux-command-v1"
+    },
+    {
+      "id": "prerequisite_syntax_help",
+      "source": "syntax",
+      "target": "help",
+      "type": "prerequisite",
+      "reason": "检索帮助需先识别命令名和选项，才知道要查哪个对象。",
+      "source_ids": [
+        "source_02",
+        "source_03"
+      ],
+      "review_status": "draft",
+      "basis_kind": "authored_teaching_dependency",
+      "evidence_refs": [
+        {
+          "node_id": "syntax",
+          "lesson_section_id": "concept"
+        },
+        {
+          "node_id": "help",
+          "lesson_section_id": "concept"
+        }
+      ],
+      "policy_version": "authored-linux-command-v1"
+    },
+    {
+      "id": "prerequisite_syntax_quoting",
+      "source": "syntax",
+      "target": "quoting",
+      "type": "prerequisite",
+      "reason": "引号任务要求解释参数数量变化，需要先理解参数。",
+      "source_ids": [
+        "source_02",
+        "source_04"
+      ],
+      "review_status": "draft",
+      "basis_kind": "authored_teaching_dependency",
+      "evidence_refs": [
+        {
+          "node_id": "syntax",
+          "lesson_section_id": "concept"
+        },
+        {
+          "node_id": "quoting",
+          "lesson_section_id": "concept"
+        }
+      ],
+      "policy_version": "authored-linux-command-v1"
+    },
+    {
+      "id": "prerequisite_cwd_relative",
+      "source": "cwd",
+      "target": "relative",
+      "type": "prerequisite",
+      "reason": "相对路径解析必须知道从哪个工作目录开始。",
+      "source_ids": [
+        "source_05",
+        "source_06"
+      ],
+      "review_status": "draft",
+      "basis_kind": "authored_teaching_dependency",
+      "evidence_refs": [
+        {
+          "node_id": "cwd",
+          "lesson_section_id": "concept"
+        },
+        {
+          "node_id": "relative",
+          "lesson_section_id": "concept"
+        }
+      ],
+      "policy_version": "authored-linux-command-v1"
+    },
+    {
+      "id": "prerequisite_absolute_cd",
+      "source": "absolute",
+      "target": "cd",
+      "type": "prerequisite",
+      "reason": "目录切换任务包含绝对路径定位，需要先确定根起点。",
+      "source_ids": [
+        "source_06",
+        "source_07"
+      ],
+      "review_status": "draft",
+      "basis_kind": "authored_teaching_dependency",
+      "evidence_refs": [
+        {
+          "node_id": "absolute",
+          "lesson_section_id": "concept"
+        },
+        {
+          "node_id": "cd",
+          "lesson_section_id": "concept"
+        }
+      ],
+      "policy_version": "authored-linux-command-v1"
+    },
+    {
+      "id": "prerequisite_relative_cd",
+      "source": "relative",
+      "target": "cd",
+      "type": "prerequisite",
+      "reason": "目录切换任务包含 .. 和相对位置，需先会逐段解析。",
+      "source_ids": [
+        "source_06",
+        "source_07"
+      ],
+      "review_status": "draft",
+      "basis_kind": "authored_teaching_dependency",
+      "evidence_refs": [
+        {
+          "node_id": "relative",
+          "lesson_section_id": "concept"
+        },
+        {
+          "node_id": "cd",
+          "lesson_section_id": "concept"
+        }
+      ],
+      "policy_version": "authored-linux-command-v1"
+    },
+    {
+      "id": "prerequisite_syntax_ls",
+      "source": "syntax",
+      "target": "ls",
+      "type": "prerequisite",
+      "reason": "列出目录项任务需区分 -l、-d 选项与路径操作数。",
+      "source_ids": [
+        "source_02",
+        "source_08"
+      ],
+      "review_status": "draft",
+      "basis_kind": "authored_teaching_dependency",
+      "evidence_refs": [
+        {
+          "node_id": "syntax",
+          "lesson_section_id": "concept"
+        },
+        {
+          "node_id": "ls",
+          "lesson_section_id": "concept"
+        }
+      ],
+      "policy_version": "authored-linux-command-v1"
+    },
+    {
+      "id": "prerequisite_relative_mkdir",
+      "source": "relative",
+      "target": "mkdir",
+      "type": "prerequisite",
+      "reason": "创建嵌套目录前需判断目标相对于当前位置的位置。",
+      "source_ids": [
+        "source_06",
+        "source_09"
+      ],
+      "review_status": "draft",
+      "basis_kind": "authored_teaching_dependency",
+      "evidence_refs": [
+        {
+          "node_id": "relative",
+          "lesson_section_id": "concept"
+        },
+        {
+          "node_id": "mkdir",
+          "lesson_section_id": "concept"
+        }
+      ],
+      "policy_version": "authored-linux-command-v1"
+    },
+    {
+      "id": "prerequisite_relative_cp",
+      "source": "relative",
+      "target": "cp",
+      "type": "prerequisite",
+      "reason": "复制任务要求明确源路径和目标路径，避免复制到错误位置。",
+      "source_ids": [
+        "source_06",
+        "source_10"
+      ],
+      "review_status": "draft",
+      "basis_kind": "authored_teaching_dependency",
+      "evidence_refs": [
+        {
+          "node_id": "relative",
+          "lesson_section_id": "concept"
+        },
+        {
+          "node_id": "cp",
+          "lesson_section_id": "concept"
+        }
+      ],
+      "policy_version": "authored-linux-command-v1"
+    },
+    {
+      "id": "prerequisite_relative_mv",
+      "source": "relative",
+      "target": "mv",
+      "type": "prerequisite",
+      "reason": "重命名和移动任务需解释源、目标路径的变化。",
+      "source_ids": [
+        "source_06",
+        "source_11"
+      ],
+      "review_status": "draft",
+      "basis_kind": "authored_teaching_dependency",
+      "evidence_refs": [
+        {
+          "node_id": "relative",
+          "lesson_section_id": "concept"
+        },
+        {
+          "node_id": "mv",
+          "lesson_section_id": "concept"
+        }
+      ],
+      "policy_version": "authored-linux-command-v1"
+    },
+    {
+      "id": "prerequisite_relative_rm",
+      "source": "relative",
+      "target": "rm",
+      "type": "prerequisite",
+      "reason": "删除前必须能核对所写路径指向的目录项。",
+      "source_ids": [
+        "source_06",
+        "source_12"
+      ],
+      "review_status": "draft",
+      "basis_kind": "authored_teaching_dependency",
+      "evidence_refs": [
+        {
+          "node_id": "relative",
+          "lesson_section_id": "concept"
+        },
+        {
+          "node_id": "rm",
+          "lesson_section_id": "concept"
+        }
+      ],
+      "policy_version": "authored-linux-command-v1"
+    },
+    {
+      "id": "prerequisite_relative_symlink",
+      "source": "relative",
+      "target": "symlink",
+      "type": "prerequisite",
+      "reason": "解释相对链接目标需先理解相对路径的解析起点。",
+      "source_ids": [
+        "source_06",
+        "source_13"
+      ],
+      "review_status": "draft",
+      "basis_kind": "authored_teaching_dependency",
+      "evidence_refs": [
+        {
+          "node_id": "relative",
+          "lesson_section_id": "concept"
+        },
+        {
+          "node_id": "symlink",
+          "lesson_section_id": "concept"
+        }
+      ],
+      "policy_version": "authored-linux-command-v1"
+    },
+    {
+      "id": "prerequisite_relative_tar",
+      "source": "relative",
+      "target": "tar",
+      "type": "prerequisite",
+      "reason": "打包任务需区分归档路径与被打包目录的位置。",
+      "source_ids": [
+        "source_06",
+        "source_14"
+      ],
+      "review_status": "draft",
+      "basis_kind": "authored_teaching_dependency",
+      "evidence_refs": [
+        {
+          "node_id": "relative",
+          "lesson_section_id": "concept"
+        },
+        {
+          "node_id": "tar",
+          "lesson_section_id": "concept"
+        }
+      ],
+      "policy_version": "authored-linux-command-v1"
+    },
+    {
+      "id": "prerequisite_relative_cat",
+      "source": "relative",
+      "target": "cat",
+      "type": "prerequisite",
+      "reason": "查看文本前需能指定输入文件的路径。",
+      "source_ids": [
+        "source_06",
+        "source_15"
+      ],
+      "review_status": "draft",
+      "basis_kind": "authored_teaching_dependency",
+      "evidence_refs": [
+        {
+          "node_id": "relative",
+          "lesson_section_id": "concept"
+        },
+        {
+          "node_id": "cat",
+          "lesson_section_id": "concept"
+        }
+      ],
+      "policy_version": "authored-linux-command-v1"
+    },
+    {
+      "id": "prerequisite_quoting_glob",
+      "source": "quoting",
+      "target": "glob",
+      "type": "prerequisite",
+      "reason": "通配展开的自检要求区分引用与未引用的模式。",
+      "source_ids": [
+        "source_04",
+        "source_18"
+      ],
+      "review_status": "draft",
+      "basis_kind": "authored_teaching_dependency",
+      "evidence_refs": [
+        {
+          "node_id": "quoting",
+          "lesson_section_id": "concept"
+        },
+        {
+          "node_id": "glob",
+          "lesson_section_id": "concept"
+        }
+      ],
+      "policy_version": "authored-linux-command-v1"
+    },
+    {
+      "id": "prerequisite_glob_find",
+      "source": "glob",
+      "target": "find",
+      "type": "prerequisite",
+      "reason": "find 名称匹配任务要求解释为何不能让 Shell 提前展开模式。",
+      "source_ids": [
+        "source_18",
+        "source_17"
+      ],
+      "review_status": "draft",
+      "basis_kind": "authored_teaching_dependency",
+      "evidence_refs": [
+        {
+          "node_id": "glob",
+          "lesson_section_id": "concept"
+        },
+        {
+          "node_id": "find",
+          "lesson_section_id": "concept"
+        }
+      ],
+      "policy_version": "authored-linux-command-v1"
+    },
+    {
+      "id": "prerequisite_quoting_grep",
+      "source": "quoting",
+      "target": "grep",
+      "type": "prerequisite",
+      "reason": "筛选任务需要把完整固定字符串作为一个模式参数传入。",
+      "source_ids": [
+        "source_04",
+        "source_16"
+      ],
+      "review_status": "draft",
+      "basis_kind": "authored_teaching_dependency",
+      "evidence_refs": [
+        {
+          "node_id": "quoting",
+          "lesson_section_id": "concept"
+        },
+        {
+          "node_id": "grep",
+          "lesson_section_id": "concept"
+        }
+      ],
+      "policy_version": "authored-linux-command-v1"
+    },
+    {
+      "id": "prerequisite_grep_regex",
+      "source": "grep",
+      "target": "regex",
+      "type": "prerequisite",
+      "reason": "本课通过 grep -E 应用正则，需先理解按行筛选的目标。",
+      "source_ids": [
+        "source_16",
+        "source_19"
+      ],
+      "review_status": "draft",
+      "basis_kind": "authored_teaching_dependency",
+      "evidence_refs": [
+        {
+          "node_id": "grep",
+          "lesson_section_id": "concept"
+        },
+        {
+          "node_id": "regex",
+          "lesson_section_id": "concept"
+        }
+      ],
+      "policy_version": "authored-linux-command-v1"
+    },
+    {
+      "id": "prerequisite_streams_redirect",
+      "source": "streams",
+      "target": "redirect",
+      "type": "prerequisite",
+      "reason": "覆盖输出任务需识别被重定向的标准输出。",
+      "source_ids": [
+        "source_20",
+        "source_21"
+      ],
+      "review_status": "draft",
+      "basis_kind": "authored_teaching_dependency",
+      "evidence_refs": [
+        {
+          "node_id": "streams",
+          "lesson_section_id": "concept"
+        },
+        {
+          "node_id": "redirect",
+          "lesson_section_id": "concept"
+        }
+      ],
+      "policy_version": "authored-linux-command-v1"
+    },
+    {
+      "id": "prerequisite_streams_append",
+      "source": "streams",
+      "target": "append",
+      "type": "prerequisite",
+      "reason": "追加输出任务需明确内容来自标准输出，换行由程序产生。",
+      "source_ids": [
+        "source_20",
+        "source_22"
+      ],
+      "review_status": "draft",
+      "basis_kind": "authored_teaching_dependency",
+      "evidence_refs": [
+        {
+          "node_id": "streams",
+          "lesson_section_id": "concept"
+        },
+        {
+          "node_id": "append",
+          "lesson_section_id": "concept"
+        }
+      ],
+      "policy_version": "authored-linux-command-v1"
+    },
+    {
+      "id": "prerequisite_redirect_stderr",
+      "source": "redirect",
+      "target": "stderr",
+      "type": "prerequisite",
+      "reason": "描述符复制顺序任务先使用 > 设置标准输出目标。",
+      "source_ids": [
+        "source_21",
+        "source_23"
+      ],
+      "review_status": "draft",
+      "basis_kind": "authored_teaching_dependency",
+      "evidence_refs": [
+        {
+          "node_id": "redirect",
+          "lesson_section_id": "concept"
+        },
+        {
+          "node_id": "stderr",
+          "lesson_section_id": "concept"
+        }
+      ],
+      "policy_version": "authored-linux-command-v1"
+    },
+    {
+      "id": "prerequisite_streams_pipe",
+      "source": "streams",
+      "target": "pipe",
+      "type": "prerequisite",
+      "reason": "管道依赖标准输出接到标准输入的通信模型。",
+      "source_ids": [
+        "source_20",
+        "source_24"
+      ],
+      "review_status": "draft",
+      "basis_kind": "authored_teaching_dependency",
+      "evidence_refs": [
+        {
+          "node_id": "streams",
+          "lesson_section_id": "concept"
+        },
+        {
+          "node_id": "pipe",
+          "lesson_section_id": "concept"
+        }
+      ],
+      "policy_version": "authored-linux-command-v1"
+    },
+    {
+      "id": "prerequisite_syntax_sort",
+      "source": "syntax",
+      "target": "sort",
+      "type": "prerequisite",
+      "reason": "排序自检需根据 -n 选项区分文本与数值比较。",
+      "source_ids": [
+        "source_02",
+        "source_25"
+      ],
+      "review_status": "draft",
+      "basis_kind": "authored_teaching_dependency",
+      "evidence_refs": [
+        {
+          "node_id": "syntax",
+          "lesson_section_id": "concept"
+        },
+        {
+          "node_id": "sort",
+          "lesson_section_id": "concept"
+        }
+      ],
+      "policy_version": "authored-linux-command-v1"
+    },
+    {
+      "id": "prerequisite_sort_uniq",
+      "source": "sort",
+      "target": "uniq",
+      "type": "prerequisite",
+      "reason": "本节点要求解释全文件计数时排序使相同行相邻的作用。",
+      "source_ids": [
+        "source_25",
+        "source_26"
+      ],
+      "review_status": "draft",
+      "basis_kind": "authored_teaching_dependency",
+      "evidence_refs": [
+        {
+          "node_id": "sort",
+          "lesson_section_id": "concept"
+        },
+        {
+          "node_id": "uniq",
+          "lesson_section_id": "concept"
+        }
+      ],
+      "policy_version": "authored-linux-command-v1"
+    },
+    {
+      "id": "prerequisite_syntax_wc",
+      "source": "syntax",
+      "target": "wc",
+      "type": "prerequisite",
+      "reason": "计数任务必须区分 -l、-c、-m 各自统计什么。",
+      "source_ids": [
+        "source_02",
+        "source_27"
+      ],
+      "review_status": "draft",
+      "basis_kind": "authored_teaching_dependency",
+      "evidence_refs": [
+        {
+          "node_id": "syntax",
+          "lesson_section_id": "concept"
+        },
+        {
+          "node_id": "wc",
+          "lesson_section_id": "concept"
+        }
+      ],
+      "policy_version": "authored-linux-command-v1"
+    },
+    {
+      "id": "prerequisite_identity_file_permissions",
+      "source": "identity",
+      "target": "file_permissions",
+      "type": "prerequisite",
+      "reason": "应用属主、组、其他权限前需理解用户与组身份。",
+      "source_ids": [
+        "source_28",
+        "source_29"
+      ],
+      "review_status": "draft",
+      "basis_kind": "authored_teaching_dependency",
+      "evidence_refs": [
+        {
+          "node_id": "identity",
+          "lesson_section_id": "concept"
+        },
+        {
+          "node_id": "file_permissions",
+          "lesson_section_id": "concept"
+        }
+      ],
+      "policy_version": "authored-linux-command-v1"
+    },
+    {
+      "id": "prerequisite_identity_directory_permissions",
+      "source": "identity",
+      "target": "directory_permissions",
+      "type": "prerequisite",
+      "reason": "判断目录访问时需明确进程适用哪类身份权限。",
+      "source_ids": [
+        "source_28",
+        "source_29"
+      ],
+      "review_status": "draft",
+      "basis_kind": "authored_teaching_dependency",
+      "evidence_refs": [
+        {
+          "node_id": "identity",
+          "lesson_section_id": "concept"
+        },
+        {
+          "node_id": "directory_permissions",
+          "lesson_section_id": "concept"
+        }
+      ],
+      "policy_version": "authored-linux-command-v1"
+    },
+    {
+      "id": "prerequisite_file_permissions_chmod",
+      "source": "file_permissions",
+      "target": "chmod",
+      "type": "prerequisite",
+      "reason": "普通文件授权需先会解释目标模式位。",
+      "source_ids": [
+        "source_29",
+        "source_30"
+      ],
+      "review_status": "draft",
+      "basis_kind": "authored_teaching_dependency",
+      "evidence_refs": [
+        {
+          "node_id": "file_permissions",
+          "lesson_section_id": "concept"
+        },
+        {
+          "node_id": "chmod",
+          "lesson_section_id": "concept"
+        }
+      ],
+      "policy_version": "authored-linux-command-v1"
+    },
+    {
+      "id": "prerequisite_directory_permissions_chmod",
+      "source": "directory_permissions",
+      "target": "chmod",
+      "type": "prerequisite",
+      "reason": "本课的最小授权目标包括目录，需先知道目录位的独立含义。",
+      "source_ids": [
+        "source_29",
+        "source_30"
+      ],
+      "review_status": "draft",
+      "basis_kind": "authored_teaching_dependency",
+      "evidence_refs": [
+        {
+          "node_id": "directory_permissions",
+          "lesson_section_id": "concept"
+        },
+        {
+          "node_id": "chmod",
+          "lesson_section_id": "concept"
+        }
+      ],
+      "policy_version": "authored-linux-command-v1"
+    },
+    {
+      "id": "prerequisite_process_ps",
+      "source": "process",
+      "target": "ps",
+      "type": "prerequisite",
+      "reason": "读进程快照前需要区分运行实例、程序和 PID。",
+      "source_ids": [
+        "source_31",
+        "source_32"
+      ],
+      "review_status": "draft",
+      "basis_kind": "authored_teaching_dependency",
+      "evidence_refs": [
+        {
+          "node_id": "process",
+          "lesson_section_id": "concept"
+        },
+        {
+          "node_id": "ps",
+          "lesson_section_id": "concept"
+        }
+      ],
+      "policy_version": "authored-linux-command-v1"
+    },
+    {
+      "id": "prerequisite_ps_signal",
+      "source": "ps",
+      "target": "signal",
+      "type": "prerequisite",
+      "reason": "本课发送信号前要求通过快照核对目标 PID 与命令。",
+      "source_ids": [
+        "source_32",
+        "source_33"
+      ],
+      "review_status": "draft",
+      "basis_kind": "authored_teaching_dependency",
+      "evidence_refs": [
+        {
+          "node_id": "ps",
+          "lesson_section_id": "concept"
+        },
+        {
+          "node_id": "signal",
+          "lesson_section_id": "concept"
+        }
+      ],
+      "policy_version": "authored-linux-command-v1"
+    },
+    {
+      "id": "prerequisite_process_jobs",
+      "source": "process",
+      "target": "jobs",
+      "type": "prerequisite",
+      "reason": "解释暂停、前后台和退出需先理解进程生命周期。",
+      "source_ids": [
+        "source_31",
+        "source_34"
+      ],
+      "review_status": "draft",
+      "basis_kind": "authored_teaching_dependency",
+      "evidence_refs": [
+        {
+          "node_id": "process",
+          "lesson_section_id": "concept"
+        },
+        {
+          "node_id": "jobs",
+          "lesson_section_id": "concept"
+        }
+      ],
+      "policy_version": "authored-linux-command-v1"
+    },
+    {
+      "id": "prerequisite_quoting_variable",
+      "source": "quoting",
+      "target": "variable",
+      "type": "prerequisite",
+      "reason": "变量任务要求保持含空格的展开结果为一个参数。",
+      "source_ids": [
+        "source_04",
+        "source_35"
+      ],
+      "review_status": "draft",
+      "basis_kind": "authored_teaching_dependency",
+      "evidence_refs": [
+        {
+          "node_id": "quoting",
+          "lesson_section_id": "concept"
+        },
+        {
+          "node_id": "variable",
+          "lesson_section_id": "concept"
+        }
+      ],
+      "policy_version": "authored-linux-command-v1"
+    },
+    {
+      "id": "prerequisite_variable_exit_status",
+      "source": "variable",
+      "target": "exit_status",
+      "type": "prerequisite",
+      "reason": "读取 $? 及及时保存状态需理解 Shell 参数展开。",
+      "source_ids": [
+        "source_35",
+        "source_36"
+      ],
+      "review_status": "draft",
+      "basis_kind": "authored_teaching_dependency",
+      "evidence_refs": [
+        {
+          "node_id": "variable",
+          "lesson_section_id": "concept"
+        },
+        {
+          "node_id": "exit_status",
+          "lesson_section_id": "concept"
+        }
+      ],
+      "policy_version": "authored-linux-command-v1"
+    },
+    {
+      "id": "prerequisite_variable_for_loop",
+      "source": "variable",
+      "target": "for_loop",
+      "type": "prerequisite",
+      "reason": "循环依次赋值并读取循环变量，需要先掌握变量引用。",
+      "source_ids": [
+        "source_35",
+        "source_37"
+      ],
+      "review_status": "draft",
+      "basis_kind": "authored_teaching_dependency",
+      "evidence_refs": [
+        {
+          "node_id": "variable",
+          "lesson_section_id": "concept"
+        },
+        {
+          "node_id": "for_loop",
+          "lesson_section_id": "concept"
+        }
+      ],
+      "policy_version": "authored-linux-command-v1"
+    },
+    {
+      "id": "prerequisite_chmod_script",
+      "source": "chmod",
+      "target": "script",
+      "type": "prerequisite",
+      "reason": "比较 bash file.sh 与 ./file.sh 需要理解执行位。",
+      "source_ids": [
+        "source_30",
+        "source_38"
+      ],
+      "review_status": "draft",
+      "basis_kind": "authored_teaching_dependency",
+      "evidence_refs": [
+        {
+          "node_id": "chmod",
+          "lesson_section_id": "concept"
+        },
+        {
+          "node_id": "script",
+          "lesson_section_id": "concept"
+        }
+      ],
+      "policy_version": "authored-linux-command-v1"
+    },
+    {
+      "id": "prerequisite_variable_script",
+      "source": "variable",
+      "target": "script",
+      "type": "prerequisite",
+      "reason": "脚本练习通过引用位置参数传递文件名，需先理解参数展开。",
+      "source_ids": [
+        "source_35",
+        "source_38"
+      ],
+      "review_status": "draft",
+      "basis_kind": "authored_teaching_dependency",
+      "evidence_refs": [
+        {
+          "node_id": "variable",
+          "lesson_section_id": "concept"
+        },
+        {
+          "node_id": "script",
+          "lesson_section_id": "concept"
+        }
+      ],
+      "policy_version": "authored-linux-command-v1"
+    },
+    {
+      "id": "prerequisite_relative_tail",
+      "source": "relative",
+      "target": "tail",
+      "type": "prerequisite",
+      "reason": "读取末尾前必须能准确指定输入文件。",
+      "source_ids": [
+        "source_06",
+        "source_39"
+      ],
+      "review_status": "draft",
+      "basis_kind": "authored_teaching_dependency",
+      "evidence_refs": [
+        {
+          "node_id": "relative",
+          "lesson_section_id": "concept"
+        },
+        {
+          "node_id": "tail",
+          "lesson_section_id": "concept"
+        }
+      ],
+      "policy_version": "authored-linux-command-v1"
+    },
+    {
+      "id": "prerequisite_cat_log_record",
+      "source": "cat",
+      "target": "log_record",
+      "type": "prerequisite",
+      "reason": "本课先读完整文本，再解释行的业务类型与字段。",
+      "source_ids": [
+        "source_15",
+        "source_40"
+      ],
+      "review_status": "draft",
+      "basis_kind": "authored_teaching_dependency",
+      "evidence_refs": [
+        {
+          "node_id": "cat",
+          "lesson_section_id": "concept"
+        },
+        {
+          "node_id": "log_record",
+          "lesson_section_id": "concept"
+        }
+      ],
+      "policy_version": "authored-linux-command-v1"
+    },
+    {
+      "id": "prerequisite_relative_vim",
+      "source": "relative",
+      "target": "vim",
+      "type": "prerequisite",
+      "reason": "编辑前需确定正在修改的目标路径。",
+      "source_ids": [
+        "source_06",
+        "source_41"
+      ],
+      "review_status": "draft",
+      "basis_kind": "authored_teaching_dependency",
+      "evidence_refs": [
+        {
+          "node_id": "relative",
+          "lesson_section_id": "concept"
+        },
+        {
+          "node_id": "vim",
+          "lesson_section_id": "concept"
+        }
+      ],
+      "policy_version": "authored-linux-command-v1"
+    },
+    {
+      "id": "prerequisite_process_top",
+      "source": "process",
+      "target": "top",
+      "type": "prerequisite",
+      "reason": "动态观察需先理解运行实例和 PID。",
+      "source_ids": [
+        "source_31",
+        "source_42"
+      ],
+      "review_status": "draft",
+      "basis_kind": "authored_teaching_dependency",
+      "evidence_refs": [
+        {
+          "node_id": "process",
+          "lesson_section_id": "concept"
+        },
+        {
+          "node_id": "top",
+          "lesson_section_id": "concept"
+        }
+      ],
+      "policy_version": "authored-linux-command-v1"
+    },
+    {
+      "id": "prerequisite_cp_file_integrity",
+      "source": "cp",
+      "target": "file_integrity",
+      "type": "prerequisite",
+      "reason": "副本核验需明确复制对象、目标层级与源文件保留语义。",
+      "source_ids": [
+        "source_10"
+      ],
+      "review_status": "draft",
+      "basis_kind": "authored_teaching_dependency",
+      "evidence_refs": [
+        {
+          "node_id": "cp",
+          "lesson_section_id": "concept"
+        },
+        {
+          "node_id": "file_integrity",
+          "lesson_section_id": "concept"
+        }
+      ],
+      "policy_version": "authored-linux-command-v1"
+    },
+    {
+      "id": "confusable_absolute_relative",
+      "source": "absolute",
+      "target": "relative",
+      "type": "confusable",
+      "reason": "两者的路径起点不同：根目录与当前工作目录。",
+      "source_ids": [
+        "source_06"
+      ],
+      "review_status": "draft",
+      "basis_kind": "authored_semantic_comparison",
+      "evidence_refs": [
+        {
+          "node_id": "absolute",
+          "lesson_section_id": "concept"
+        },
+        {
+          "node_id": "relative",
+          "lesson_section_id": "concept"
+        }
+      ],
+      "policy_version": "authored-linux-command-v1"
+    },
+    {
+      "id": "confusable_cp_mv",
+      "source": "cp",
+      "target": "mv",
+      "type": "confusable",
+      "reason": "复制通常保留源路径，成功移动通常撤去源路径。",
+      "source_ids": [
+        "source_10",
+        "source_11"
+      ],
+      "review_status": "draft",
+      "basis_kind": "authored_semantic_comparison",
+      "evidence_refs": [
+        {
+          "node_id": "cp",
+          "lesson_section_id": "concept"
+        },
+        {
+          "node_id": "mv",
+          "lesson_section_id": "concept"
+        }
+      ],
+      "policy_version": "authored-linux-command-v1"
+    },
+    {
+      "id": "confusable_grep_find",
+      "source": "grep",
+      "target": "find",
+      "type": "confusable",
+      "reason": "前者匹配文本内容，后者遍历文件树筛选目录项。",
+      "source_ids": [
+        "source_16",
+        "source_17"
+      ],
+      "review_status": "draft",
+      "basis_kind": "authored_semantic_comparison",
+      "evidence_refs": [
+        {
+          "node_id": "grep",
+          "lesson_section_id": "concept"
+        },
+        {
+          "node_id": "find",
+          "lesson_section_id": "concept"
+        }
+      ],
+      "policy_version": "authored-linux-command-v1"
+    },
+    {
+      "id": "confusable_glob_regex",
+      "source": "glob",
+      "target": "regex",
+      "type": "confusable",
+      "reason": "文件名通配与文本正则的语法、解释者及作用对象不同。",
+      "source_ids": [
+        "source_18",
+        "source_19"
+      ],
+      "review_status": "draft",
+      "basis_kind": "authored_semantic_comparison",
+      "evidence_refs": [
+        {
+          "node_id": "glob",
+          "lesson_section_id": "concept"
+        },
+        {
+          "node_id": "regex",
+          "lesson_section_id": "concept"
+        }
+      ],
+      "policy_version": "authored-linux-command-v1"
+    },
+    {
+      "id": "confusable_redirect_append",
+      "source": "redirect",
+      "target": "append",
+      "type": "confusable",
+      "reason": "同为写输出，> 通常截断，>> 保留旧内容并追加。",
+      "source_ids": [
+        "source_21",
+        "source_22"
+      ],
+      "review_status": "draft",
+      "basis_kind": "authored_semantic_comparison",
+      "evidence_refs": [
+        {
+          "node_id": "redirect",
+          "lesson_section_id": "concept"
+        },
+        {
+          "node_id": "append",
+          "lesson_section_id": "concept"
+        }
+      ],
+      "policy_version": "authored-linux-command-v1"
+    },
+    {
+      "id": "confusable_file_permissions_directory_permissions",
+      "source": "file_permissions",
+      "target": "directory_permissions",
+      "type": "confusable",
+      "reason": "同一 r/w/x 标记对文件内容和目录项有不同操作语义。",
+      "source_ids": [
+        "source_29"
+      ],
+      "review_status": "draft",
+      "basis_kind": "authored_semantic_comparison",
+      "evidence_refs": [
+        {
+          "node_id": "file_permissions",
+          "lesson_section_id": "concept"
+        },
+        {
+          "node_id": "directory_permissions",
+          "lesson_section_id": "concept"
+        }
+      ],
+      "policy_version": "authored-linux-command-v1"
+    },
+    {
+      "id": "confusable_process_jobs",
+      "source": "process",
+      "target": "jobs",
+      "type": "confusable",
+      "reason": "系统 PID 标识进程，Shell 作业号属于当前 Shell 的作业表。",
+      "source_ids": [
+        "source_31",
+        "source_34"
+      ],
+      "review_status": "draft",
+      "basis_kind": "authored_semantic_comparison",
+      "evidence_refs": [
+        {
+          "node_id": "process",
+          "lesson_section_id": "concept"
+        },
+        {
+          "node_id": "jobs",
+          "lesson_section_id": "concept"
+        }
+      ],
+      "policy_version": "authored-linux-command-v1"
+    },
+    {
+      "id": "confusable_symlink_cp",
+      "source": "symlink",
+      "target": "cp",
+      "type": "confusable",
+      "reason": "符号链接保存路径，复制生成内容副本。",
+      "source_ids": [
+        "source_13",
+        "source_10"
+      ],
+      "review_status": "draft",
+      "basis_kind": "authored_semantic_comparison",
+      "evidence_refs": [
+        {
+          "node_id": "symlink",
+          "lesson_section_id": "concept"
+        },
+        {
+          "node_id": "cp",
+          "lesson_section_id": "concept"
+        }
+      ],
+      "policy_version": "authored-linux-command-v1"
+    },
+    {
+      "id": "related_shell_cwd",
+      "source": "shell",
+      "target": "cwd",
+      "type": "related",
+      "reason": "Shell 进程的工作目录为相对路径提供上下文。",
+      "source_ids": [
+        "source_01",
+        "source_05"
+      ],
+      "review_status": "draft",
+      "basis_kind": "authored_semantic_comparison",
+      "evidence_refs": [
+        {
+          "node_id": "shell",
+          "lesson_section_id": "concept"
+        },
+        {
+          "node_id": "cwd",
+          "lesson_section_id": "concept"
+        }
+      ],
+      "policy_version": "authored-linux-command-v1"
+    },
+    {
+      "id": "related_shell_process",
+      "source": "shell",
+      "target": "process",
+      "type": "related",
+      "reason": "交互式 Shell 本身也是运行中的进程。",
+      "source_ids": [
+        "source_01",
+        "source_31"
+      ],
+      "review_status": "draft",
+      "basis_kind": "authored_semantic_comparison",
+      "evidence_refs": [
+        {
+          "node_id": "shell",
+          "lesson_section_id": "concept"
+        },
+        {
+          "node_id": "process",
+          "lesson_section_id": "concept"
+        }
+      ],
+      "policy_version": "authored-linux-command-v1"
+    },
+    {
+      "id": "related_ls_file_permissions",
+      "source": "ls",
+      "target": "file_permissions",
+      "type": "related",
+      "reason": "ls -l 的长格式可用于观察普通文件的权限。",
+      "source_ids": [
+        "source_08",
+        "source_29"
+      ],
+      "review_status": "draft",
+      "basis_kind": "authored_semantic_comparison",
+      "evidence_refs": [
+        {
+          "node_id": "ls",
+          "lesson_section_id": "concept"
+        },
+        {
+          "node_id": "file_permissions",
+          "lesson_section_id": "concept"
+        }
+      ],
+      "policy_version": "authored-linux-command-v1"
+    },
+    {
+      "id": "related_ls_directory_permissions",
+      "source": "ls",
+      "target": "directory_permissions",
+      "type": "related",
+      "reason": "ls -ld 可查看目录本身的模式位。",
+      "source_ids": [
+        "source_08",
+        "source_29"
+      ],
+      "review_status": "draft",
+      "basis_kind": "authored_semantic_comparison",
+      "evidence_refs": [
+        {
+          "node_id": "ls",
+          "lesson_section_id": "concept"
+        },
+        {
+          "node_id": "directory_permissions",
+          "lesson_section_id": "concept"
+        }
+      ],
+      "policy_version": "authored-linux-command-v1"
+    },
+    {
+      "id": "related_mkdir_directory_permissions",
+      "source": "mkdir",
+      "target": "directory_permissions",
+      "type": "related",
+      "reason": "创建和访问目录涉及父目录和新目录权限。",
+      "source_ids": [
+        "source_09",
+        "source_29"
+      ],
+      "review_status": "draft",
+      "basis_kind": "authored_semantic_comparison",
+      "evidence_refs": [
+        {
+          "node_id": "mkdir",
+          "lesson_section_id": "concept"
+        },
+        {
+          "node_id": "directory_permissions",
+          "lesson_section_id": "concept"
+        }
+      ],
+      "policy_version": "authored-linux-command-v1"
+    },
+    {
+      "id": "related_rm_directory_permissions",
+      "source": "rm",
+      "target": "directory_permissions",
+      "type": "related",
+      "reason": "删除目录项与父目录的写及搜索权限有关。",
+      "source_ids": [
+        "source_12",
+        "source_29"
+      ],
+      "review_status": "draft",
+      "basis_kind": "authored_semantic_comparison",
+      "evidence_refs": [
+        {
+          "node_id": "rm",
+          "lesson_section_id": "concept"
+        },
+        {
+          "node_id": "directory_permissions",
+          "lesson_section_id": "concept"
+        }
+      ],
+      "policy_version": "authored-linux-command-v1"
+    },
+    {
+      "id": "related_tar_cp",
+      "source": "tar",
+      "target": "cp",
+      "type": "related",
+      "reason": "归档和复制都是组织备份素材的方法，产物形态不同。",
+      "source_ids": [
+        "source_14",
+        "source_10"
+      ],
+      "review_status": "draft",
+      "basis_kind": "authored_semantic_comparison",
+      "evidence_refs": [
+        {
+          "node_id": "tar",
+          "lesson_section_id": "concept"
+        },
+        {
+          "node_id": "cp",
+          "lesson_section_id": "concept"
+        }
+      ],
+      "policy_version": "authored-linux-command-v1"
+    },
+    {
+      "id": "related_cat_pipe",
+      "source": "cat",
+      "target": "pipe",
+      "type": "related",
+      "reason": "cat 的标准输出可接入后续文本处理程序。",
+      "source_ids": [
+        "source_15",
+        "source_24"
+      ],
+      "review_status": "draft",
+      "basis_kind": "authored_semantic_comparison",
+      "evidence_refs": [
+        {
+          "node_id": "cat",
+          "lesson_section_id": "concept"
+        },
+        {
+          "node_id": "pipe",
+          "lesson_section_id": "concept"
+        }
+      ],
+      "policy_version": "authored-linux-command-v1"
+    },
+    {
+      "id": "related_grep_pipe",
+      "source": "grep",
+      "target": "pipe",
+      "type": "related",
+      "reason": "grep 筛出的行可通过管道交给其他程序。",
+      "source_ids": [
+        "source_16",
+        "source_24"
+      ],
+      "review_status": "draft",
+      "basis_kind": "authored_semantic_comparison",
+      "evidence_refs": [
+        {
+          "node_id": "grep",
+          "lesson_section_id": "concept"
+        },
+        {
+          "node_id": "pipe",
+          "lesson_section_id": "concept"
+        }
+      ],
+      "policy_version": "authored-linux-command-v1"
+    },
+    {
+      "id": "related_find_relative",
+      "source": "find",
+      "target": "relative",
+      "type": "related",
+      "reason": "find 的遍历起点可由相对路径指定。",
+      "source_ids": [
+        "source_17",
+        "source_06"
+      ],
+      "review_status": "draft",
+      "basis_kind": "authored_semantic_comparison",
+      "evidence_refs": [
+        {
+          "node_id": "find",
+          "lesson_section_id": "concept"
+        },
+        {
+          "node_id": "relative",
+          "lesson_section_id": "concept"
+        }
+      ],
+      "policy_version": "authored-linux-command-v1"
+    },
+    {
+      "id": "related_pipe_wc",
+      "source": "pipe",
+      "target": "wc",
+      "type": "related",
+      "reason": "wc 可统计管道输入的数据，无需文件参数。",
+      "source_ids": [
+        "source_24",
+        "source_27"
+      ],
+      "review_status": "draft",
+      "basis_kind": "authored_semantic_comparison",
+      "evidence_refs": [
+        {
+          "node_id": "pipe",
+          "lesson_section_id": "concept"
+        },
+        {
+          "node_id": "wc",
+          "lesson_section_id": "concept"
+        }
+      ],
+      "policy_version": "authored-linux-command-v1"
+    },
+    {
+      "id": "related_pipe_uniq",
+      "source": "pipe",
+      "target": "uniq",
+      "type": "related",
+      "reason": "sort 与 uniq 可用管道组合，但这一组合不是所有 uniq 用法的前置条件。",
+      "source_ids": [
+        "source_24",
+        "source_26"
+      ],
+      "review_status": "draft",
+      "basis_kind": "authored_semantic_comparison",
+      "evidence_refs": [
+        {
+          "node_id": "pipe",
+          "lesson_section_id": "concept"
+        },
+        {
+          "node_id": "uniq",
+          "lesson_section_id": "concept"
+        }
+      ],
+      "policy_version": "authored-linux-command-v1"
+    },
+    {
+      "id": "related_pipe_exit_status",
+      "source": "pipe",
+      "target": "exit_status",
+      "type": "related",
+      "reason": "整个管道的退出状态还取决于最后一个命令和 pipefail 设置。",
+      "source_ids": [
+        "source_24",
+        "source_36"
+      ],
+      "review_status": "draft",
+      "basis_kind": "authored_semantic_comparison",
+      "evidence_refs": [
+        {
+          "node_id": "pipe",
+          "lesson_section_id": "concept"
+        },
+        {
+          "node_id": "exit_status",
+          "lesson_section_id": "concept"
+        }
+      ],
+      "policy_version": "authored-linux-command-v1"
+    },
+    {
+      "id": "related_signal_jobs",
+      "source": "signal",
+      "target": "jobs",
+      "type": "related",
+      "reason": "交互式作业控制会借助信号暂停、继续或终止进程。",
+      "source_ids": [
+        "source_33",
+        "source_34"
+      ],
+      "review_status": "draft",
+      "basis_kind": "authored_semantic_comparison",
+      "evidence_refs": [
+        {
+          "node_id": "signal",
+          "lesson_section_id": "concept"
+        },
+        {
+          "node_id": "jobs",
+          "lesson_section_id": "concept"
+        }
+      ],
+      "policy_version": "authored-linux-command-v1"
+    },
+    {
+      "id": "related_for_loop_script",
+      "source": "for_loop",
+      "target": "script",
+      "type": "related",
+      "reason": "循环可以写入脚本，但简单脚本并不必须含循环。",
+      "source_ids": [
+        "source_37",
+        "source_38"
+      ],
+      "review_status": "draft",
+      "basis_kind": "authored_semantic_comparison",
+      "evidence_refs": [
+        {
+          "node_id": "for_loop",
+          "lesson_section_id": "concept"
+        },
+        {
+          "node_id": "script",
+          "lesson_section_id": "concept"
+        }
+      ],
+      "policy_version": "authored-linux-command-v1"
+    },
+    {
+      "id": "related_tail_log_record",
+      "source": "tail",
+      "target": "log_record",
+      "type": "related",
+      "reason": "末尾观察提供日志窗口，业务语义仍需单独判断。",
+      "source_ids": [
+        "source_39",
+        "source_40"
+      ],
+      "review_status": "draft",
+      "basis_kind": "authored_semantic_comparison",
+      "evidence_refs": [
+        {
+          "node_id": "tail",
+          "lesson_section_id": "concept"
+        },
+        {
+          "node_id": "log_record",
+          "lesson_section_id": "concept"
+        }
+      ],
+      "policy_version": "authored-linux-command-v1"
+    },
+    {
+      "id": "related_vim_config_record",
+      "source": "vim",
+      "target": "config_record",
+      "type": "related",
+      "reason": "编辑器负责修改和保存文本，配置约束由应用规定。",
+      "source_ids": [
+        "source_41",
+        "source_40"
+      ],
+      "review_status": "draft",
+      "basis_kind": "authored_semantic_comparison",
+      "evidence_refs": [
+        {
+          "node_id": "vim",
+          "lesson_section_id": "concept"
+        },
+        {
+          "node_id": "config_record",
+          "lesson_section_id": "concept"
+        }
+      ],
+      "policy_version": "authored-linux-command-v1"
+    },
+    {
+      "id": "related_file_integrity_tar",
+      "source": "file_integrity",
+      "target": "tar",
+      "type": "related",
+      "reason": "归档交付也要核验内部成员与内容。",
+      "source_ids": [
+        "source_10",
+        "source_14"
+      ],
+      "review_status": "draft",
+      "basis_kind": "authored_semantic_comparison",
+      "evidence_refs": [
+        {
+          "node_id": "file_integrity",
+          "lesson_section_id": "concept"
+        },
+        {
+          "node_id": "tar",
+          "lesson_section_id": "concept"
+        }
+      ],
+      "policy_version": "authored-linux-command-v1"
+    },
+    {
+      "id": "related_top_ps",
+      "source": "top",
+      "target": "ps",
+      "type": "related",
+      "reason": "动态视图和快照均可提供进程观察证据。",
+      "source_ids": [
+        "source_42",
+        "source_32"
+      ],
+      "review_status": "draft",
+      "basis_kind": "authored_semantic_comparison",
+      "evidence_refs": [
+        {
+          "node_id": "top",
+          "lesson_section_id": "concept"
+        },
+        {
+          "node_id": "ps",
+          "lesson_section_id": "concept"
+        }
+      ],
+      "policy_version": "authored-linux-command-v1"
+    }
+  ],
+  "sources": [
+    {
+      "id": "source_01",
+      "title": "GNU bash：What-is-a-shell_003f",
+      "kind": "reference_documentation",
+      "url": "https://www.gnu.org/software/bash/manual/html_node/What-is-a-shell_003f.html",
+      "locator": "What is a shell_003f"
+    },
+    {
+      "id": "source_02",
+      "title": "GNU bash：Simple-Commands",
+      "kind": "reference_documentation",
+      "url": "https://www.gnu.org/software/bash/manual/html_node/Simple-Commands.html",
+      "locator": "Simple Commands"
+    },
+    {
+      "id": "source_03",
+      "title": "GNU bash：Bash-Builtins",
+      "kind": "reference_documentation",
+      "url": "https://www.gnu.org/software/bash/manual/html_node/Bash-Builtins.html",
+      "locator": "Bash Builtins"
+    },
+    {
+      "id": "source_04",
+      "title": "GNU bash：Quoting",
+      "kind": "reference_documentation",
+      "url": "https://www.gnu.org/software/bash/manual/html_node/Quoting.html",
+      "locator": "Quoting"
+    },
+    {
+      "id": "source_05",
+      "title": "GNU coreutils：pwd-invocation",
+      "kind": "reference_documentation",
+      "url": "https://www.gnu.org/software/coreutils/manual/html_node/pwd-invocation.html",
+      "locator": "pwd invocation"
+    },
+    {
+      "id": "source_06",
+      "title": "Software Carpentry：Navigating Files and Directories",
+      "kind": "reference_documentation",
+      "url": "https://swcarpentry.github.io/shell-novice/02-filedir.html",
+      "locator": "Navigating Files and Directories / paths"
+    },
+    {
+      "id": "source_07",
+      "title": "GNU bash：Bourne-Shell-Builtins",
+      "kind": "reference_documentation",
+      "url": "https://www.gnu.org/software/bash/manual/html_node/Bourne-Shell-Builtins.html",
+      "locator": "Bourne Shell Builtins"
+    },
+    {
+      "id": "source_08",
+      "title": "GNU coreutils：ls-invocation",
+      "kind": "reference_documentation",
+      "url": "https://www.gnu.org/software/coreutils/manual/html_node/ls-invocation.html",
+      "locator": "ls invocation"
+    },
+    {
+      "id": "source_09",
+      "title": "GNU coreutils：mkdir-invocation",
+      "kind": "reference_documentation",
+      "url": "https://www.gnu.org/software/coreutils/manual/html_node/mkdir-invocation.html",
+      "locator": "mkdir invocation"
+    },
+    {
+      "id": "source_10",
+      "title": "GNU coreutils：cp-invocation",
+      "kind": "reference_documentation",
+      "url": "https://www.gnu.org/software/coreutils/manual/html_node/cp-invocation.html",
+      "locator": "cp invocation"
+    },
+    {
+      "id": "source_11",
+      "title": "GNU coreutils：mv-invocation",
+      "kind": "reference_documentation",
+      "url": "https://www.gnu.org/software/coreutils/manual/html_node/mv-invocation.html",
+      "locator": "mv invocation"
+    },
+    {
+      "id": "source_12",
+      "title": "GNU coreutils：rm-invocation",
+      "kind": "reference_documentation",
+      "url": "https://www.gnu.org/software/coreutils/manual/html_node/rm-invocation.html",
+      "locator": "rm invocation"
+    },
+    {
+      "id": "source_13",
+      "title": "GNU coreutils：ln-invocation",
+      "kind": "reference_documentation",
+      "url": "https://www.gnu.org/software/coreutils/manual/html_node/ln-invocation.html",
+      "locator": "ln invocation"
+    },
+    {
+      "id": "source_14",
+      "title": "GNU tar：Basic-tar",
+      "kind": "reference_documentation",
+      "url": "https://www.gnu.org/software/tar/manual/html_node/Basic-tar.html",
+      "locator": "Basic tar"
+    },
+    {
+      "id": "source_15",
+      "title": "GNU coreutils：cat-invocation",
+      "kind": "reference_documentation",
+      "url": "https://www.gnu.org/software/coreutils/manual/html_node/cat-invocation.html",
+      "locator": "cat invocation"
+    },
+    {
+      "id": "source_16",
+      "title": "GNU grep：Matching-Control",
+      "kind": "reference_documentation",
+      "url": "https://www.gnu.org/software/grep/manual/html_node/Matching-Control.html",
+      "locator": "Matching Control"
+    },
+    {
+      "id": "source_17",
+      "title": "GNU findutils：Name",
+      "kind": "reference_documentation",
+      "url": "https://www.gnu.org/software/findutils/manual/html_node/find_html/Name.html",
+      "locator": "Name"
+    },
+    {
+      "id": "source_18",
+      "title": "GNU bash：Filename-Expansion",
+      "kind": "reference_documentation",
+      "url": "https://www.gnu.org/software/bash/manual/html_node/Filename-Expansion.html",
+      "locator": "Filename Expansion"
+    },
+    {
+      "id": "source_19",
+      "title": "GNU grep：Regular-Expressions",
+      "kind": "reference_documentation",
+      "url": "https://www.gnu.org/software/grep/manual/html_node/Regular-Expressions.html",
+      "locator": "Regular Expressions"
+    },
+    {
+      "id": "source_20",
+      "title": "GNU bash：Redirections",
+      "kind": "reference_documentation",
+      "url": "https://www.gnu.org/software/bash/manual/html_node/Redirections.html",
+      "locator": "Redirections"
+    },
+    {
+      "id": "source_21",
+      "title": "GNU Bash：Redirecting-Output",
+      "kind": "reference_documentation",
+      "url": "https://www.gnu.org/software/bash/manual/html_node/Redirections.html#Redirecting-Output",
+      "locator": "Redirecting Output"
+    },
+    {
+      "id": "source_22",
+      "title": "GNU Bash：Appending-Redirected-Output",
+      "kind": "reference_documentation",
+      "url": "https://www.gnu.org/software/bash/manual/html_node/Redirections.html#Appending-Redirected-Output",
+      "locator": "Appending Redirected Output"
+    },
+    {
+      "id": "source_23",
+      "title": "GNU Bash：Duplicating-File-Descriptors",
+      "kind": "reference_documentation",
+      "url": "https://www.gnu.org/software/bash/manual/html_node/Redirections.html#Duplicating-File-Descriptors",
+      "locator": "Duplicating File Descriptors"
+    },
+    {
+      "id": "source_24",
+      "title": "GNU bash：Pipelines",
+      "kind": "reference_documentation",
+      "url": "https://www.gnu.org/software/bash/manual/html_node/Pipelines.html",
+      "locator": "Pipelines"
+    },
+    {
+      "id": "source_25",
+      "title": "GNU coreutils：sort-invocation",
+      "kind": "reference_documentation",
+      "url": "https://www.gnu.org/software/coreutils/manual/html_node/sort-invocation.html",
+      "locator": "sort invocation"
+    },
+    {
+      "id": "source_26",
+      "title": "GNU coreutils：uniq-invocation",
+      "kind": "reference_documentation",
+      "url": "https://www.gnu.org/software/coreutils/manual/html_node/uniq-invocation.html",
+      "locator": "uniq invocation"
+    },
+    {
+      "id": "source_27",
+      "title": "GNU coreutils：wc-invocation",
+      "kind": "reference_documentation",
+      "url": "https://www.gnu.org/software/coreutils/manual/html_node/wc-invocation.html",
+      "locator": "wc invocation"
+    },
+    {
+      "id": "source_28",
+      "title": "GNU coreutils：id-invocation",
+      "kind": "reference_documentation",
+      "url": "https://www.gnu.org/software/coreutils/manual/html_node/id-invocation.html",
+      "locator": "id invocation"
+    },
+    {
+      "id": "source_29",
+      "title": "GNU coreutils：Mode-Structure",
+      "kind": "reference_documentation",
+      "url": "https://www.gnu.org/software/coreutils/manual/html_node/Mode-Structure.html",
+      "locator": "Mode Structure"
+    },
+    {
+      "id": "source_30",
+      "title": "GNU coreutils：chmod-invocation",
+      "kind": "reference_documentation",
+      "url": "https://www.gnu.org/software/coreutils/manual/html_node/chmod-invocation.html",
+      "locator": "chmod invocation"
+    },
+    {
+      "id": "source_31",
+      "title": "Linux manual：proc_pid(5)",
+      "kind": "reference_documentation",
+      "url": "https://man7.org/linux/man-pages/man5/proc_pid.5.html",
+      "locator": "proc_pid(5) DESCRIPTION"
+    },
+    {
+      "id": "source_32",
+      "title": "Linux manual：ps(1)",
+      "kind": "reference_documentation",
+      "url": "https://man7.org/linux/man-pages/man1/ps.1.html",
+      "locator": "ps(1) DESCRIPTION"
+    },
+    {
+      "id": "source_33",
+      "title": "Linux manual：signal(7)",
+      "kind": "reference_documentation",
+      "url": "https://man7.org/linux/man-pages/man7/signal.7.html",
+      "locator": "signal(7) DESCRIPTION"
+    },
+    {
+      "id": "source_34",
+      "title": "GNU bash：Job-Control-Basics",
+      "kind": "reference_documentation",
+      "url": "https://www.gnu.org/software/bash/manual/html_node/Job-Control-Basics.html",
+      "locator": "Job Control Basics"
+    },
+    {
+      "id": "source_35",
+      "title": "GNU bash：Shell-Parameters",
+      "kind": "reference_documentation",
+      "url": "https://www.gnu.org/software/bash/manual/html_node/Shell-Parameters.html",
+      "locator": "Shell Parameters"
+    },
+    {
+      "id": "source_36",
+      "title": "GNU bash：Exit-Status",
+      "kind": "reference_documentation",
+      "url": "https://www.gnu.org/software/bash/manual/html_node/Exit-Status.html",
+      "locator": "Exit Status"
+    },
+    {
+      "id": "source_37",
+      "title": "GNU bash：Looping-Constructs",
+      "kind": "reference_documentation",
+      "url": "https://www.gnu.org/software/bash/manual/html_node/Looping-Constructs.html",
+      "locator": "Looping Constructs"
+    },
+    {
+      "id": "source_38",
+      "title": "GNU bash：Shell-Scripts",
+      "kind": "reference_documentation",
+      "url": "https://www.gnu.org/software/bash/manual/html_node/Shell-Scripts.html",
+      "locator": "Shell Scripts"
+    },
+    {
+      "id": "source_39",
+      "title": "GNU coreutils：tail-invocation",
+      "kind": "reference_documentation",
+      "url": "https://www.gnu.org/software/coreutils/manual/html_node/tail-invocation.html",
+      "locator": "tail invocation"
+    },
+    {
+      "id": "source_40",
+      "title": "LinuxLab 任务契约",
+      "kind": "reference_documentation",
+      "url": "https://github.com/Southwall-Tester/LinuxLab/blob/main/tasks.py",
+      "locator": "CONTRACTS / requirements / configuration validation"
+    },
+    {
+      "id": "source_41",
+      "title": "Vim 用户手册：入门",
+      "kind": "reference_documentation",
+      "url": "https://vimhelp.org/usr_02.txt.html",
+      "locator": "02.2 Inserting text / 02.4 Saving and exiting"
+    },
+    {
+      "id": "source_42",
+      "title": "Linux manual：top(1)",
+      "kind": "reference_documentation",
+      "url": "https://man7.org/linux/man-pages/man1/top.1.html",
+      "locator": "top(1) DESCRIPTION"
+    }
+  ],
+  "resources": [
+    {
+      "id": "resource_source_01",
+      "title": "GNU bash：What-is-a-shell_003f",
+      "organization": "GNU Project",
+      "url": "https://www.gnu.org/software/bash/manual/html_node/What-is-a-shell_003f.html",
+      "applicable_segment": "What is a shell_003f",
+      "format": "lesson",
+      "node_ids": [
+        "shell"
+      ],
+      "prerequisite_ids": [],
+      "source_ids": [
+        "source_01"
+      ],
+      "review_status": "draft"
+    },
+    {
+      "id": "resource_source_02",
+      "title": "GNU bash：Simple-Commands",
+      "organization": "GNU Project",
+      "url": "https://www.gnu.org/software/bash/manual/html_node/Simple-Commands.html",
+      "applicable_segment": "Simple Commands",
+      "format": "lesson",
+      "node_ids": [
+        "syntax"
+      ],
+      "prerequisite_ids": [],
+      "source_ids": [
+        "source_02"
+      ],
+      "review_status": "draft"
+    },
+    {
+      "id": "resource_source_03",
+      "title": "GNU bash：Bash-Builtins",
+      "organization": "GNU Project",
+      "url": "https://www.gnu.org/software/bash/manual/html_node/Bash-Builtins.html",
+      "applicable_segment": "Bash Builtins",
+      "format": "lesson",
+      "node_ids": [
+        "help"
+      ],
+      "prerequisite_ids": [],
+      "source_ids": [
+        "source_03"
+      ],
+      "review_status": "draft"
+    },
+    {
+      "id": "resource_source_04",
+      "title": "GNU bash：Quoting",
+      "organization": "GNU Project",
+      "url": "https://www.gnu.org/software/bash/manual/html_node/Quoting.html",
+      "applicable_segment": "Quoting",
+      "format": "lesson",
+      "node_ids": [
+        "quoting"
+      ],
+      "prerequisite_ids": [],
+      "source_ids": [
+        "source_04"
+      ],
+      "review_status": "draft"
+    },
+    {
+      "id": "resource_source_05",
+      "title": "GNU coreutils：pwd-invocation",
+      "organization": "GNU Project",
+      "url": "https://www.gnu.org/software/coreutils/manual/html_node/pwd-invocation.html",
+      "applicable_segment": "pwd invocation",
+      "format": "lesson",
+      "node_ids": [
+        "cwd"
+      ],
+      "prerequisite_ids": [],
+      "source_ids": [
+        "source_05"
+      ],
+      "review_status": "draft"
+    },
+    {
+      "id": "resource_source_06",
+      "title": "Software Carpentry：Navigating Files and Directories",
+      "organization": "The Carpentries",
+      "url": "https://swcarpentry.github.io/shell-novice/02-filedir.html",
+      "applicable_segment": "Navigating Files and Directories / paths",
+      "format": "lesson",
+      "node_ids": [
+        "absolute",
+        "relative"
+      ],
+      "prerequisite_ids": [],
+      "source_ids": [
+        "source_06"
+      ],
+      "review_status": "draft"
+    },
+    {
+      "id": "resource_source_07",
+      "title": "GNU bash：Bourne-Shell-Builtins",
+      "organization": "GNU Project",
+      "url": "https://www.gnu.org/software/bash/manual/html_node/Bourne-Shell-Builtins.html",
+      "applicable_segment": "Bourne Shell Builtins",
+      "format": "lesson",
+      "node_ids": [
+        "cd"
+      ],
+      "prerequisite_ids": [],
+      "source_ids": [
+        "source_07"
+      ],
+      "review_status": "draft"
+    },
+    {
+      "id": "resource_source_08",
+      "title": "GNU coreutils：ls-invocation",
+      "organization": "GNU Project",
+      "url": "https://www.gnu.org/software/coreutils/manual/html_node/ls-invocation.html",
+      "applicable_segment": "ls invocation",
+      "format": "lesson",
+      "node_ids": [
+        "ls"
+      ],
+      "prerequisite_ids": [],
+      "source_ids": [
+        "source_08"
+      ],
+      "review_status": "draft"
+    },
+    {
+      "id": "resource_source_09",
+      "title": "GNU coreutils：mkdir-invocation",
+      "organization": "GNU Project",
+      "url": "https://www.gnu.org/software/coreutils/manual/html_node/mkdir-invocation.html",
+      "applicable_segment": "mkdir invocation",
+      "format": "lesson",
+      "node_ids": [
+        "mkdir"
+      ],
+      "prerequisite_ids": [],
+      "source_ids": [
+        "source_09"
+      ],
+      "review_status": "draft"
+    },
+    {
+      "id": "resource_source_10",
+      "title": "GNU coreutils：cp-invocation",
+      "organization": "GNU Project",
+      "url": "https://www.gnu.org/software/coreutils/manual/html_node/cp-invocation.html",
+      "applicable_segment": "cp invocation",
+      "format": "lesson",
+      "node_ids": [
+        "cp",
+        "file_integrity"
+      ],
+      "prerequisite_ids": [],
+      "source_ids": [
+        "source_10"
+      ],
+      "review_status": "draft"
+    },
+    {
+      "id": "resource_source_11",
+      "title": "GNU coreutils：mv-invocation",
+      "organization": "GNU Project",
+      "url": "https://www.gnu.org/software/coreutils/manual/html_node/mv-invocation.html",
+      "applicable_segment": "mv invocation",
+      "format": "lesson",
+      "node_ids": [
+        "mv"
+      ],
+      "prerequisite_ids": [],
+      "source_ids": [
+        "source_11"
+      ],
+      "review_status": "draft"
+    },
+    {
+      "id": "resource_source_12",
+      "title": "GNU coreutils：rm-invocation",
+      "organization": "GNU Project",
+      "url": "https://www.gnu.org/software/coreutils/manual/html_node/rm-invocation.html",
+      "applicable_segment": "rm invocation",
+      "format": "lesson",
+      "node_ids": [
+        "rm"
+      ],
+      "prerequisite_ids": [],
+      "source_ids": [
+        "source_12"
+      ],
+      "review_status": "draft"
+    },
+    {
+      "id": "resource_source_13",
+      "title": "GNU coreutils：ln-invocation",
+      "organization": "GNU Project",
+      "url": "https://www.gnu.org/software/coreutils/manual/html_node/ln-invocation.html",
+      "applicable_segment": "ln invocation",
+      "format": "lesson",
+      "node_ids": [
+        "symlink"
+      ],
+      "prerequisite_ids": [],
+      "source_ids": [
+        "source_13"
+      ],
+      "review_status": "draft"
+    },
+    {
+      "id": "resource_source_14",
+      "title": "GNU tar：Basic-tar",
+      "organization": "GNU Project",
+      "url": "https://www.gnu.org/software/tar/manual/html_node/Basic-tar.html",
+      "applicable_segment": "Basic tar",
+      "format": "lesson",
+      "node_ids": [
+        "tar"
+      ],
+      "prerequisite_ids": [],
+      "source_ids": [
+        "source_14"
+      ],
+      "review_status": "draft"
+    },
+    {
+      "id": "resource_source_15",
+      "title": "GNU coreutils：cat-invocation",
+      "organization": "GNU Project",
+      "url": "https://www.gnu.org/software/coreutils/manual/html_node/cat-invocation.html",
+      "applicable_segment": "cat invocation",
+      "format": "lesson",
+      "node_ids": [
+        "cat"
+      ],
+      "prerequisite_ids": [],
+      "source_ids": [
+        "source_15"
+      ],
+      "review_status": "draft"
+    },
+    {
+      "id": "resource_source_16",
+      "title": "GNU grep：Matching-Control",
+      "organization": "GNU Project",
+      "url": "https://www.gnu.org/software/grep/manual/html_node/Matching-Control.html",
+      "applicable_segment": "Matching Control",
+      "format": "lesson",
+      "node_ids": [
+        "grep"
+      ],
+      "prerequisite_ids": [],
+      "source_ids": [
+        "source_16"
+      ],
+      "review_status": "draft"
+    },
+    {
+      "id": "resource_source_17",
+      "title": "GNU findutils：Name",
+      "organization": "GNU Project",
+      "url": "https://www.gnu.org/software/findutils/manual/html_node/find_html/Name.html",
+      "applicable_segment": "Name",
+      "format": "lesson",
+      "node_ids": [
+        "find"
+      ],
+      "prerequisite_ids": [],
+      "source_ids": [
+        "source_17"
+      ],
+      "review_status": "draft"
+    },
+    {
+      "id": "resource_source_18",
+      "title": "GNU bash：Filename-Expansion",
+      "organization": "GNU Project",
+      "url": "https://www.gnu.org/software/bash/manual/html_node/Filename-Expansion.html",
+      "applicable_segment": "Filename Expansion",
+      "format": "lesson",
+      "node_ids": [
+        "glob"
+      ],
+      "prerequisite_ids": [],
+      "source_ids": [
+        "source_18"
+      ],
+      "review_status": "draft"
+    },
+    {
+      "id": "resource_source_19",
+      "title": "GNU grep：Regular-Expressions",
+      "organization": "GNU Project",
+      "url": "https://www.gnu.org/software/grep/manual/html_node/Regular-Expressions.html",
+      "applicable_segment": "Regular Expressions",
+      "format": "lesson",
+      "node_ids": [
+        "regex"
+      ],
+      "prerequisite_ids": [],
+      "source_ids": [
+        "source_19"
+      ],
+      "review_status": "draft"
+    },
+    {
+      "id": "resource_source_20",
+      "title": "GNU bash：Redirections",
+      "organization": "GNU Project",
+      "url": "https://www.gnu.org/software/bash/manual/html_node/Redirections.html",
+      "applicable_segment": "Redirections",
+      "format": "lesson",
+      "node_ids": [
+        "streams"
+      ],
+      "prerequisite_ids": [],
+      "source_ids": [
+        "source_20"
+      ],
+      "review_status": "draft"
+    },
+    {
+      "id": "resource_source_21",
+      "title": "GNU Bash：Redirecting-Output",
+      "organization": "GNU Project",
+      "url": "https://www.gnu.org/software/bash/manual/html_node/Redirections.html#Redirecting-Output",
+      "applicable_segment": "Redirecting Output",
+      "format": "lesson",
+      "node_ids": [
+        "redirect"
+      ],
+      "prerequisite_ids": [],
+      "source_ids": [
+        "source_21"
+      ],
+      "review_status": "draft"
+    },
+    {
+      "id": "resource_source_22",
+      "title": "GNU Bash：Appending-Redirected-Output",
+      "organization": "GNU Project",
+      "url": "https://www.gnu.org/software/bash/manual/html_node/Redirections.html#Appending-Redirected-Output",
+      "applicable_segment": "Appending Redirected Output",
+      "format": "lesson",
+      "node_ids": [
+        "append"
+      ],
+      "prerequisite_ids": [],
+      "source_ids": [
+        "source_22"
+      ],
+      "review_status": "draft"
+    },
+    {
+      "id": "resource_source_23",
+      "title": "GNU Bash：Duplicating-File-Descriptors",
+      "organization": "GNU Project",
+      "url": "https://www.gnu.org/software/bash/manual/html_node/Redirections.html#Duplicating-File-Descriptors",
+      "applicable_segment": "Duplicating File Descriptors",
+      "format": "lesson",
+      "node_ids": [
+        "stderr"
+      ],
+      "prerequisite_ids": [],
+      "source_ids": [
+        "source_23"
+      ],
+      "review_status": "draft"
+    },
+    {
+      "id": "resource_source_24",
+      "title": "GNU bash：Pipelines",
+      "organization": "GNU Project",
+      "url": "https://www.gnu.org/software/bash/manual/html_node/Pipelines.html",
+      "applicable_segment": "Pipelines",
+      "format": "lesson",
+      "node_ids": [
+        "pipe"
+      ],
+      "prerequisite_ids": [],
+      "source_ids": [
+        "source_24"
+      ],
+      "review_status": "draft"
+    },
+    {
+      "id": "resource_source_25",
+      "title": "GNU coreutils：sort-invocation",
+      "organization": "GNU Project",
+      "url": "https://www.gnu.org/software/coreutils/manual/html_node/sort-invocation.html",
+      "applicable_segment": "sort invocation",
+      "format": "lesson",
+      "node_ids": [
+        "sort"
+      ],
+      "prerequisite_ids": [],
+      "source_ids": [
+        "source_25"
+      ],
+      "review_status": "draft"
+    },
+    {
+      "id": "resource_source_26",
+      "title": "GNU coreutils：uniq-invocation",
+      "organization": "GNU Project",
+      "url": "https://www.gnu.org/software/coreutils/manual/html_node/uniq-invocation.html",
+      "applicable_segment": "uniq invocation",
+      "format": "lesson",
+      "node_ids": [
+        "uniq"
+      ],
+      "prerequisite_ids": [],
+      "source_ids": [
+        "source_26"
+      ],
+      "review_status": "draft"
+    },
+    {
+      "id": "resource_source_27",
+      "title": "GNU coreutils：wc-invocation",
+      "organization": "GNU Project",
+      "url": "https://www.gnu.org/software/coreutils/manual/html_node/wc-invocation.html",
+      "applicable_segment": "wc invocation",
+      "format": "lesson",
+      "node_ids": [
+        "wc"
+      ],
+      "prerequisite_ids": [],
+      "source_ids": [
+        "source_27"
+      ],
+      "review_status": "draft"
+    },
+    {
+      "id": "resource_source_28",
+      "title": "GNU coreutils：id-invocation",
+      "organization": "GNU Project",
+      "url": "https://www.gnu.org/software/coreutils/manual/html_node/id-invocation.html",
+      "applicable_segment": "id invocation",
+      "format": "lesson",
+      "node_ids": [
+        "identity"
+      ],
+      "prerequisite_ids": [],
+      "source_ids": [
+        "source_28"
+      ],
+      "review_status": "draft"
+    },
+    {
+      "id": "resource_source_29",
+      "title": "GNU coreutils：Mode-Structure",
+      "organization": "GNU Project",
+      "url": "https://www.gnu.org/software/coreutils/manual/html_node/Mode-Structure.html",
+      "applicable_segment": "Mode Structure",
+      "format": "lesson",
+      "node_ids": [
+        "file_permissions",
+        "directory_permissions"
+      ],
+      "prerequisite_ids": [],
+      "source_ids": [
+        "source_29"
+      ],
+      "review_status": "draft"
+    },
+    {
+      "id": "resource_source_30",
+      "title": "GNU coreutils：chmod-invocation",
+      "organization": "GNU Project",
+      "url": "https://www.gnu.org/software/coreutils/manual/html_node/chmod-invocation.html",
+      "applicable_segment": "chmod invocation",
+      "format": "lesson",
+      "node_ids": [
+        "chmod"
+      ],
+      "prerequisite_ids": [],
+      "source_ids": [
+        "source_30"
+      ],
+      "review_status": "draft"
+    },
+    {
+      "id": "resource_source_31",
+      "title": "Linux manual：proc_pid(5)",
+      "organization": "Linux manual authors / man7.org",
+      "url": "https://man7.org/linux/man-pages/man5/proc_pid.5.html",
+      "applicable_segment": "proc_pid(5) DESCRIPTION",
+      "format": "lesson",
+      "node_ids": [
+        "process"
+      ],
+      "prerequisite_ids": [],
+      "source_ids": [
+        "source_31"
+      ],
+      "review_status": "draft"
+    },
+    {
+      "id": "resource_source_32",
+      "title": "Linux manual：ps(1)",
+      "organization": "Linux manual authors / man7.org",
+      "url": "https://man7.org/linux/man-pages/man1/ps.1.html",
+      "applicable_segment": "ps(1) DESCRIPTION",
+      "format": "lesson",
+      "node_ids": [
+        "ps"
+      ],
+      "prerequisite_ids": [],
+      "source_ids": [
+        "source_32"
+      ],
+      "review_status": "draft"
+    },
+    {
+      "id": "resource_source_33",
+      "title": "Linux manual：signal(7)",
+      "organization": "Linux manual authors / man7.org",
+      "url": "https://man7.org/linux/man-pages/man7/signal.7.html",
+      "applicable_segment": "signal(7) DESCRIPTION",
+      "format": "lesson",
+      "node_ids": [
+        "signal"
+      ],
+      "prerequisite_ids": [],
+      "source_ids": [
+        "source_33"
+      ],
+      "review_status": "draft"
+    },
+    {
+      "id": "resource_source_34",
+      "title": "GNU bash：Job-Control-Basics",
+      "organization": "GNU Project",
+      "url": "https://www.gnu.org/software/bash/manual/html_node/Job-Control-Basics.html",
+      "applicable_segment": "Job Control Basics",
+      "format": "lesson",
+      "node_ids": [
+        "jobs"
+      ],
+      "prerequisite_ids": [],
+      "source_ids": [
+        "source_34"
+      ],
+      "review_status": "draft"
+    },
+    {
+      "id": "resource_source_35",
+      "title": "GNU bash：Shell-Parameters",
+      "organization": "GNU Project",
+      "url": "https://www.gnu.org/software/bash/manual/html_node/Shell-Parameters.html",
+      "applicable_segment": "Shell Parameters",
+      "format": "lesson",
+      "node_ids": [
+        "variable"
+      ],
+      "prerequisite_ids": [],
+      "source_ids": [
+        "source_35"
+      ],
+      "review_status": "draft"
+    },
+    {
+      "id": "resource_source_36",
+      "title": "GNU bash：Exit-Status",
+      "organization": "GNU Project",
+      "url": "https://www.gnu.org/software/bash/manual/html_node/Exit-Status.html",
+      "applicable_segment": "Exit Status",
+      "format": "lesson",
+      "node_ids": [
+        "exit_status"
+      ],
+      "prerequisite_ids": [],
+      "source_ids": [
+        "source_36"
+      ],
+      "review_status": "draft"
+    },
+    {
+      "id": "resource_source_37",
+      "title": "GNU bash：Looping-Constructs",
+      "organization": "GNU Project",
+      "url": "https://www.gnu.org/software/bash/manual/html_node/Looping-Constructs.html",
+      "applicable_segment": "Looping Constructs",
+      "format": "lesson",
+      "node_ids": [
+        "for_loop"
+      ],
+      "prerequisite_ids": [],
+      "source_ids": [
+        "source_37"
+      ],
+      "review_status": "draft"
+    },
+    {
+      "id": "resource_source_38",
+      "title": "GNU bash：Shell-Scripts",
+      "organization": "GNU Project",
+      "url": "https://www.gnu.org/software/bash/manual/html_node/Shell-Scripts.html",
+      "applicable_segment": "Shell Scripts",
+      "format": "lesson",
+      "node_ids": [
+        "script"
+      ],
+      "prerequisite_ids": [],
+      "source_ids": [
+        "source_38"
+      ],
+      "review_status": "draft"
+    },
+    {
+      "id": "resource_source_39",
+      "title": "GNU coreutils：tail-invocation",
+      "organization": "GNU Project",
+      "url": "https://www.gnu.org/software/coreutils/manual/html_node/tail-invocation.html",
+      "applicable_segment": "tail invocation",
+      "format": "lesson",
+      "node_ids": [
+        "tail"
+      ],
+      "prerequisite_ids": [],
+      "source_ids": [
+        "source_39"
+      ],
+      "review_status": "draft"
+    },
+    {
+      "id": "resource_source_40",
+      "title": "LinuxLab 任务契约",
+      "organization": "LinuxLab project",
+      "url": "https://github.com/Southwall-Tester/LinuxLab/blob/main/tasks.py",
+      "applicable_segment": "CONTRACTS / requirements / configuration validation",
+      "format": "lesson",
+      "node_ids": [
+        "log_record",
+        "config_record"
+      ],
+      "prerequisite_ids": [],
+      "source_ids": [
+        "source_40"
+      ],
+      "review_status": "draft"
+    },
+    {
+      "id": "resource_source_41",
+      "title": "Vim 用户手册：入门",
+      "organization": "Vim project",
+      "url": "https://vimhelp.org/usr_02.txt.html",
+      "applicable_segment": "02.2 Inserting text / 02.4 Saving and exiting",
+      "format": "lesson",
+      "node_ids": [
+        "vim"
+      ],
+      "prerequisite_ids": [],
+      "source_ids": [
+        "source_41"
+      ],
+      "review_status": "draft"
+    },
+    {
+      "id": "resource_source_42",
+      "title": "Linux manual：top(1)",
+      "organization": "Linux manual authors / man7.org",
+      "url": "https://man7.org/linux/man-pages/man1/top.1.html",
+      "applicable_segment": "top(1) DESCRIPTION",
+      "format": "lesson",
+      "node_ids": [
+        "top"
+      ],
+      "prerequisite_ids": [],
+      "source_ids": [
+        "source_42"
+      ],
+      "review_status": "draft"
+    }
+  ],
+  "activities": [
+    {
+      "id": "linuxlab",
+      "title": "LinuxLab · 九关实训",
+      "engine": "linuxlab",
+      "href": "/linux-lab",
+      "bridge_schema": 1,
+      "contract_version": 1,
+      "contract_hash": "af9086405f85d7bbc01ec5f5d75edbbd172480297d7c748841e120dea67b56b4",
+      "lab_course_id": "linux-foundations",
+      "concept_map": {
+        "paths": [
+          "cwd",
+          "absolute",
+          "relative",
+          "cd"
+        ],
+        "hidden": [
+          "ls"
+        ],
+        "mkdir": [
+          "mkdir"
+        ],
+        "copy": [
+          "cp"
+        ],
+        "move": [
+          "mv",
+          "rm"
+        ],
+        "glob": [
+          "glob"
+        ],
+        "archive_read": [
+          "tar",
+          "relative"
+        ],
+        "logs": [
+          "cat",
+          "tail",
+          "log_record"
+        ],
+        "config": [
+          "config_record"
+        ],
+        "editing": [
+          "vim"
+        ],
+        "permissions": [
+          "identity",
+          "file_permissions",
+          "chmod"
+        ],
+        "execution": [
+          "script"
+        ],
+        "process": [
+          "process",
+          "ps",
+          "top"
+        ],
+        "archive_build": [
+          "tar"
+        ],
+        "integrity": [
+          "file_integrity"
+        ]
+      },
+      "stages": [
+        {
+          "phase": 1,
+          "task_id": "locate",
+          "title": "定位与准备",
+          "concepts": [
+            "paths",
+            "hidden",
+            "mkdir"
+          ],
+          "goal": "确认当前位置与隐藏目录项，准备任务目录。",
+          "node_ids": [
+            "cwd",
+            "absolute",
+            "relative",
+            "cd",
+            "ls",
+            "mkdir"
+          ]
+        },
+        {
+          "phase": 2,
+          "task_id": "backup",
+          "title": "保全原始资料",
+          "concepts": [
+            "copy",
+            "hidden",
+            "integrity"
+          ],
+          "goal": "建立完整副本，保留原件、隐藏项与目录层级。",
+          "node_ids": [
+            "cp",
+            "ls",
+            "file_integrity"
+          ]
+        },
+        {
+          "phase": 3,
+          "task_id": "organize",
+          "title": "整理与精确清理",
+          "concepts": [
+            "move",
+            "glob",
+            "integrity"
+          ],
+          "goal": "移动指定材料，只清理符合规则的普通文件。",
+          "node_ids": [
+            "mv",
+            "rm",
+            "glob",
+            "file_integrity"
+          ]
+        },
+        {
+          "phase": 4,
+          "task_id": "extract",
+          "title": "查看与恢复归档",
+          "concepts": [
+            "archive_read",
+            "paths"
+          ],
+          "goal": "先观察归档成员，再恢复正确的目录结构。",
+          "node_ids": [
+            "tar",
+            "relative",
+            "cwd",
+            "absolute",
+            "cd"
+          ]
+        },
+        {
+          "phase": 5,
+          "task_id": "interpret-log",
+          "title": "辨认有效日志",
+          "concepts": [
+            "logs"
+          ],
+          "goal": "按记录类型和时间确定有效业务信息。",
+          "node_ids": [
+            "cat",
+            "tail",
+            "log_record"
+          ]
+        },
+        {
+          "phase": 6,
+          "task_id": "configure",
+          "title": "编辑实际配置",
+          "concepts": [
+            "config",
+            "editing",
+            "logs"
+          ],
+          "goal": "用 Vim 将核实的信息写入配置并保存。",
+          "node_ids": [
+            "config_record",
+            "vim",
+            "cat",
+            "tail",
+            "log_record"
+          ]
+        },
+        {
+          "phase": 7,
+          "task_id": "permissions",
+          "title": "最小授权与执行",
+          "concepts": [
+            "permissions",
+            "execution",
+            "config"
+          ],
+          "goal": "设置权限并亲自执行脚本，观察实际结果。",
+          "node_ids": [
+            "identity",
+            "file_permissions",
+            "chmod",
+            "script",
+            "config_record"
+          ]
+        },
+        {
+          "phase": 8,
+          "task_id": "process",
+          "title": "观察活跃进程",
+          "concepts": [
+            "process"
+          ],
+          "goal": "启动短时练习程序，确认本次仍存活的进程身份。",
+          "node_ids": [
+            "process",
+            "ps",
+            "top"
+          ]
+        },
+        {
+          "phase": 9,
+          "task_id": "deliver",
+          "title": "核验最终交付",
+          "concepts": [
+            "archive_build",
+            "config",
+            "permissions",
+            "copy",
+            "integrity"
+          ],
+          "goal": "核对归档内的内容、路径、类型与权限，保留原始备份。",
+          "node_ids": [
+            "tar",
+            "config_record",
+            "identity",
+            "file_permissions",
+            "chmod",
+            "cp",
+            "file_integrity"
+          ]
+        }
+      ],
+      "validation_scope": "真实文件与当前进程的检查；不证明独立完成或概念掌握。"
+    }
+  ],
+  "review_policy": {
+    "intervals_days": [
+      1,
+      7,
+      30
+    ]
+  },
+  "authoring": {
+    "kind": "agent_authored",
+    "policy_version": "authored-linux-command-v1",
+    "human_review": false,
+    "environment": "Linux + Bash + GNU coreutils；命令版本和环境条件以节点说明及本机手册为准。",
+    "execution": "内容与题目，不提供平台内任意 Shell 执行器。",
+    "scope": "入门命令；网络服务、包管理及高级 sed/awk 留待后续课程。"
+  }
+}

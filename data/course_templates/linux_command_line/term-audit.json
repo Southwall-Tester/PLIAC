@@ -1,0 +1,758 @@
+{
+  "policy_version": "authored-linux-command-v1",
+  "method": "agent_authored_curriculum_audit",
+  "human_review": false,
+  "decisions": [
+    {
+      "node_id": "shell",
+      "term": "Shell 命令解释器",
+      "admitted": true,
+      "atomic": true,
+      "domain_status": "linux_shell_concept_or_command",
+      "reason": "本条只定义一个概念或一个命令的职责；命令选项作为该命令的属性，不拆成无语境节点。",
+      "evidence_refs": [
+        {
+          "source_id": "source_01",
+          "locator": "What is a shell_003f",
+          "lesson_section_id": "concept",
+          "interpretation": "自编解释；来源链接是技术核验入口，非逐字引文。"
+        }
+      ]
+    },
+    {
+      "node_id": "syntax",
+      "term": "命令参数",
+      "admitted": true,
+      "atomic": true,
+      "domain_status": "linux_shell_concept_or_command",
+      "reason": "本条只定义一个概念或一个命令的职责；命令选项作为该命令的属性，不拆成无语境节点。",
+      "evidence_refs": [
+        {
+          "source_id": "source_02",
+          "locator": "Simple Commands",
+          "lesson_section_id": "concept",
+          "interpretation": "自编解释；来源链接是技术核验入口，非逐字引文。"
+        }
+      ]
+    },
+    {
+      "node_id": "help",
+      "term": "命令帮助检索",
+      "admitted": true,
+      "atomic": true,
+      "domain_status": "linux_shell_concept_or_command",
+      "reason": "本条只定义一个概念或一个命令的职责；命令选项作为该命令的属性，不拆成无语境节点。",
+      "evidence_refs": [
+        {
+          "source_id": "source_03",
+          "locator": "Bash Builtins",
+          "lesson_section_id": "concept",
+          "interpretation": "自编解释；来源链接是技术核验入口，非逐字引文。"
+        }
+      ]
+    },
+    {
+      "node_id": "quoting",
+      "term": "Shell 引号",
+      "admitted": true,
+      "atomic": true,
+      "domain_status": "linux_shell_concept_or_command",
+      "reason": "本条只定义一个概念或一个命令的职责；命令选项作为该命令的属性，不拆成无语境节点。",
+      "evidence_refs": [
+        {
+          "source_id": "source_04",
+          "locator": "Quoting",
+          "lesson_section_id": "concept",
+          "interpretation": "自编解释；来源链接是技术核验入口，非逐字引文。"
+        }
+      ]
+    },
+    {
+      "node_id": "cwd",
+      "term": "当前工作目录",
+      "admitted": true,
+      "atomic": true,
+      "domain_status": "linux_shell_concept_or_command",
+      "reason": "本条只定义一个概念或一个命令的职责；命令选项作为该命令的属性，不拆成无语境节点。",
+      "evidence_refs": [
+        {
+          "source_id": "source_05",
+          "locator": "pwd invocation",
+          "lesson_section_id": "concept",
+          "interpretation": "自编解释；来源链接是技术核验入口，非逐字引文。"
+        }
+      ]
+    },
+    {
+      "node_id": "absolute",
+      "term": "绝对路径",
+      "admitted": true,
+      "atomic": true,
+      "domain_status": "linux_shell_concept_or_command",
+      "reason": "本条只定义一个概念或一个命令的职责；命令选项作为该命令的属性，不拆成无语境节点。",
+      "evidence_refs": [
+        {
+          "source_id": "source_06",
+          "locator": "Navigating Files and Directories / paths",
+          "lesson_section_id": "concept",
+          "interpretation": "自编解释；来源链接是技术核验入口，非逐字引文。"
+        }
+      ]
+    },
+    {
+      "node_id": "relative",
+      "term": "相对路径",
+      "admitted": true,
+      "atomic": true,
+      "domain_status": "linux_shell_concept_or_command",
+      "reason": "本条只定义一个概念或一个命令的职责；命令选项作为该命令的属性，不拆成无语境节点。",
+      "evidence_refs": [
+        {
+          "source_id": "source_06",
+          "locator": "Navigating Files and Directories / paths",
+          "lesson_section_id": "concept",
+          "interpretation": "自编解释；来源链接是技术核验入口，非逐字引文。"
+        }
+      ]
+    },
+    {
+      "node_id": "cd",
+      "term": "cd 切换目录",
+      "admitted": true,
+      "atomic": true,
+      "domain_status": "linux_shell_concept_or_command",
+      "reason": "本条只定义一个概念或一个命令的职责；命令选项作为该命令的属性，不拆成无语境节点。",
+      "evidence_refs": [
+        {
+          "source_id": "source_07",
+          "locator": "Bourne Shell Builtins",
+          "lesson_section_id": "concept",
+          "interpretation": "自编解释；来源链接是技术核验入口，非逐字引文。"
+        }
+      ]
+    },
+    {
+      "node_id": "ls",
+      "term": "ls 列出目录项",
+      "admitted": true,
+      "atomic": true,
+      "domain_status": "linux_shell_concept_or_command",
+      "reason": "本条只定义一个概念或一个命令的职责；命令选项作为该命令的属性，不拆成无语境节点。",
+      "evidence_refs": [
+        {
+          "source_id": "source_08",
+          "locator": "ls invocation",
+          "lesson_section_id": "concept",
+          "interpretation": "自编解释；来源链接是技术核验入口，非逐字引文。"
+        }
+      ]
+    },
+    {
+      "node_id": "mkdir",
+      "term": "mkdir 创建目录",
+      "admitted": true,
+      "atomic": true,
+      "domain_status": "linux_shell_concept_or_command",
+      "reason": "本条只定义一个概念或一个命令的职责；命令选项作为该命令的属性，不拆成无语境节点。",
+      "evidence_refs": [
+        {
+          "source_id": "source_09",
+          "locator": "mkdir invocation",
+          "lesson_section_id": "concept",
+          "interpretation": "自编解释；来源链接是技术核验入口，非逐字引文。"
+        }
+      ]
+    },
+    {
+      "node_id": "cp",
+      "term": "cp 复制文件",
+      "admitted": true,
+      "atomic": true,
+      "domain_status": "linux_shell_concept_or_command",
+      "reason": "本条只定义一个概念或一个命令的职责；命令选项作为该命令的属性，不拆成无语境节点。",
+      "evidence_refs": [
+        {
+          "source_id": "source_10",
+          "locator": "cp invocation",
+          "lesson_section_id": "concept",
+          "interpretation": "自编解释；来源链接是技术核验入口，非逐字引文。"
+        }
+      ]
+    },
+    {
+      "node_id": "mv",
+      "term": "mv 移动与重命名",
+      "admitted": true,
+      "atomic": true,
+      "domain_status": "linux_shell_concept_or_command",
+      "reason": "本条只定义一个概念或一个命令的职责；命令选项作为该命令的属性，不拆成无语境节点。",
+      "evidence_refs": [
+        {
+          "source_id": "source_11",
+          "locator": "mv invocation",
+          "lesson_section_id": "concept",
+          "interpretation": "自编解释；来源链接是技术核验入口，非逐字引文。"
+        }
+      ]
+    },
+    {
+      "node_id": "rm",
+      "term": "rm 删除目录项",
+      "admitted": true,
+      "atomic": true,
+      "domain_status": "linux_shell_concept_or_command",
+      "reason": "本条只定义一个概念或一个命令的职责；命令选项作为该命令的属性，不拆成无语境节点。",
+      "evidence_refs": [
+        {
+          "source_id": "source_12",
+          "locator": "rm invocation",
+          "lesson_section_id": "concept",
+          "interpretation": "自编解释；来源链接是技术核验入口，非逐字引文。"
+        }
+      ]
+    },
+    {
+      "node_id": "symlink",
+      "term": "符号链接",
+      "admitted": true,
+      "atomic": true,
+      "domain_status": "linux_shell_concept_or_command",
+      "reason": "本条只定义一个概念或一个命令的职责；命令选项作为该命令的属性，不拆成无语境节点。",
+      "evidence_refs": [
+        {
+          "source_id": "source_13",
+          "locator": "ln invocation",
+          "lesson_section_id": "concept",
+          "interpretation": "自编解释；来源链接是技术核验入口，非逐字引文。"
+        }
+      ]
+    },
+    {
+      "node_id": "tar",
+      "term": "tar 归档",
+      "admitted": true,
+      "atomic": true,
+      "domain_status": "linux_shell_concept_or_command",
+      "reason": "本条只定义一个概念或一个命令的职责；命令选项作为该命令的属性，不拆成无语境节点。",
+      "evidence_refs": [
+        {
+          "source_id": "source_14",
+          "locator": "Basic tar",
+          "lesson_section_id": "concept",
+          "interpretation": "自编解释；来源链接是技术核验入口，非逐字引文。"
+        }
+      ]
+    },
+    {
+      "node_id": "cat",
+      "term": "cat 输出文件内容",
+      "admitted": true,
+      "atomic": true,
+      "domain_status": "linux_shell_concept_or_command",
+      "reason": "本条只定义一个概念或一个命令的职责；命令选项作为该命令的属性，不拆成无语境节点。",
+      "evidence_refs": [
+        {
+          "source_id": "source_15",
+          "locator": "cat invocation",
+          "lesson_section_id": "concept",
+          "interpretation": "自编解释；来源链接是技术核验入口，非逐字引文。"
+        }
+      ]
+    },
+    {
+      "node_id": "grep",
+      "term": "grep 文本筛选",
+      "admitted": true,
+      "atomic": true,
+      "domain_status": "linux_shell_concept_or_command",
+      "reason": "本条只定义一个概念或一个命令的职责；命令选项作为该命令的属性，不拆成无语境节点。",
+      "evidence_refs": [
+        {
+          "source_id": "source_16",
+          "locator": "Matching Control",
+          "lesson_section_id": "concept",
+          "interpretation": "自编解释；来源链接是技术核验入口，非逐字引文。"
+        }
+      ]
+    },
+    {
+      "node_id": "find",
+      "term": "find 文件查找",
+      "admitted": true,
+      "atomic": true,
+      "domain_status": "linux_shell_concept_or_command",
+      "reason": "本条只定义一个概念或一个命令的职责；命令选项作为该命令的属性，不拆成无语境节点。",
+      "evidence_refs": [
+        {
+          "source_id": "source_17",
+          "locator": "Name",
+          "lesson_section_id": "concept",
+          "interpretation": "自编解释；来源链接是技术核验入口，非逐字引文。"
+        }
+      ]
+    },
+    {
+      "node_id": "glob",
+      "term": "文件名通配展开",
+      "admitted": true,
+      "atomic": true,
+      "domain_status": "linux_shell_concept_or_command",
+      "reason": "本条只定义一个概念或一个命令的职责；命令选项作为该命令的属性，不拆成无语境节点。",
+      "evidence_refs": [
+        {
+          "source_id": "source_18",
+          "locator": "Filename Expansion",
+          "lesson_section_id": "concept",
+          "interpretation": "自编解释；来源链接是技术核验入口，非逐字引文。"
+        }
+      ]
+    },
+    {
+      "node_id": "regex",
+      "term": "正则表达式",
+      "admitted": true,
+      "atomic": true,
+      "domain_status": "linux_shell_concept_or_command",
+      "reason": "本条只定义一个概念或一个命令的职责；命令选项作为该命令的属性，不拆成无语境节点。",
+      "evidence_refs": [
+        {
+          "source_id": "source_19",
+          "locator": "Regular Expressions",
+          "lesson_section_id": "concept",
+          "interpretation": "自编解释；来源链接是技术核验入口，非逐字引文。"
+        }
+      ]
+    },
+    {
+      "node_id": "streams",
+      "term": "标准输入输出流",
+      "admitted": true,
+      "atomic": true,
+      "domain_status": "linux_shell_concept_or_command",
+      "reason": "本条只定义一个概念或一个命令的职责；命令选项作为该命令的属性，不拆成无语境节点。",
+      "evidence_refs": [
+        {
+          "source_id": "source_20",
+          "locator": "Redirections",
+          "lesson_section_id": "concept",
+          "interpretation": "自编解释；来源链接是技术核验入口，非逐字引文。"
+        }
+      ]
+    },
+    {
+      "node_id": "redirect",
+      "term": "覆盖输出重定向",
+      "admitted": true,
+      "atomic": true,
+      "domain_status": "linux_shell_concept_or_command",
+      "reason": "本条只定义一个概念或一个命令的职责；命令选项作为该命令的属性，不拆成无语境节点。",
+      "evidence_refs": [
+        {
+          "source_id": "source_21",
+          "locator": "Redirecting Output",
+          "lesson_section_id": "concept",
+          "interpretation": "自编解释；来源链接是技术核验入口，非逐字引文。"
+        }
+      ]
+    },
+    {
+      "node_id": "append",
+      "term": "追加输出重定向",
+      "admitted": true,
+      "atomic": true,
+      "domain_status": "linux_shell_concept_or_command",
+      "reason": "本条只定义一个概念或一个命令的职责；命令选项作为该命令的属性，不拆成无语境节点。",
+      "evidence_refs": [
+        {
+          "source_id": "source_22",
+          "locator": "Appending Redirected Output",
+          "lesson_section_id": "concept",
+          "interpretation": "自编解释；来源链接是技术核验入口，非逐字引文。"
+        }
+      ]
+    },
+    {
+      "node_id": "stderr",
+      "term": "标准错误重定向",
+      "admitted": true,
+      "atomic": true,
+      "domain_status": "linux_shell_concept_or_command",
+      "reason": "本条只定义一个概念或一个命令的职责；命令选项作为该命令的属性，不拆成无语境节点。",
+      "evidence_refs": [
+        {
+          "source_id": "source_23",
+          "locator": "Duplicating File Descriptors",
+          "lesson_section_id": "concept",
+          "interpretation": "自编解释；来源链接是技术核验入口，非逐字引文。"
+        }
+      ]
+    },
+    {
+      "node_id": "pipe",
+      "term": "管道",
+      "admitted": true,
+      "atomic": true,
+      "domain_status": "linux_shell_concept_or_command",
+      "reason": "本条只定义一个概念或一个命令的职责；命令选项作为该命令的属性，不拆成无语境节点。",
+      "evidence_refs": [
+        {
+          "source_id": "source_24",
+          "locator": "Pipelines",
+          "lesson_section_id": "concept",
+          "interpretation": "自编解释；来源链接是技术核验入口，非逐字引文。"
+        }
+      ]
+    },
+    {
+      "node_id": "sort",
+      "term": "sort 排序",
+      "admitted": true,
+      "atomic": true,
+      "domain_status": "linux_shell_concept_or_command",
+      "reason": "本条只定义一个概念或一个命令的职责；命令选项作为该命令的属性，不拆成无语境节点。",
+      "evidence_refs": [
+        {
+          "source_id": "source_25",
+          "locator": "sort invocation",
+          "lesson_section_id": "concept",
+          "interpretation": "自编解释；来源链接是技术核验入口，非逐字引文。"
+        }
+      ]
+    },
+    {
+      "node_id": "uniq",
+      "term": "uniq 相邻重复行处理",
+      "admitted": true,
+      "atomic": true,
+      "domain_status": "linux_shell_concept_or_command",
+      "reason": "本条只定义一个概念或一个命令的职责；命令选项作为该命令的属性，不拆成无语境节点。",
+      "evidence_refs": [
+        {
+          "source_id": "source_26",
+          "locator": "uniq invocation",
+          "lesson_section_id": "concept",
+          "interpretation": "自编解释；来源链接是技术核验入口，非逐字引文。"
+        }
+      ]
+    },
+    {
+      "node_id": "wc",
+      "term": "wc 文本计数",
+      "admitted": true,
+      "atomic": true,
+      "domain_status": "linux_shell_concept_or_command",
+      "reason": "本条只定义一个概念或一个命令的职责；命令选项作为该命令的属性，不拆成无语境节点。",
+      "evidence_refs": [
+        {
+          "source_id": "source_27",
+          "locator": "wc invocation",
+          "lesson_section_id": "concept",
+          "interpretation": "自编解释；来源链接是技术核验入口，非逐字引文。"
+        }
+      ]
+    },
+    {
+      "node_id": "identity",
+      "term": "用户与组身份",
+      "admitted": true,
+      "atomic": true,
+      "domain_status": "linux_shell_concept_or_command",
+      "reason": "本条只定义一个概念或一个命令的职责；命令选项作为该命令的属性，不拆成无语境节点。",
+      "evidence_refs": [
+        {
+          "source_id": "source_28",
+          "locator": "id invocation",
+          "lesson_section_id": "concept",
+          "interpretation": "自编解释；来源链接是技术核验入口，非逐字引文。"
+        }
+      ]
+    },
+    {
+      "node_id": "file_permissions",
+      "term": "普通文件权限",
+      "admitted": true,
+      "atomic": true,
+      "domain_status": "linux_shell_concept_or_command",
+      "reason": "本条只定义一个概念或一个命令的职责；命令选项作为该命令的属性，不拆成无语境节点。",
+      "evidence_refs": [
+        {
+          "source_id": "source_29",
+          "locator": "Mode Structure",
+          "lesson_section_id": "concept",
+          "interpretation": "自编解释；来源链接是技术核验入口，非逐字引文。"
+        }
+      ]
+    },
+    {
+      "node_id": "directory_permissions",
+      "term": "目录权限",
+      "admitted": true,
+      "atomic": true,
+      "domain_status": "linux_shell_concept_or_command",
+      "reason": "本条只定义一个概念或一个命令的职责；命令选项作为该命令的属性，不拆成无语境节点。",
+      "evidence_refs": [
+        {
+          "source_id": "source_29",
+          "locator": "Mode Structure",
+          "lesson_section_id": "concept",
+          "interpretation": "自编解释；来源链接是技术核验入口，非逐字引文。"
+        }
+      ]
+    },
+    {
+      "node_id": "chmod",
+      "term": "chmod 修改模式位",
+      "admitted": true,
+      "atomic": true,
+      "domain_status": "linux_shell_concept_or_command",
+      "reason": "本条只定义一个概念或一个命令的职责；命令选项作为该命令的属性，不拆成无语境节点。",
+      "evidence_refs": [
+        {
+          "source_id": "source_30",
+          "locator": "chmod invocation",
+          "lesson_section_id": "concept",
+          "interpretation": "自编解释；来源链接是技术核验入口，非逐字引文。"
+        }
+      ]
+    },
+    {
+      "node_id": "process",
+      "term": "进程",
+      "admitted": true,
+      "atomic": true,
+      "domain_status": "linux_shell_concept_or_command",
+      "reason": "本条只定义一个概念或一个命令的职责；命令选项作为该命令的属性，不拆成无语境节点。",
+      "evidence_refs": [
+        {
+          "source_id": "source_31",
+          "locator": "proc_pid(5) DESCRIPTION",
+          "lesson_section_id": "concept",
+          "interpretation": "自编解释；来源链接是技术核验入口，非逐字引文。"
+        }
+      ]
+    },
+    {
+      "node_id": "ps",
+      "term": "ps 进程快照",
+      "admitted": true,
+      "atomic": true,
+      "domain_status": "linux_shell_concept_or_command",
+      "reason": "本条只定义一个概念或一个命令的职责；命令选项作为该命令的属性，不拆成无语境节点。",
+      "evidence_refs": [
+        {
+          "source_id": "source_32",
+          "locator": "ps(1) DESCRIPTION",
+          "lesson_section_id": "concept",
+          "interpretation": "自编解释；来源链接是技术核验入口，非逐字引文。"
+        }
+      ]
+    },
+    {
+      "node_id": "signal",
+      "term": "进程信号",
+      "admitted": true,
+      "atomic": true,
+      "domain_status": "linux_shell_concept_or_command",
+      "reason": "本条只定义一个概念或一个命令的职责；命令选项作为该命令的属性，不拆成无语境节点。",
+      "evidence_refs": [
+        {
+          "source_id": "source_33",
+          "locator": "signal(7) DESCRIPTION",
+          "lesson_section_id": "concept",
+          "interpretation": "自编解释；来源链接是技术核验入口，非逐字引文。"
+        }
+      ]
+    },
+    {
+      "node_id": "jobs",
+      "term": "Shell 作业控制",
+      "admitted": true,
+      "atomic": true,
+      "domain_status": "linux_shell_concept_or_command",
+      "reason": "本条只定义一个概念或一个命令的职责；命令选项作为该命令的属性，不拆成无语境节点。",
+      "evidence_refs": [
+        {
+          "source_id": "source_34",
+          "locator": "Job Control Basics",
+          "lesson_section_id": "concept",
+          "interpretation": "自编解释；来源链接是技术核验入口，非逐字引文。"
+        }
+      ]
+    },
+    {
+      "node_id": "variable",
+      "term": "Shell 变量",
+      "admitted": true,
+      "atomic": true,
+      "domain_status": "linux_shell_concept_or_command",
+      "reason": "本条只定义一个概念或一个命令的职责；命令选项作为该命令的属性，不拆成无语境节点。",
+      "evidence_refs": [
+        {
+          "source_id": "source_35",
+          "locator": "Shell Parameters",
+          "lesson_section_id": "concept",
+          "interpretation": "自编解释；来源链接是技术核验入口，非逐字引文。"
+        }
+      ]
+    },
+    {
+      "node_id": "exit_status",
+      "term": "退出状态",
+      "admitted": true,
+      "atomic": true,
+      "domain_status": "linux_shell_concept_or_command",
+      "reason": "本条只定义一个概念或一个命令的职责；命令选项作为该命令的属性，不拆成无语境节点。",
+      "evidence_refs": [
+        {
+          "source_id": "source_36",
+          "locator": "Exit Status",
+          "lesson_section_id": "concept",
+          "interpretation": "自编解释；来源链接是技术核验入口，非逐字引文。"
+        }
+      ]
+    },
+    {
+      "node_id": "for_loop",
+      "term": "for 循环",
+      "admitted": true,
+      "atomic": true,
+      "domain_status": "linux_shell_concept_or_command",
+      "reason": "本条只定义一个概念或一个命令的职责；命令选项作为该命令的属性，不拆成无语境节点。",
+      "evidence_refs": [
+        {
+          "source_id": "source_37",
+          "locator": "Looping Constructs",
+          "lesson_section_id": "concept",
+          "interpretation": "自编解释；来源链接是技术核验入口，非逐字引文。"
+        }
+      ]
+    },
+    {
+      "node_id": "script",
+      "term": "Bash 脚本",
+      "admitted": true,
+      "atomic": true,
+      "domain_status": "linux_shell_concept_or_command",
+      "reason": "本条只定义一个概念或一个命令的职责；命令选项作为该命令的属性，不拆成无语境节点。",
+      "evidence_refs": [
+        {
+          "source_id": "source_38",
+          "locator": "Shell Scripts",
+          "lesson_section_id": "concept",
+          "interpretation": "自编解释；来源链接是技术核验入口，非逐字引文。"
+        }
+      ]
+    },
+    {
+      "node_id": "tail",
+      "term": "tail 末尾观察",
+      "admitted": true,
+      "atomic": true,
+      "domain_status": "linux_shell_concept_or_command",
+      "reason": "本条只定义一个概念或一个命令的职责；命令选项作为该命令的属性，不拆成无语境节点。",
+      "evidence_refs": [
+        {
+          "source_id": "source_39",
+          "locator": "tail invocation",
+          "lesson_section_id": "concept",
+          "interpretation": "自编解释；来源链接是技术核验入口，非逐字引文。"
+        }
+      ]
+    },
+    {
+      "node_id": "log_record",
+      "term": "日志记录语义",
+      "admitted": true,
+      "atomic": true,
+      "domain_status": "lab_application_data_concept",
+      "reason": "本条只定义一个概念或一个命令的职责；命令选项作为该命令的属性，不拆成无语境节点。",
+      "evidence_refs": [
+        {
+          "source_id": "source_40",
+          "locator": "CONTRACTS / requirements / configuration validation",
+          "lesson_section_id": "concept",
+          "interpretation": "自编解释；来源链接是技术核验入口，非逐字引文。"
+        }
+      ]
+    },
+    {
+      "node_id": "config_record",
+      "term": "键值配置结构",
+      "admitted": true,
+      "atomic": true,
+      "domain_status": "lab_application_data_concept",
+      "reason": "本条只定义一个概念或一个命令的职责；命令选项作为该命令的属性，不拆成无语境节点。",
+      "evidence_refs": [
+        {
+          "source_id": "source_40",
+          "locator": "CONTRACTS / requirements / configuration validation",
+          "lesson_section_id": "concept",
+          "interpretation": "自编解释；来源链接是技术核验入口，非逐字引文。"
+        }
+      ]
+    },
+    {
+      "node_id": "vim",
+      "term": "Vim 模式与保存",
+      "admitted": true,
+      "atomic": true,
+      "domain_status": "linux_shell_concept_or_command",
+      "reason": "本条只定义一个概念或一个命令的职责；命令选项作为该命令的属性，不拆成无语境节点。",
+      "evidence_refs": [
+        {
+          "source_id": "source_41",
+          "locator": "02.2 Inserting text / 02.4 Saving and exiting",
+          "lesson_section_id": "concept",
+          "interpretation": "自编解释；来源链接是技术核验入口，非逐字引文。"
+        }
+      ]
+    },
+    {
+      "node_id": "top",
+      "term": "top 动态进程观察",
+      "admitted": true,
+      "atomic": true,
+      "domain_status": "linux_shell_concept_or_command",
+      "reason": "本条只定义一个概念或一个命令的职责；命令选项作为该命令的属性，不拆成无语境节点。",
+      "evidence_refs": [
+        {
+          "source_id": "source_42",
+          "locator": "top(1) DESCRIPTION",
+          "lesson_section_id": "concept",
+          "interpretation": "自编解释；来源链接是技术核验入口，非逐字引文。"
+        }
+      ]
+    },
+    {
+      "node_id": "file_integrity",
+      "term": "文件副本完整性",
+      "admitted": true,
+      "atomic": true,
+      "domain_status": "linux_shell_concept_or_command",
+      "reason": "本条只定义一个概念或一个命令的职责；命令选项作为该命令的属性，不拆成无语境节点。",
+      "evidence_refs": [
+        {
+          "source_id": "source_10",
+          "locator": "cp invocation",
+          "lesson_section_id": "concept",
+          "interpretation": "自编解释；来源链接是技术核验入口，非逐字引文。"
+        }
+      ]
+    }
+  ],
+  "rejected": [
+    {
+      "term": "Linux 基础",
+      "reason": "课程范围标签，非原子概念。"
+    },
+    {
+      "term": "查看与查找",
+      "reason": "教学单元标签，不作为概念节点。"
+    },
+    {
+      "term": "文本三剑客",
+      "reason": "多个工具的集合昵称，应按独立工具与知识目标拆分。"
+    }
+  ],
+  "relation_policy": "只在获准概念间建立关系；先修来自当前任务所需能力，非标题顺序；相关和易混淆边不约束学习顺序。"
+}
