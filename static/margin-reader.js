@@ -2,16 +2,19 @@
   'use strict';
   const $=id=>document.getElementById(id),esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const params=new URLSearchParams(location.search),courseId=params.get('course_id')||'';
-  let jobId=params.get('job_id'),preferredJob=jobId,base='';const query='course_id='+encodeURIComponent(courseId);
+  const authorMode=params.get('mode')==='author',initialView=params.get('view')||(authorMode?'graph':'read');
+  let jobId=params.get('job_id'),preferredJob=jobId,base='',studentId='',assistantOwner='',query='course_id='+encodeURIComponent(courseId)+(authorMode?'&mode=author':'');
+  const preparedScopes=new Set();
   const scopeFields=['chapter_id','section_id','node_id','source_job_id','concept_id'];
   let selection=Object.fromEntries(scopeFields.map(k=>[k,params.get(k)||''])),scopeData=null,refreshRevision=0,loadRevision=0;
   let selectedConcept=null;
+  let viewRevision=0,selectedView=initialView;
   let lesson,map,network,ready=false,pending='overview',sourceButton,sourceScroll=0;
   const fail=e=>{$('error').hidden=false;$('error').textContent=e.message||String(e);};
 
   async function get(url){const r=await fetch(url+(url.includes('?')?'&':'?')+query);if(!r.ok){const e=await r.json();throw new Error(e.detail||'讲义读取失败');}return r.json();}
   const practice=new HandoutPractice(courseId,fail);
-  function show(mode){$('graphScreen').hidden=mode!=='graph';$('readingScreen').hidden=mode!=='read';$('exerciseScreen').hidden=mode!=='exercise';$('exerciseMode').setAttribute('aria-pressed',mode==='exercise');if(mode==='exercise')practice.load(jobId).catch(fail);$('mapMode').setAttribute('aria-pressed',mode==='graph');$('readMode').setAttribute('aria-pressed',mode==='read');if(mode==='read'){const frame=$('lessonFrame');if(frame.dataset.url&&frame.getAttribute('src')!==frame.dataset.url)frame.src=frame.dataset.url;else jump();}}
+  function show(mode){viewRevision++;selectedView=mode;$('graphScreen').hidden=mode!=='graph';$('readingScreen').hidden=mode!=='read';$('exerciseScreen').hidden=mode!=='exercise';$('exerciseMode').setAttribute('aria-pressed',mode==='exercise');if(mode==='exercise')practice.load(jobId).catch(fail);$('mapMode').setAttribute('aria-pressed',mode==='graph');$('readMode').setAttribute('aria-pressed',mode==='read');if(mode==='read'){const frame=$('lessonFrame');if(frame.dataset.url&&frame.getAttribute('src')!==frame.dataset.url)frame.src=frame.dataset.url;else jump();}}
   function markReading(anchor){
     pending=anchor;
     const buttons=$('readingScreen').querySelectorAll('nav [data-section]');
@@ -69,7 +72,7 @@
     const data={...network.data,nodes:network.data.nodes.map(node=>({...node,style:{...node.style,lineWidth:node.id===id?3:1,stroke:node.id===id?accent:GraphEncoding.outline(node.style.fill)}}))};
     network.setData(data).catch(fail);
   }
-  function select(id){const node=map.nodes.find(n=>n.id===id);if(!node)return;$('detail').scrollTop=0;syncSelection(id);$('conceptTitle').textContent=node.title;$('conceptSources').innerHTML=sourceLinks(node.source_refs);$('definition').textContent=node.definition;$('sectionLinks').innerHTML=sectionLinks(node.section_ids);$('relationships').innerHTML=map.edges.map((e,i)=>({...e,i})).filter(e=>e.source===id||e.target===id).map(e=>`<button data-edge="${e.i}">${esc(map.nodes.find(n=>n.id===(e.source===id?e.target:e.source))?.title)} · ${esc(e.predicate)}</button>`).join('');$('evidence').hidden=!node.quote;$('quote').textContent=node.quote||'';}
+  function select(id){const node=map.nodes.find(n=>n.id===id);if(!node)return;window.PLIACAssistant?.setContext({job_id:jobId,node_id:id,title:node.title});$('detail').scrollTop=0;syncSelection(id);$('conceptTitle').textContent=node.title;$('conceptSources').innerHTML=sourceLinks(node.source_refs);$('definition').textContent=node.definition;$('sectionLinks').innerHTML=sectionLinks(node.section_ids);$('relationships').innerHTML=map.edges.map((e,i)=>({...e,i})).filter(e=>e.source===id||e.target===id).map(e=>`<button data-edge="${e.i}">${esc(map.nodes.find(n=>n.id===(e.source===id?e.target:e.source))?.title)} · ${esc(e.predicate)}</button>`).join('');$('evidence').hidden=!node.quote;$('quote').textContent=node.quote||'';}
   function relation(index){const e=map.edges[index];if(!e)return;$('detail').scrollTop=0;syncSelection(null);$('conceptTitle').textContent=map.nodes.find(n=>n.id===e.source).title+' · '+e.predicate+' · '+map.nodes.find(n=>n.id===e.target).title;$('definition').textContent=e.quote;$('conceptSources').innerHTML=sourceLinks(e.source_refs);$('sectionLinks').innerHTML=sectionLinks(e.evidence_section?[e.evidence_section]:[...new Set(map.nodes.filter(n=>[e.source,e.target].includes(n.id)).flatMap(n=>n.section_ids))]);$('evidence').hidden=true;}
   document.addEventListener('click',event=>{const target=event.target.closest('[data-section],[data-concept],[data-edge],[data-source-ref]');if(!target)return;event.preventDefault();if(target.dataset.sourceRef)source(target.dataset.sourceRef,target);if(target.dataset.section)read(target.dataset.section);if(target.dataset.concept)select(target.dataset.concept);if(target.dataset.edge!==undefined)relation(Number(target.dataset.edge));});
   $('exerciseMode').onclick=()=>show('exercise');
@@ -116,8 +119,38 @@
       });
     },100);
   };
-  async function loadLesson(id){const revision=++loadRevision;practice.reset();$('exerciseScreen').hidden=true;$('studyConcept').hidden=true;ready=false;delete $('lessonFrame').dataset.ready;selectedConcept=null;jobId=id;$('conceptTitle').textContent='内容总览';base='/api/handouts/'+encodeURIComponent(id);$('graphScreen').hidden=false;$('readingScreen').hidden=true;$('relationships').innerHTML='';$('conceptSources').innerHTML='';$('evidence').hidden=true;const [nextLesson,nextMap]=await Promise.all([get(base+'/artifacts/lesson.json'),get(base+'/artifacts/knowledge-map.json')]);if(revision!==loadRevision)return;lesson=nextLesson;map=nextMap;practice.sections=lesson.sections.map(s=>s.id);$('graphNotice').hidden=!map.notice;$('graphNotice').textContent=map.notice||'';$('title').textContent=lesson.title;$('definition').textContent=lesson.overview.summary;$('outline').innerHTML=lesson.sections.map((s,i)=>`<button data-section="section-${i+1}">${esc(s.title)}</button>`).join('');$('sectionLinks').innerHTML='<a href="#overview" data-section="overview">阅读内容总览</a>';$('conceptList').innerHTML=map.nodes.map(n=>`<button data-concept="${esc(n.id)}" aria-pressed="false">${esc(n.title)}</button>`).join('');$('search').value='';filterConcepts();$('pdfDownload').href=base+'/artifacts/lesson.pdf?'+query;$('pdfDownload').download='讲义.pdf';if(!network)network=new NetworkView($('graph'),select,id=>relation(Number(id.slice(1))));window.marginNetwork=network;await network.setData({nodes:map.nodes.map(n=>({id:n.id,data:{title:n.title},style:{size:24,fill:GraphEncoding.family(n.family_index??Math.max(0,lesson.sections.findIndex(s=>s.id===n.section_ids[0]))),labelFontSize:13}})),edges:map.edges.map((e,i)=>({id:'e'+i,source:e.source,target:e.target,data:{label:e.predicate},style:{endArrow:e.directed,opacity:.6}}))},true);if(revision!==loadRevision)return;$('graph').dataset.ready='true';pending='overview';try{pending=localStorage.getItem('pliac.margin.'+jobId)||'overview';}catch{}if(![...$('readingScreen').querySelectorAll('nav [data-section]')].some(button=>button.dataset.section===pending))pending='overview';markReading(pending);ready=false;$('lessonFrame').removeAttribute('src');$('lessonFrame').dataset.url=base+'/artifacts/lesson.html?'+query;}
-  let polling,shown=null,activeJob=null;
+  async function loadLesson(id){const revision=++loadRevision;practice.reset();$('exerciseScreen').hidden=true;$('studyConcept').hidden=true;ready=false;delete $('lessonFrame').dataset.ready;selectedConcept=null;jobId=id;$('conceptTitle').textContent='内容总览';base='/api/handouts/'+encodeURIComponent(id);$('graphScreen').hidden=false;$('readingScreen').hidden=true;$('relationships').innerHTML='';$('conceptSources').innerHTML='';$('evidence').hidden=true;const [nextLesson,nextMap]=await Promise.all([get(base+'/artifacts/lesson.json'),get(base+'/artifacts/knowledge-map.json')]);if(revision!==loadRevision)return;lesson=nextLesson;map=nextMap;window.PLIACAssistant?.setContext({job_id:jobId,title:lesson.title});practice.sections=lesson.sections.map(s=>s.id);$('graphNotice').hidden=!map.notice;$('graphNotice').textContent=map.notice||'';$('title').textContent=lesson.title;$('definition').textContent=lesson.overview.summary;$('outline').innerHTML=lesson.sections.map((s,i)=>`<button data-section="section-${i+1}">${esc(s.title)}</button>`).join('');$('sectionLinks').innerHTML='<a href="#overview" data-section="overview">阅读内容总览</a>';$('conceptList').innerHTML=map.nodes.map(n=>`<button data-concept="${esc(n.id)}" aria-pressed="false">${esc(n.title)}</button>`).join('');$('search').value='';filterConcepts();$('pdfDownload').href=base+'/artifacts/lesson.pdf?'+query;$('pdfDownload').download='讲义.pdf';if(!network)network=new NetworkView($('graph'),select,id=>relation(Number(id.slice(1))));window.marginNetwork=network;await network.setData({nodes:map.nodes.map(n=>({id:n.id,data:{title:n.title},style:{size:24,fill:GraphEncoding.family(n.family_index??Math.max(0,lesson.sections.findIndex(s=>s.id===n.section_ids[0]))),labelFontSize:13}})),edges:map.edges.map((e,i)=>({id:'e'+i,source:e.source,target:e.target,data:{label:e.predicate},style:{endArrow:e.directed,opacity:.6}}))},true);if(revision!==loadRevision)return;$('graph').dataset.ready='true';pending='overview';try{pending=localStorage.getItem('pliac.margin.'+jobId)||'overview';}catch{}if(![...$('readingScreen').querySelectorAll('nav [data-section]')].some(button=>button.dataset.section===pending))pending='overview';markReading(pending);ready=false;$('lessonFrame').removeAttribute('src');$('lessonFrame').dataset.url=base+'/artifacts/lesson.html?'+query;}
+  let polling,shown=null,activeJob=null,latestScopeData=null;
+  function readerURL(url){
+    const target=new URL(url,location.origin);
+    if(authorMode)target.searchParams.set('mode','author');
+    else{target.searchParams.set('student_id',studentId);target.searchParams.set('view','read');}
+    return target.pathname+target.search;
+  }
+  function renderSource(data){
+    $('sourceLesson').hidden=authorMode||!!shown||data.scope.kind==='course';
+    $('sourceLessonContent').innerHTML=(data.source_content||[]).map(node=>`<article><h3>${esc(node.title)}</h3><p>${esc(node.description)}</p>${(node.lesson_content||[]).map(part=>`<h4>${esc(part.heading)}</h4><p style="white-space:pre-wrap">${esc(part.text)}</p>`).join('')}</article>`).join('');
+    $('courseOutline').hidden=authorMode;
+    $('courseOutlineLinks').innerHTML=data.chapters.map(chapter=>`<p><a href="${esc(readerURL('/course-reader?'+new URLSearchParams({course_id:courseId,chapter_id:chapter.id})))}">${esc(chapter.title)}</a></p>`).join('');
+  }
+  function renderGeneration(data,submitting=false){
+    const jobs=data.scope_jobs,active=jobs.find(j=>['queued','running'].includes(j.status)),latest=jobs[0];
+    const completed=jobs.some(j=>j.status==='completed'),busy=!!active||submitting;
+    activeJob=active;
+    $('generationControls').setAttribute('aria-busy',String(busy));
+    $('generate').hidden=!authorMode||!data.capabilities.generate_handouts||busy;
+    $('generate').disabled=busy;
+    $('generate').textContent=['failed','cancelled'].includes(latest?.status)?'重新生成图谱、讲义与习题':'生成图谱、讲义与习题';
+    $('cancelJob').hidden=!active;
+    $('regenerate').hidden=authorMode||busy||data.scope.kind==='course';
+    $('jobProgress').hidden=!active;
+    if(active)$('jobProgress').value=Math.max(0,Math.min(100,Number(active.progress)||0));
+    $('jobStatus').textContent=active?active.stage+' · '+active.progress+'%':submitting?'正在提交生成任务':latest?.status==='failed'?latest.error:latest?.status==='cancelled'?'已取消':latest?.status==='completed'?'讲义 '+latest.page_count+' 页':'使用本范围已有资料';
+    $('generationNotice').hidden=!busy;
+    $('generationNotice').textContent=authorMode?(submitting?'正在提交本范围的生成任务。':completed?'正在生成新版本，当前版本可继续阅读。生成完成后会自动打开新版本。':'正在生成本范围的图谱、讲义与习题，完成后会自动打开。可返回上一级继续学习，再次进入本范围可查看进度。'):(completed?'正在根据最新学习画像准备新版本，当前版本可继续学习。':'正在为你准备讲解、例题与练习。可以先阅读下面的课程讲解，完成后会自动打开。');
+    $('scopeEmpty').hidden=completed||busy;
+    $('scopeEmpty').textContent=authorMode?(latest?.status==='failed'?'点击“重新生成图谱、讲义与习题”重试；已有课程图谱可从上方打开。':latest?.status==='cancelled'?'生成已取消，可重新生成本范围的图谱、讲义与习题。':'本范围可生成 AI 讲义与习题。已有课程图谱可从上方打开。'):(data.scope.kind==='course'?'从个性化学习路线进入一个片段，系统会自动准备适合你的讲解与练习。':latest?.status==='failed'?'本次准备遇到问题，可以先读课程讲解，再点击“重新生成”继续准备。':latest?.status==='cancelled'?'准备已暂停，可以继续阅读课程讲解，或重新生成。':'正在读取学习画像并准备当前学习片段。');
+  }
   function writeLocation(){
     const url=new URL(location.href);
     for(const name of scopeFields){if(selection[name])url.searchParams.set(name,selection[name]);else url.searchParams.delete(name);}
@@ -127,27 +160,28 @@
   async function changeScope(value){
     selection=Object.fromEntries(scopeFields.map(k=>[k,value[k]||'']));
     jobId=null;preferredJob=null;shown=null;lesson=null;ready=false;loadRevision++;practice.reset();
+    window.PLIACAssistant?.setContext({});
     $('graphScreen').hidden=true;$('readingScreen').hidden=true;$('exerciseScreen').hidden=true;
     $('lessonFrame').removeAttribute('src');delete $('lessonFrame').dataset.ready;
     writeLocation();await refresh().catch(fail);
   }
   async function refresh(){
     const revision=++refreshRevision;
-    const data=await get('/api/handouts?'+new URLSearchParams(selection));
+    const data=await get('/api/handouts?'+new URLSearchParams({...selection,...(jobId?{job_id:jobId}:{})}));
     if(revision!==refreshRevision)return;
     scopeData=data.scope;selection=Object.fromEntries(scopeFields.map(k=>[k,data.scope[k]||'']));
     const graphQuery=new URLSearchParams({course_id:courseId,...(selection.node_id?{node_id:selection.node_id}:{})});
     $('savedGraphLink').href=(data.source_view==='draft'?'/author':'/knowledge')+'?'+graphQuery;
     $('title').textContent=shown&&lesson?lesson.title:data.scope.title;
     $('scopeTitle').textContent=data.scope.kind==='course'?data.title:data.title+' / '+data.scope.title;
-    $('parentScope').href=data.scope.parent_url;
+    $('parentScope').href=authorMode?readerURL(data.scope.parent_url):'/learn?'+new URLSearchParams({course_id:courseId,student_id:studentId});
     $('practiceLink').href='/learn?'+query+(selection.node_id?'&node_id='+encodeURIComponent(selection.node_id):'');
     $('practiceLink').textContent='课程学习记录';
-    $('generate').hidden=!data.capabilities.generate_handouts;
+    for(const label of $('generationControls').querySelectorAll(':scope > label'))label.hidden=!authorMode;
     $('chapter').innerHTML='<option value="">整门课程</option>'+data.chapters.map(c=>`<option value="${esc(c.id)}">${esc(c.title)}</option>`).join('');
     $('chapter').value=selection.chapter_id;
     const chapter=data.chapters.find(c=>c.id===selection.chapter_id),sections=(chapter?.document_hierarchy?.nodes||[]).filter(n=>n.kind!=='book');
-    $('sectionChoice').hidden=!sections.length;
+    $('sectionChoice').hidden=!authorMode||!sections.length;
     $('scopeSection').innerHTML='<option value="">整章</option>'+sections.map(n=>`<option value="${esc(n.id)}">${esc(n.title)}</option>`).join('');$('scopeSection').value=selection.section_id;
     $('scopeNode').innerHTML='<option value="">当前范围全部知识点</option>'+data.nodes.map(n=>`<option value="${esc(n.id)}">${esc(n.title)}</option>`).join('');$('scopeNode').value=selection.node_id;
     $('scopePrerequisites').hidden=!data.scope.prerequisites.length;
@@ -155,18 +189,35 @@
     const stats=data.snapshot_summary;$('snapshotSummary').hidden=!stats||data.scope.kind!=='course';
     if(stats)$('snapshotSummary').textContent=`资料输入 ${stats.source_pages} 页 · ${stats.source_characters.toLocaleString()} 字符 · ${stats.candidate_nodes} 个候选术语 · ${stats.candidate_edges} 条候选关系。`;
     $('courseExperiments').innerHTML=(data.activities||[]).filter(item=>typeof item.href==='string'&&item.href.startsWith('/')&&!item.href.startsWith('//')).map(item=>`<a href="${esc(item.href)}?${query}">${esc(item.title)}</a>`).join('');
-    const jobs=data.scope_jobs,active=jobs.find(j=>['queued','running'].includes(j.status)),latest=jobs[0];
-    activeJob=active;$('cancelJob').hidden=!active;$('generate').disabled=!!active;
-    $('jobStatus').textContent=active?active.stage+' · '+active.progress+'%':latest?.status==='failed'?latest.error:latest?.status==='cancelled'?'已取消':latest?.status==='completed'?'讲义 '+latest.page_count+' 页':'使用本范围已有资料';
+    latestScopeData=data;renderGeneration(data);
+    renderSource(data);
+    const jobs=data.scope_jobs,active=activeJob;
     const completedJobs=jobs.filter(j=>j.status==='completed');
     const completed=completedJobs.find(j=>j.id===preferredJob)||completedJobs[0];
     $('versionChoice').hidden=completedJobs.length<2;
-    $('unitVersion').innerHTML=completedJobs.map((j,i)=>`<option value="${j.id}">${esc(j.title)} · ${esc(j.created_at.slice(0,16))}${i===0?' · 最新':''}</option>`).join('');
-    $('scopeEmpty').hidden=!!completed;
+    $('unitVersion').innerHTML=completedJobs.map((j,i)=>`<option value="${j.id}">${esc(j.title)}${j.learning_mode?' · '+(j.learning_mode==='exam_review'?'期末复习':'初次学习'):''} · ${esc(j.created_at.slice(0,16))}${i===0?' · 最新':''}</option>`).join('');
     for(const id of ['mapMode','readMode','exerciseMode'])$(id).disabled=!completed;
-    if(completed){$('unitVersion').value=completed.id;if(shown!==completed.id){await loadLesson(completed.id);if(revision!==refreshRevision)return;shown=completed.id;$('mapMode').setAttribute('aria-pressed','true');$('readMode').setAttribute('aria-pressed','false');$('exerciseMode').setAttribute('aria-pressed','false');}writeLocation();}
+    if(completed){$('unitVersion').value=completed.id;if(shown!==completed.id){const viewAtLoad=viewRevision;await loadLesson(completed.id);if(revision!==refreshRevision)return;shown=completed.id;show(viewAtLoad===viewRevision?(initialView==='read'?'read':'graph'):selectedView);}writeLocation();$('sourceLesson').hidden=true;}
     else{$('graphScreen').hidden=true;$('readingScreen').hidden=true;$('exerciseScreen').hidden=true;}
     clearTimeout(polling);if(active)polling=setTimeout(()=>refresh().catch(fail),2000);
+    if(!authorMode&&data.scope.kind!=='course'&&!preparedScopes.has(data.scope.key)){
+      preparedScopes.add(data.scope.key);
+      await prepareUnit();
+    }
+  }
+  async function prepareUnit(extra={}){
+    const targetScope=new URLSearchParams(selection).toString();
+    if(latestScopeData)renderGeneration(latestScopeData,true);
+    try{
+      const response=await fetch('/api/handouts/prepare?'+query,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({student_id:studentId,scope:selection,...(assistantOwner?{assistant_owner:assistantOwner}:{}),...extra})});
+      const data=await response.json();
+      if(targetScope!==new URLSearchParams(selection).toString())return;
+      if(!response.ok){
+        if(response.status===429){preparedScopes.delete(latestScopeData.scope.key);polling=setTimeout(()=>refresh().catch(fail),4000);}
+        throw new Error(data.detail||'学习片段准备遇到问题，可以继续阅读课程讲解。');
+      }
+      $('error').hidden=true;preferredJob=data.id;await refresh();
+    }catch(error){if(targetScope===new URLSearchParams(selection).toString()){fail(error);renderGeneration(latestScopeData);}}
   }
   $('unitVersion').onchange=()=>{preferredJob=$('unitVersion').value;refresh().catch(fail);};
   $('cancelJob').onclick=async()=>{if(!activeJob)return;try{const response=await fetch('/api/handouts/'+activeJob.id+'/cancel?'+query,{method:'POST'});if(!response.ok)throw new Error('取消未完成，请刷新后重试。');await refresh();}catch(e){fail(e);}};
@@ -174,10 +225,32 @@
   $('scopeSection').onchange=()=>changeScope({chapter_id:$('chapter').value,section_id:$('scopeSection').value});
   $('scopeNode').onchange=()=>changeScope({chapter_id:$('chapter').value,section_id:$('scopeSection').value,node_id:$('scopeNode').value});
   $('generate').onclick=async()=>{
-    $('error').hidden=true;$('generate').disabled=true;
-    const revision=refreshRevision;
-    try{const r=await fetch('/api/handouts?'+query,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({scope:selection})});const data=await r.json();if(!r.ok)throw new Error(data.detail||'生成未完成');if(revision!==refreshRevision)return;preferredJob=data.id;await refresh();}
-    catch(e){fail(e);$('generate').disabled=false;}
+    $('error').hidden=true;renderGeneration(latestScopeData,true);
+    const requestedScope=new URLSearchParams(selection).toString();
+    try{const r=await fetch('/api/handouts?'+query,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({scope:selection})});const data=await r.json();if(!r.ok)throw new Error(data.detail||'生成未完成');if(requestedScope!==new URLSearchParams(selection).toString())return;preferredJob=data.id;await refresh();}
+    catch(e){if(requestedScope===new URLSearchParams(selection).toString()){fail(e);renderGeneration(latestScopeData);}}
   };
-  refresh().catch(fail);
+  $('regenerate').onclick=()=>{$('learningMode').value=latestScopeData?.scope_jobs[0]?.learning_mode||'initial';$('regenerationFeedback').value='';$('regenerationDialog').showModal();};
+  $('closeRegeneration').onclick=()=>$('regenerationDialog').close();
+  $('submitRegeneration').onclick=async()=>{$('regenerationDialog').close();await prepareUnit({regenerate:true,request_id:crypto.randomUUID(),learning_mode:$('learningMode').value,feedback:$('regenerationFeedback').value.trim()});};
+  async function initialize(){
+    if(!authorMode){
+      const response=await fetch('/api/account/me');
+      if(response.status===401){location.href='/login?next='+encodeURIComponent(location.pathname+location.search);return;}
+      let account=null;
+      if(response.ok)account=await response.json();
+      if(account?.user){studentId=account.user.student_id;assistantOwner=account.user.assistant_owner;}
+      else if(account?.testing){studentId=params.get('student_id')||$('practiceStudent').value;try{assistantOwner=localStorage.getItem('pliac-assistant-v1-owner')||'';}catch{}}
+      else throw new Error('请先登录后继续学习。');
+      $('practiceStudent').value=studentId;
+      try{localStorage.setItem('pliac.student.'+courseId,studentId);}catch{}
+      query=new URLSearchParams({course_id:courseId,student_id:studentId}).toString();
+      $('practiceStudent').closest('label').hidden=true;$('loadPractice').hidden=true;
+      $('readMode').textContent='线性讲义';$('savedGraphLink').textContent='课程知识图谱';
+      $('mapMode').setAttribute('aria-pressed',String(initialView==='graph'));$('readMode').setAttribute('aria-pressed',String(initialView==='read'));
+      const url=new URL(location.href);url.searchParams.set('student_id',studentId);history.replaceState(null,'',url);
+    }
+    await refresh();
+  }
+  initialize().catch(fail);
 })();

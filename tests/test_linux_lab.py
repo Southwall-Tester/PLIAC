@@ -236,7 +236,8 @@ class LinuxLabTests(unittest.TestCase):
                 reviewer="SYNTHETIC TEST", basis="Must fail: artifact alone is not mastery."))
 
     def test_api_draft_route_launch_scope_and_cross_site_guard(self):
-        with patch.object(api, "store", self.default), patch.object(LinuxLab, "descriptor", return_value=DESCRIPTOR):
+        with patch.object(api, "store", self.default), patch.object(LinuxLab, "descriptor", return_value=DESCRIPTOR), \
+                patch.object(app.state, "auth_required", False, create=True):
             client = TestClient(app)
             url = "/api/linux-lab?course_id=" + COURSE_ID + "&student_id=" + self.student
             self.assertEqual(client.get(url).json()["mode"], "preview")

@@ -119,7 +119,7 @@ class MLLabTests(unittest.TestCase):
             self.lab.view("../escape")
 
     def test_api_uses_isolated_platform_store_and_hides_future_hints(self):
-        with patch.object(api, "store", self.default), TestClient(app) as client:
+        with patch.object(api, "store", self.default), patch.object(app.state, "auth_required", False, create=True), TestClient(app) as client:
             self.assertEqual(client.get("/ml-lab").status_code, 200)
             self.assertEqual(client.post("/api/ml-lab/start", json=self.payload(scene="sport")).status_code, 200)
             view = client.get("/api/ml-lab", params={"student_id": self.student}).json()

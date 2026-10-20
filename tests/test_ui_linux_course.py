@@ -53,7 +53,7 @@ def main():
                 page.reload()
                 page.wait_for_function("window.__network?.data?.nodes.length>=3 && !window.__network.busy")
                 expect(page.locator("#activeCourseTitle")).to_contain_text("Linux 命令入门")
-                page.goto(base + "/course-reader?course_id=" + COURSE_ID + "&node_id=grep")
+                page.goto(base + "/course-reader?course_id=" + COURSE_ID + "&node_id=grep&mode=author")
                 expect(page.locator("body")).to_contain_text("grep 文本筛选")
                 page.screenshot(path=str(output / "reader-scope.png"))
                 report["checks"].append("Existing scoped reader recognizes the authored grep material without another upload")

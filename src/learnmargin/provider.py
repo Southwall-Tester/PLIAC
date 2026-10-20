@@ -20,6 +20,8 @@ from .reasoning import reasoning_parameters, reasoning_profile
 T = TypeVar("T", bound=BaseModel)
 MAX_RESPONSE_BYTES = 8 * 1024 * 1024
 MAX_IMAGE_BYTES = 22 * 1024 * 1024
+DEFAULT_OUTPUT_TOKENS = 12000
+MAX_OUTPUT_TOKENS = 24000
 USAGE_FIELDS = frozenset({
     "input_tokens", "output_tokens", "total_tokens", "prompt_tokens", "completion_tokens",
     "prompt_cache_hit_tokens", "prompt_cache_miss_tokens",
@@ -28,6 +30,10 @@ USAGE_FIELDS = frozenset({
 
 class ProviderError(ValueError):
     pass
+
+
+class OutputLimitError(ProviderError):
+    """Only an explicit upstream output-token limit permits a larger retry."""
 
 
 class JSONDepthError(ValueError):
@@ -185,8 +191,11 @@ class Provider:
                     if response.status_code in {402, 429}:
                         raise ProviderError("API 请求额度或速率受限，请检查账户额度后稍后重试。")
                     if response.status_code in {400, 404, 405, 422}:
+                        limit = payload.get("max_output_tokens", payload.get("max_completion_tokens", payload.get("max_tokens")))
+                        budget_note = (f"本次请求的输出上限为 {limit} token，请核对模型支持的输出长度。"
+                                       if type(limit) is int and limit > DEFAULT_OUTPUT_TOKENS else "")
                         raise ProviderError(
-                            f"API 返回 HTTP {response.status_code}。请核对服务地址、协议、模型名与 JSON 模式。"
+                            f"API 返回 HTTP {response.status_code}。{budget_note}请核对服务地址、协议、模型名与 JSON 模式。"
                         )
                     if response.status_code >= 300:
                         raise ProviderError(
@@ -207,9 +216,32 @@ class Provider:
                 usage = {}
             # Only documented counters are persisted; arbitrary upstream keys can
             # contain secrets even when their values are harmless numbers.
-            self.usage.append({key: value for key, value in usage.items()
-                               if key in USAGE_FIELDS and type(value) in {int, float}
-                               and 0 <= value <= 2**63 - 1 and math.isfinite(value)})
+            record = {key: value for key, value in usage.items()
+                      if key in USAGE_FIELDS and type(value) in {int, float}
+                      and 0 <= value <= 2**63 - 1 and math.isfinite(value)}
+            # Persist only known enum values and numeric budgets, never arbitrary
+            # upstream messages, refusal text or private reasoning content.
+            choices = result.get("choices")
+            choice = choices[0] if isinstance(choices, list) and choices and isinstance(choices[0], dict) else {}
+            finish_reason = choice.get("finish_reason")
+            if isinstance(finish_reason, str) and finish_reason in {"stop", "length", "content_filter", "tool_calls", "function_call"}:
+                record["finish_reason"] = finish_reason
+            status = result.get("status")
+            if isinstance(status, str) and status in {"completed", "incomplete", "failed", "cancelled"}:
+                record["status"] = status
+            incomplete = result.get("incomplete_details")
+            reason = incomplete.get("reason") if isinstance(incomplete, dict) else None
+            if isinstance(reason, str) and reason in {"max_output_tokens", "content_filter"}:
+                record["incomplete_reason"] = reason
+            limit = payload.get("max_output_tokens", payload.get("max_completion_tokens", payload.get("max_tokens")))
+            if type(limit) is int and 0 < limit <= MAX_OUTPUT_TOKENS:
+                record["requested_output_tokens"] = limit
+            for key in ("output_tokens_details", "completion_tokens_details"):
+                details = usage.get(key)
+                count = details.get("reasoning_tokens") if isinstance(details, dict) else None
+                if type(count) is int and 0 <= count <= 2**63 - 1:
+                    record["reasoning_tokens"] = count
+            self.usage.append(record)
             return result
         raise ProviderError("API 暂时不可用。")
 
@@ -268,7 +300,7 @@ class Provider:
             content = [{"type": "input_text", "text": user}]
             content.extend({"type": "input_image", "image_url": url} for url in encoded)
             result = {"model": self.config.model, "instructions": system,
-                      "input": [{"role": "user", "content": content}], "max_output_tokens": 12000,
+                      "input": [{"role": "user", "content": content}], "max_output_tokens": DEFAULT_OUTPUT_TOKENS,
                       "store": False}
             if self.config.json_mode:
                 result["text"] = {"format": {"type": "json_object"}}
@@ -276,7 +308,7 @@ class Provider:
             content = [{"type": "text", "text": user}]
             content.extend({"type": "image_url", "image_url": {"url": url}} for url in encoded)
             result = {"model": self.config.model, "messages": [{"role": "system", "content": system},
-                      {"role": "user", "content": content if encoded else user}], "max_tokens": 12000}
+                      {"role": "user", "content": content if encoded else user}], "max_tokens": DEFAULT_OUTPUT_TOKENS}
             if self.config.json_mode:
                 result["response_format"] = {"type": "json_object"}
         result.update(reasoning_parameters(self.config))
@@ -288,8 +320,16 @@ class Provider:
 
     def _text(self, response: dict) -> str:
         if self.config.protocol == "responses":
-            if response.get("status") in {"failed", "incomplete", "cancelled"}:
-                raise ProviderError("模型未完整生成结果，请缩小范围或更换模型后重试。")
+            if response.get("status") == "incomplete":
+                details = response.get("incomplete_details")
+                reason = details.get("reason") if isinstance(details, dict) else None
+                if reason == "max_output_tokens":
+                    raise OutputLimitError("模型输出达到本次请求的 token 上限。")
+                if reason == "content_filter":
+                    raise ProviderError("模型服务因内容过滤停止生成，请检查资料内容或联系模型服务方。")
+                raise ProviderError("模型服务返回了未完成状态，请检查服务状态后重试。")
+            if response.get("status") in {"failed", "cancelled"}:
+                raise ProviderError("模型服务未完成本次请求，请检查服务状态后重试。")
             output = response.get("output")
             if not isinstance(output, list):
                 raise ProviderError("API 响应的 output 结构不受支持。")
@@ -301,6 +341,8 @@ class Provider:
                 if not isinstance(content, list):
                     raise ProviderError("API 响应的 content 结构不受支持。")
                 for part in content:
+                    if isinstance(part, dict) and part.get("type") == "refusal":
+                        raise ProviderError("模型服务拒绝了本次生成请求，请检查资料内容或联系模型服务方。")
                     if isinstance(part, dict) and part.get("type") == "output_text":
                         if not isinstance(part.get("text"), str):
                             raise ProviderError("API 响应没有有效的文本内容。")
@@ -309,11 +351,15 @@ class Provider:
         choices = response.get("choices") or []
         if not isinstance(choices, list) or not choices or not isinstance(choices[0], dict):
             raise ProviderError("模型响应没有可用内容。")
-        if choices[0].get("finish_reason") in {"length", "content_filter"}:
-            raise ProviderError("模型输出被截断或未完成，请缩小范围后重试。")
+        if choices[0].get("finish_reason") == "length":
+            raise OutputLimitError("模型输出达到本次请求的 token 上限。")
+        if choices[0].get("finish_reason") == "content_filter":
+            raise ProviderError("模型服务因内容过滤停止生成，请检查资料内容或联系模型服务方。")
         message = choices[0].get("message")
         if not isinstance(message, dict):
             raise ProviderError("API 响应的 message 结构不受支持。")
+        if message.get("refusal"):
+            raise ProviderError("模型服务拒绝了本次生成请求，请检查资料内容或联系模型服务方。")
         content = message.get("content")
         return content if isinstance(content, str) else ""
 
@@ -321,17 +367,34 @@ class Provider:
                        images: list[Path] | None = None) -> T:
         schema_text = json.dumps(schema.model_json_schema(), ensure_ascii=False)
         instructions = system + "\n只输出完整 JSON 对象，符合下面 JSON Schema；不要输出代码围栏：\n" + schema_text
-        for attempt in range(2):
-            result = await self._request(self._payload(instructions, user, images or []))
-            text = self._text(result)
+        output_budget, repair_attempt = DEFAULT_OUTPUT_TOKENS, 0
+        # At most one output-budget retry plus one existing schema-repair retry.
+        # A truncated result is discarded; only a complete validated object wins.
+        for _ in range(3):
+            payload = self._payload(instructions, user, images or [])
+            limit_key = ("max_output_tokens" if self.config.protocol == "responses" else
+                         "max_completion_tokens" if "max_completion_tokens" in payload else "max_tokens")
+            payload[limit_key] = output_budget
+            result = await self._request(payload)
+            try:
+                text = self._text(result)
+            except OutputLimitError:
+                if output_budget == MAX_OUTPUT_TOKENS:
+                    raise ProviderError(
+                        f"已将模型输出上限从 {DEFAULT_OUTPUT_TOKENS} 扩大到 {MAX_OUTPUT_TOKENS} token 重试，"
+                        "结果仍达到长度上限。请选择更小的学习单元，或使用支持更长输出的模型。"
+                    ) from None
+                output_budget = MAX_OUTPUT_TOKENS
+                continue
             try:
                 return schema.model_validate(decode_json(text))
             except (ValueError, RecursionError) as error:
                 summary = output_error_summary(error, schema)
-                if attempt:
+                if repair_attempt:
                     raise ProviderError(
                         f"{schema.__name__} 两次输出均未通过结构校验（已重试 1 次）：{summary}。"
                     ) from None
+                repair_attempt += 1
                 user += (
                     f"\n上次输出未通过结构校验，具体问题：{summary}。"
                     "\n请对照 JSON Schema 和上述生成要求修正这些位置，重新生成完整 JSON 对象，"

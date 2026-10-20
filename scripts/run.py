@@ -7,23 +7,30 @@ import socket
 import sys
 import threading
 import time
+import urllib.error
 import urllib.request
 import webbrowser
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
+from pliac import VERSION
 
 
 def existing(port):
     try:
         with urllib.request.urlopen(f"http://127.0.0.1:{port}/health", timeout=1) as response:
             health = json.load(response)
-            if health.get("app") != "learning-agent" or "scoped_learning_units" not in health.get("capabilities", []):
+            if health.get("app") != "learning-agent" or health.get("version") != VERSION or not {"scoped_learning_units", "learning_assistant"} <= set(health.get("capabilities", [])):
                 return False
         # Static assets update immediately; do not reuse an incompatible old API.
-        with urllib.request.urlopen(f"http://127.0.0.1:{port}/api/courses", timeout=2) as response:
-            courses = json.load(response).get("courses")
-            return isinstance(courses, list) and all("capabilities" in c and "presentation" in c for c in courses)
+        try:
+            with urllib.request.urlopen(f"http://127.0.0.1:{port}/api/courses", timeout=2) as response:
+                courses = json.load(response).get("courses")
+                return isinstance(courses, list) and all("capabilities" in c and "presentation" in c for c in courses)
+        except urllib.error.HTTPError as error:
+            # The current authenticated API rejects this anonymous probe. Its
+            # public health response already confirmed identity and compatibility.
+            return error.code == 401
     except (OSError, ValueError):
         return False
 

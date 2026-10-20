@@ -1,6 +1,7 @@
 """Real-browser platform flow, with synthetic review and isolated runtime data."""
 import json
 import tempfile
+import uuid
 from pathlib import Path
 
 import httpx
@@ -8,6 +9,7 @@ from playwright.sync_api import expect, sync_playwright
 
 from test_ui_documents import isolated_application
 from test_learning_workspace import platform_fixture, publish_synthetic
+from test_ui_journey import algorithmic_journey, complete_baseline, mark_known, expect_student_learning_only
 
 ROOT = Path(__file__).resolve().parents[1]
 OUTPUT = ROOT / "outputs" / "verification"
@@ -38,7 +40,7 @@ def main():
             graph["nodes"][1]["check_question"] = "为什么不能根据测试集表现反复选择模型？请说明验证集的作用。"
             seed = directory / "seed.json"
             seed.write_text(json.dumps(graph, ensure_ascii=False), encoding="utf-8")
-            with isolated_application(directory) as (base, store, _documents):
+            with isolated_application(directory) as (base, store, _documents), algorithmic_journey():
                 store.seed_path = seed
                 publish_synthetic(store)
                 with httpx.Client(base_url=base, timeout=15) as client, sync_playwright() as p:
@@ -57,11 +59,10 @@ def main():
                     page.locator('#goals').fill('能独立解释数据划分的作用，并应用于分类任务。')
                     page.locator('#background').fill('了解基础 Python，正在学习机器学习。')
                     page.locator('#interests').fill('科幻，音乐')
-                    page.locator('#selfAssessments').locator('..').locator('summary').click()
-                    page.locator('[data-assess="a"]').select_option('confident')
+                    mark_known(page, "a", "confident")
                     page.locator('#onboardForm button[type=submit]').click()
                     expect(page.locator('#onboarding')).not_to_be_visible()
-                    page.locator('#nextLesson').click()
+                    complete_baseline(page)
                     expect(page.locator('#questionText')).to_contain_text('设备温度')
                     assert store.load_learner('synthetic-ui')['states']['a']['status'] == 'uncertain'
                     passed('Initial profile and self-assessment do not manufacture mastery; first lesson uses course content')
@@ -78,7 +79,7 @@ def main():
                     page.locator('#answerText').fill('温度和振动属于预测时可取得的特征，是否故障属于类别标签。')
                     page.locator('#answerConfidence').select_option('sure')
                     page.locator('#answerForm button[type=submit]').click()
-                    expect(page.locator('#responses')).to_contain_text('等待复核')
+                    expect(page.locator('#responses')).to_contain_text('作答已保存')
                     expect(page.locator('#answerText')).to_have_value('')
                     page.locator('[data-paragraph="concept"]').click()
                     page.locator('#annotationQuestion').fill('预测之后才取得的信息为什么不能作为特征？')
@@ -107,7 +108,8 @@ def main():
                     review.locator('#reviewForm button[type=submit]').click()
                     expect(review.locator('#diagnosisHistory')).to_contain_text('需要补学')
                     page.locator('#refreshButton').click()
-                    expect(page.locator('[data-node="a"] .state-dot')).to_have_class('state-dot needs_review')
+                    expect(page.locator('[data-node="a"]')).to_have_attribute('title', '正在学习')
+                    assert client.get('/api/learning', params={'student_id': 'synthetic-ui'}).json()['learner']['states']['a']['status'] == 'needs_review'
                     passed('Teacher review rejects hinted mastery and updates the same graph state used by the learner')
 
                     page.locator('[data-node="b"]').click()
@@ -116,16 +118,23 @@ def main():
                     page.locator('#answerText').fill('验证集用于选择设置，测试集只在最终评估时使用，否则会把测试信息带入模型选择。')
                     page.locator('#answerConfidence').select_option('sure')
                     page.locator('#answerForm button[type=submit]').click()
-                    expect(page.locator('#responses')).to_contain_text('等待复核')
+                    expect(page.locator('#responses')).to_contain_text('作答已保存')
                     review.locator('#refreshButton').click()
                     review.locator('#reviewNode').select_option('b')
-                    expect(review.locator('[data-evidence]')).to_have_count(1)
-                    review.locator('[data-evidence]').check()
+                    expect(review.locator('[data-evidence]')).to_have_count(2)
+                    for item in review.locator('[data-evidence]').all(): item.check()
                     review.locator('#reviewStatus').select_option('mastered')
                     review.locator('#reviewBasis').fill('合成复核：独立说明验证集选择与测试集最终评估的区别。')
                     review.locator('#reviewForm button[type=submit]').click()
                     expect(review.locator('#diagnosisHistory')).to_contain_text('当前已掌握')
                     passed('Independent task evidence can support a human-reviewed mastery decision')
+                    page.locator('#refreshButton').click()
+                    expect(page.locator('[data-node="b"]')).to_have_attribute('title', '正在学习')
+                    assert client.get('/api/learning', params={'student_id': 'synthetic-ui'}).json()['learner']['states']['b']['status'] == 'mastered'
+                    page.locator('[data-node="a"]').click()
+                    expect(page.locator('#promptBadge')).to_have_text('已使用 1 级提示')
+                    page.locator('[data-node="b"]').click()
+                    passed('Reopening a seen question within the planned course version preserves hint exposure')
 
                     review.locator('[data-policy-node="b"]').check()
                     review.locator('#policyAuthor').fill('Synthetic course teacher')
@@ -137,12 +146,17 @@ def main():
                     response.raise_for_status()
                     page.locator('#refreshButton').click()
                     expect(page.locator('#notice')).to_contain_text('新发布版本')
-                    expect(page.locator('.report-row').first).to_contain_text('当前达标')
-                    page.locator('[data-report="ch1"]').click()
-                    expect(page.locator('#chapterReports')).to_contain_text('已保存 1 份报告')
-                    with page.expect_download() as exported:
-                        page.locator('#exportButton').click()
-                    data = json.loads(Path(exported.value.path()).read_text(encoding='utf-8'))
+                    expect_student_learning_only(page)
+                    state = client.get('/api/learning', params={'student_id': 'synthetic-ui'}).json()
+                    assert state['chapters'][0]['passed']
+                    response = client.post('/api/learning/report', json={
+                        'student_id': 'synthetic-ui', 'course_version': state['course']['version'],
+                        'expected_version': state['learner']['version'], 'request_id': uuid.uuid4().hex,
+                        'chapter_id': 'ch1'})
+                    response.raise_for_status()
+                    response = client.get('/api/course-graph/learner/export', params={'student_id': 'synthetic-ui'})
+                    response.raise_for_status()
+                    data = response.json()
                     assert data['workspace']['reports'][0]['passed'] is True
                     assert data['workspace']['reports'][0]['nodes'][1]['evidence_ids']
                     passed('Published course policy controls chapter progression; saved reports and exports retain evidence references')
@@ -159,8 +173,6 @@ def main():
                     assert store.load_graph()['nodes'][2]['check_task']['version'] == 1
                     passed('Teacher can author versioned diagnostic questions; edits remain draft until renewed review and publication')
 
-                    page.locator('[data-node="a"]').click()
-                    expect(page.locator('#promptBadge')).to_have_text('已使用 1 级提示')
                     page.locator('#themeButton').click()
                     page.set_viewport_size({'width':390,'height':844})
                     assert page.evaluate('document.documentElement.scrollWidth <= innerWidth'), 'Mobile overflow'
@@ -168,7 +180,7 @@ def main():
                     report['screenshots'].append('learning-workspace-mobile-dark.png')
                     review.screenshot(path=str(OUTPUT / 'learning-review-desktop.png'), full_page=True)
                     report['screenshots'].append('learning-review-desktop.png')
-                    passed('Reopening a seen question preserves hint exposure; mobile and dark-theme layouts fit the viewport')
+                    passed('Mobile and dark-theme layouts fit the viewport')
                     assert not report['page_errors'], report['page_errors']
                     browser.close()
     finally:

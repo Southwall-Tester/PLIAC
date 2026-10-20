@@ -56,10 +56,11 @@ def main():
             page.reload()
             expect(page.locator('[data-card-field="steps"]')).to_have_value("先拟合，再用验证集选型，最后测试")
             page.screenshot(path=str(OUT / "study-reading-desktop.png"), full_page=True)
-            with page.expect_download() as download:
-                page.locator("#exportHandbook").click()
-            assert "先拟合，再用验证集选型，最后测试" in Path(download.value.path()).read_text(encoding="utf-8")
-            report["checks"].append("Learner-authored card saves, restores and appears in the handbook")
+            assert any(card["fields"]["steps"] == "先拟合，再用验证集选型，最后测试"
+                       for card in view()["workspace"]["chunk_cards"].values())
+            expect(page.locator("#handbookPanel")).to_be_hidden()
+            expect(page.locator("#handbook")).to_be_empty()
+            report["checks"].append("Learner-authored cards save and restore in the optional editor; the diagnostic handbook stays hidden")
 
             expect(page.locator("#mixedDialog")).to_be_hidden()
             page.locator("#openMixed").click()

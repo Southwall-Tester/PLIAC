@@ -1,10 +1,16 @@
-(() => {
+(async () => {
   'use strict';
+  const account=await (window.PLIACAccountReady ||= fetch('/api/account/me').then(async response=>{
+    if(response.status===401){location.assign('/login?next='+encodeURIComponent(location.pathname+location.search));return null;}
+    return response.ok?response.json():{testing:true};
+  }));
+  if(!account)return;
   const $=id=>document.getElementById(id), params=new URLSearchParams(location.search), courseId=params.get('course_id');
   const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const storageKey=`pliac.student.${courseId}`;
-  let state, selected, busy=false, student=params.get('student_id')||localStorage.getItem(storageKey)||('learner-'+crypto.randomUUID().slice(0,8));
+  let state, selected, busy=false, student=account.user?.student_id||params.get('student_id')||localStorage.getItem(storageKey)||('learner-'+crypto.randomUUID().slice(0,8));
   $('studentId').value=student;
+  if(account.user){$('studentId').readOnly=true;$('studentId').closest('label').hidden=true;$('loadStudent').hidden=true;}
   const query=()=>new URLSearchParams({course_id:courseId,student_id:student,mode:params.get('mode')||'auto'});
   async function api(path='',body){const response=await fetch('/api/linux-lab'+path+'?'+query(),body?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...body,student_id:student})}:undefined);const data=await response.json();if(!response.ok)throw new Error(typeof data.detail==='string'?data.detail:'请求失败。');return data;}
   async function run(fn){if(busy)return;busy=true;$('error').hidden=true;document.querySelectorAll('button').forEach(b=>b.disabled=true);try{await fn();}catch(e){$('error').textContent=e.message;$('error').hidden=false;}finally{busy=false;document.querySelectorAll('button').forEach(b=>b.disabled=false);if(state)$('createRun').disabled=!state.ready;}}

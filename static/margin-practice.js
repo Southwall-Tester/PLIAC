@@ -9,11 +9,20 @@
       let student=new URLSearchParams(location.search).get('student_id');
       try{student ||= localStorage.getItem(this.storageKey);}catch{}
       $('practiceStudent').value=student||'learner-'+crypto.randomUUID().slice(0,8);
+      this.accountReady=(window.PLIACAccountReady ||= fetch('/api/account/me').then(async response=>{
+        if(response.status===401){location.assign('/login?next='+encodeURIComponent(location.pathname+location.search));return null;}
+        return response.ok?response.json():{testing:true};
+      })).then(account=>{
+        if(account?.user){this.account=account.user;$('practiceStudent').value=account.user.student_id;
+          $('practiceStudent').readOnly=true;$('practiceStudent').closest('label').hidden=true;$('loadPractice').hidden=true;}
+        return account;
+      });
       $('loadPractice').onclick=()=>this.load(this.job).catch(fail);
       $('practiceQuestions').onclick=e=>{const b=e.target.closest('[data-action]');if(b)this.act(b.dataset.action,b.dataset.question).catch(fail);};
     }
     reset(){this.revision++;this.job=null;this.state=null;$('practiceQuestions').replaceChildren();$('practiceProgress').textContent='';}
     async request(body){
+      if(!await this.accountReady)throw new Error('请先登录。');
       const student=$('practiceStudent').value.trim();
       if(!/^[A-Za-z0-9_-]{1,80}$/.test(student))throw new Error('学习编号只能包含字母、数字、下划线或短横线。');
       const response=await fetch(`/api/handouts/${this.job}/practice?${new URLSearchParams({course_id:this.courseId,student_id:student})}`,body?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}:{});

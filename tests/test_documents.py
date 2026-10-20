@@ -528,7 +528,7 @@ class DocumentsTests(unittest.TestCase):
     def test_upload_api_and_original_file_round_trip(self):
         from fastapi.testclient import TestClient
         from learning_agent.main import app
-        with patch("learning_agent.document_api.document_store", self.store):
+        with patch("learning_agent.document_api.document_store", self.store), patch.object(app.state, "auth_required", False, create=True):
             client = TestClient(app)
             response = client.post("/api/documents/upload", files={"file": ("教材.txt", "知识图谱包括实体。关系抽取关联神经网络。".encode("utf-8"), "text/plain")})
             self.assertEqual(response.status_code, 200, response.text)

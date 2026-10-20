@@ -42,6 +42,9 @@ jobs:
       - run: node --check static/ml-lab.js
       - run: node --check static/margin-reader.js
       - run: node --check static/margin-practice.js
+      - run: node --check static/assistant-panel.js
+      - run: node --check static/login.js
+      - run: node --check static/learning-journey.js
 
   browser:
     runs-on: ubuntu-latest
@@ -72,6 +75,8 @@ jobs:
       - run: python -X utf8 tests/test_ui_margin.py
       - run: python -X utf8 tests/test_ui_textbook_demo.py
       - run: python -X utf8 tests/test_ui_learning_scopes.py
+      - run: python -X utf8 tests/test_ui_assistant.py
+      - run: python -X utf8 tests/test_ui_journey.py
       - uses: actions/upload-artifact@v4
         if: always()
         with:

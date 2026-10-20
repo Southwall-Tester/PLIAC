@@ -5,6 +5,7 @@ from pathlib import Path
 
 from playwright.sync_api import expect, sync_playwright
 from test_ui_documents import isolated_application
+from test_ui_journey import algorithmic_journey, complete_baseline, expect_student_learning_only
 
 ROOT = Path(__file__).resolve().parents[1]
 OUTPUT = ROOT / "outputs/verification"
@@ -20,7 +21,7 @@ def main():
 
     try:
         with tempfile.TemporaryDirectory(prefix="pliac-ml-ui-") as tmp:
-            with isolated_application(Path(tmp)) as (base, _, _), sync_playwright() as p:
+            with isolated_application(Path(tmp)) as (base, _, _), algorithmic_journey(), sync_playwright() as p:
                 browser = p.chromium.launch()
                 page = browser.new_page(viewport={"width": 1440, "height": 1000})
                 page.on("pageerror", lambda e: report["page_errors"].append(str(e)))
@@ -121,9 +122,17 @@ def main():
                 page.locator("#knowledge details a").first.click()
                 expect(page.locator("#studentId")).to_have_value("synthetic-ml-ui")
                 page.locator("#identityForm button[type=submit]").click()
-                expect(page.locator("#handbook")).to_contain_text("已收录多次作答")
+                page.locator("#journeyTab").click()
                 expect(page.locator("#goals")).to_have_value("通过实际训练比较模型，理解数据划分与泛化表现。")
                 page.locator("#onboardForm button[type=submit]").click()
+                complete_baseline(page)
+                page.locator('[data-node="roles"]').click()
+                expect_student_learning_only(page)
+                learning = page.request.get(base + "/api/learning", params={
+                    "student_id": "synthetic-ml-ui",
+                    "course_id": page.evaluate("new URL(location.href).searchParams.get('course_id')")}).json()
+                assert any(item["repeated_submissions"] > 1 for item in learning["handbook"])
+                assert learning["learner"]["evidence"]
                 expect(page.locator('[data-node="roles"]')).to_have_class("node-button active")
                 passed("Course remediation preserves identity, goal and lab evidence, opening the relevant knowledge node")
                 assert not report["page_errors"], report["page_errors"]

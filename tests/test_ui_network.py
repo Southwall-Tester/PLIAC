@@ -91,7 +91,7 @@ def main():
         port = sock.getsockname()[1]
         sock.close()
         server = uvicorn.Server(uvicorn.Config(app, host='127.0.0.1', port=port, log_level='error'))
-        with patch.object(api, 'store', CourseGraphStore(output_dir=tmp)):
+        with patch.object(api, 'store', CourseGraphStore(output_dir=tmp)), patch.object(app.state, "auth_required", False, create=True):
             thread = threading.Thread(target=server.run, daemon=True)
             thread.start()
             try:

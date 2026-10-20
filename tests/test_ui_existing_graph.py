@@ -1,6 +1,7 @@
 """Saved course graphs open from the catalog and Lab without model generation."""
 import json
 from pathlib import Path
+import re
 import sys
 import tempfile
 from unittest.mock import patch
@@ -46,8 +47,11 @@ def main():
                 }}});""")
             page.goto(base + "/courses")
             card = page.locator(f'[data-course-id="{COURSE_ID}"]')
-            expect(card.locator(".graph-course")).to_have_attribute("href", "/knowledge?course_id=" + COURSE_ID)
-            card.locator(".graph-course").click()
+            expect(card.locator(".overview-course")).to_have_attribute("href", "/learn?course_id=" + COURSE_ID + "&view=overview")
+            card.locator(".overview-course").click()
+            expect(page.locator("#courseMap")).to_have_attribute("data-ready", "true")
+            expect(page.locator("#graphLink")).to_have_attribute("href", re.compile(r"/knowledge\?course_id=" + COURSE_ID + r"(?:&student_id=[^&]+)?$"))
+            page.locator("#graphLink").click()
             page.wait_for_function("window.__network?.data?.nodes.length===55 && !window.__network.busy")
             expect(page.locator("#colorMode")).to_have_value("family")
             assert page.evaluate("new Set(__network.data.nodes.filter(n=>n.data.kind==='concept').map(n=>n.style.fill)).size") == 8
@@ -164,7 +168,7 @@ def main():
             page.locator('.behavior-followups a').click()
             expect(page.locator('#runs')).to_have_value(reference_binding['binding_id'])
             report['checks'].append('Five evidence dimensions, copy facets and time-ordered independent follow-up survive reload and link to the prior run')
-            page.goto(base + "/course-reader?course_id=" + COURSE_ID)
+            page.goto(base + "/course-reader?course_id=" + COURSE_ID + "&mode=author")
             expect(page.locator("#savedGraphLink")).to_have_attribute("href", "/knowledge?course_id=" + COURSE_ID)
             expect(page.locator("#scopeEmpty")).to_contain_text("已有课程图谱")
             page.locator("#savedGraphLink").click()

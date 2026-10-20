@@ -6,6 +6,7 @@ never evidence of poor performance. Seed files are read-only templates.
 from __future__ import annotations
 
 import copy
+import errno
 import hashlib
 import json
 import os
@@ -273,11 +274,27 @@ def _utc():
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
+def _windows_file_access_conflict(exc):
+    winerror = getattr(exc, "winerror", None)
+    return isinstance(exc, PermissionError) and (
+        winerror in {5, 32, 33}
+        # Windows CRT file opens expose EACCES without retaining GetLastError.
+        or (os.name == "nt" and winerror is None and exc.errno == errno.EACCES))
+
+
 def _read_json(path):
     try:
-        if path.stat().st_size > 25_000_000:
-            _fail("数据文件过大，请联系项目维护者检查。", 500)
-        return json.loads(path.read_text(encoding="utf-8-sig"))
+        for attempt in range(5):
+            try:
+                if path.stat().st_size > 25_000_000:
+                    _fail("数据文件过大，请联系项目维护者检查。", 500)
+                content = path.read_text(encoding="utf-8-sig")
+                break
+            except PermissionError as exc:
+                if not _windows_file_access_conflict(exc) or attempt == 4:
+                    raise
+                time.sleep(.01 * 2 ** attempt)
+        return json.loads(content)
     except CourseGraphError:
         raise
     except (OSError, UnicodeError, json.JSONDecodeError) as exc:
@@ -296,7 +313,17 @@ def _atomic_json(path, data):
             stream.write(serialized)
             stream.flush()
             os.fsync(stream.fileno())
-        os.replace(tmp, path)
+        for attempt in range(5):
+            try:
+                os.replace(tmp, path)
+                break
+            except PermissionError as exc:
+                # Windows readers can briefly hold the destination without
+                # delete sharing. Keep the same complete temporary file and
+                # retry only access/sharing/lock violations, for at most 150 ms.
+                if not _windows_file_access_conflict(exc) or attempt == 4:
+                    raise
+                time.sleep(.01 * 2 ** attempt)
     finally:
         if tmp and tmp.exists():
             tmp.unlink()

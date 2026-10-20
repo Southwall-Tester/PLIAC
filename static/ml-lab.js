@@ -1,12 +1,18 @@
-(() => {
+(async () => {
   'use strict';
+  const account=await (window.PLIACAccountReady ||= fetch('/api/account/me').then(async response=>{
+    if(response.status===401){location.assign('/login?next='+encodeURIComponent(location.pathname+location.search));return null;}
+    return response.ok?response.json():{testing:true};
+  }));
+  if(!account)return;
   const $ = id => document.getElementById(id);
   const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const pct = value => `${(value * 100).toFixed(1)}%`;
   const courseId=new URLSearchParams(location.search).get('course_id')||'';
   let state = null, busy = false, lastStep = '', receipt = null;
   $('themeButton').onclick = () => GraphTheme.toggle();
-  $('studentId').value = new URLSearchParams(location.search).get('student_id') || localStorage.getItem('pliac-ml-student') || '';
+  $('studentId').value = account.user?.student_id || new URLSearchParams(location.search).get('student_id') || localStorage.getItem('pliac-ml-student') || '';
+  if(account.user){$('identityForm').hidden=true;$('studentId').readOnly=true;}
   function error(message='') { $('labError').textContent = message; $('labError').hidden = !message; }
   async function request(path, body) {
     const url=new URL(`/api/ml-lab${path}`,location.origin);
@@ -113,5 +119,5 @@
   downloadCode.onclick=async()=>{try{const data=await request(`/export?student_id=${encodeURIComponent(state.student_id)}`);const run=state.active.runs.at(-1);if(!run)return;const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([data.scripts[`experiment-${run.number}.py`]],{type:'text/x-python;charset=utf-8'}));a.download=`experiment-${run.number}.py`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);}catch(e){error(e.message);}};
   lockControls();
   $('identityForm').querySelectorAll('input,button').forEach(control=>control.disabled=false);
-  if(new URLSearchParams(location.search).has('student_id'))$('identityForm').requestSubmit();
+  if(account.user||new URLSearchParams(location.search).has('student_id'))$('identityForm').requestSubmit();
 })();

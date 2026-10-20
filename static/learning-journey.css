@@ -1,0 +1,21 @@
+.journey-steps{font-size:12px;color:var(--muted);margin:0 0 20px}.journey-view .workspace-grid{grid-template-columns:minmax(0,1fr)!important}.journey-view .navigation{display:none}.journey-view .learning-column{max-width:940px;width:100%;margin:0 auto}.self-heading{display:flex;justify-content:space-between;align-items:center;gap:15px;margin-top:24px}.self-heading h3{font-size:17px}.self-heading button{font-size:12px;white-space:nowrap}.assessment-grid{gap:12px}.assessment-grid>label{padding:12px;border:1px solid var(--line);border-radius:8px}.assessment-grid select{margin-top:8px}.assessment-chapter{grid-column:1/-1;margin:14px 0 0;font-size:14px}.baseline-question{border-top:1px solid var(--line);padding:20px 0}.baseline-question h3{font-size:15px;margin:0 0 8px}.baseline-question p{white-space:pre-wrap;font-size:14px;line-height:1.8}.baseline-question textarea{min-height:100px}.baseline-question small{display:block;margin-bottom:10px;color:var(--muted)}#journeyStatus{padding:22px;border:1px solid var(--line);border-radius:10px;background:var(--hover)}#personalRoute>h2{margin-top:0}#routeSummary{line-height:1.9}#routeSteps{list-style:none;padding:0;counter-reset:step}#routeSteps li{counter-increment:step;position:relative;padding:18px 0 18px 44px;border-top:1px solid var(--line)}#routeSteps li::before{content:counter(step);position:absolute;left:0;top:20px;width:27px;height:27px;border:1px solid var(--line);border-radius:50%;text-align:center;line-height:25px;font-size:12px;color:var(--muted)}#routeSteps h3{margin:0;font-size:15px}#routeSteps p{margin:8px 0;font-size:13px;line-height:1.8;color:var(--muted)}#routeSteps small{color:var(--muted);font-size:11px}.entry-calibration{margin:12px 0;padding:12px 15px;background:var(--hover);border-radius:8px;font-size:13px}.entry-calibration summary{cursor:pointer}.entry-calibration p{margin:8px 0}.entry-calibration blockquote{margin:8px 0;padding-left:12px;border-left:2px solid var(--line)}.auto-lesson{border-top:1px solid var(--line);padding-top:15px;margin-top:20px;font-size:13px}.auto-lesson span{color:var(--muted);display:block}.auto-lesson a{display:inline-block;margin-top:9px}#beginRoute{margin:12px 0 22px}.student-home #identityForm[hidden]{display:none}.recall{font-size:12px;color:var(--muted);margin-top:12px}.recall p{margin:8px 0}
+@media(max-width:700px){.self-heading{flex-wrap:wrap}.self-heading h3{margin-bottom:0}#journeyPanel .panel{padding:18px}.assessment-grid{grid-template-columns:1fr}}
+.journey-progress{margin:-12px 0 20px;padding:0 22px 18px;border:1px solid var(--line);border-top:0;border-radius:0 0 10px 10px;background:var(--hover)}
+.journey-progress[hidden]{display:none}
+.journey-progress-track{height:6px;overflow:hidden;position:relative;border-radius:8px;background:var(--line)}
+.journey-progress-track>span{position:absolute;inset:0 auto 0 0;width:36%;border-radius:inherit;background:var(--accent,#596d68);animation:journey-wait 1.8s ease-in-out infinite}
+.journey-progress-meta{display:flex;justify-content:space-between;gap:12px;margin-top:10px;color:var(--muted);font-size:12px}
+#journeyElapsed{white-space:nowrap;font-variant-numeric:tabular-nums}
+@keyframes journey-wait{0%{transform:translateX(-110%)}100%{transform:translateX(380%)}}
+@media(prefers-reduced-motion:reduce){.journey-progress-track>span{animation:none;width:100%;opacity:.45}}
+@media(max-width:700px){.journey-progress-meta{flex-wrap:wrap}}
+.personalized-lesson{position:relative;min-width:0;width:100%;margin:18px 0}
+.reading-grid.has-personalized-lesson{grid-template-columns:minmax(0,1fr)}
+.reading-grid.has-personalized-lesson>.tutor-column{width:100%}
+.personalized-lesson[hidden]{display:none}
+.personalized-lesson iframe{display:block;width:100%;height:600px;min-height:420px;border:0;border-radius:8px;background:#edf2ef}
+.personalized-lesson[data-loading=true]{height:0;margin:0;overflow:hidden}
+.personalized-lesson[data-loading=true] iframe{position:absolute;inset:0;visibility:hidden}
+#autoLessonProgress{display:block;width:100%;max-width:420px;height:7px;margin:10px 0;accent-color:var(--accent,#596d68)}
+#autoLessonProgress[hidden]{display:none}
+@media(max-width:700px){.personalized-lesson{margin:12px -8px;width:calc(100% + 16px)}.personalized-lesson iframe{border-radius:5px}}

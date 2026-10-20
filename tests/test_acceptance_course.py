@@ -188,7 +188,7 @@ class AcceptanceTests(unittest.TestCase):
         self.assertEqual(self.answer(lesson)["learner"]["states"]["sample"]["status"], "uncertain")
 
     def test_public_api_and_manual_review_cannot_forge_rule_verification(self):
-        with patch.object(api, "store", self.default), TestClient(app) as client:
+        with patch.object(api, "store", self.default), patch.object(app.state, "auth_required", False, create=True), TestClient(app) as client:
             response = client.get(f"/api/learning?course_id={DEMO_ID}&student_id=api-demo")
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.json()["publication"]["delivery_mode"], "acceptance_demo")

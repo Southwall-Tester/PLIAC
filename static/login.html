@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>登录 · PLIAC</title>
+  <link rel="stylesheet" href="/static/login.css">
+  <script src="/static/login.js" defer></script>
+</head>
+<body>
+  <main class="account-shell">
+    <section class="account-intro">
+      <a class="brand" href="/login">PLIAC<span>个性化学习工作台</span></a>
+      <h1>课程 · 实训<br>学习助手</h1>
+      <p class="intro-copy">按课程组织图谱、讲义和练习，随时向助手提问。</p>
+      <div class="intro-items"><span>选课</span><span>自评与核验</span><span>个性化路线</span></div>
+      <p class="account-storage">账号与学习记录保存在当前平台。</p>
+    </section>
+    <section class="account-card" aria-labelledby="formTitle">
+      <h2 id="formTitle">登录学习空间</h2>
+      <p id="formDescription">学习进度、对话与画像按账号保存。</p>
+      <div class="account-tabs" role="tablist" aria-label="账号操作">
+        <button type="button" id="loginTab" role="tab" aria-selected="true">登录</button>
+        <button type="button" id="registerTab" role="tab" aria-selected="false">创建账号</button>
+      </div>
+      <form id="accountForm">
+        <label>账号<input id="username" name="username" autocomplete="username" minlength="3" maxlength="40" required placeholder="你的账号"></label>
+        <label id="displayNameRow" hidden>显示名称<input id="displayName" name="display_name" autocomplete="nickname" maxlength="80" placeholder="希望助手如何称呼你"></label>
+        <label>密码<input id="password" name="password" type="password" autocomplete="current-password" minlength="8" maxlength="128" required placeholder="至少 8 个字符"></label>
+        <p id="accountError" role="alert"></p>
+        <button id="submitAccount" class="primary" type="submit">登录并继续</button>
+      </form>
+    </section>
+  </main>
+</body>
+</html>

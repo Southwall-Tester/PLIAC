@@ -299,7 +299,7 @@ class CourseTests(unittest.TestCase):
         from fastapi.testclient import TestClient
         from learning_agent import api
         app=FastAPI(); app.include_router(api.router)
-        with patch.object(api,"store",self.store), TestClient(app) as client:
+        with patch.object(api,"store",self.store), patch.object(app.state, "auth_required", False, create=True), TestClient(app) as client:
             self.assertIsNone(client.get("/api/course-graph").json()["graph"])
             self.assertEqual(client.get("/api/course-graph/path").status_code,422)
             self.assertIn("请求参数",client.get("/api/course-graph/path").json()["detail"])

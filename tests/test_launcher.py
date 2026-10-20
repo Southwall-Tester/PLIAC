@@ -8,6 +8,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from urllib.error import HTTPError
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
@@ -17,7 +18,7 @@ import run as runner
 
 class LauncherTests(unittest.TestCase):
     def test_reuse_requires_current_course_api_contract(self):
-        health = {"app": "learning-agent", "capabilities": ["learnmargin_graph", "scoped_learning_units"]}
+        health = {"app": "learning-agent", "version": runner.VERSION, "capabilities": ["learnmargin_graph", "scoped_learning_units", "learning_assistant"]}
         for course, accepted in [({"id": "old"}, False),
                                  ({"id": "current", "capabilities": {}, "presentation": {}}, True)]:
             replies = [io.BytesIO(json.dumps(value).encode()) for value in [health, {"courses": [course]}]]
@@ -25,6 +26,30 @@ class LauncherTests(unittest.TestCase):
                 self.assertEqual(runner.existing(8010), accepted)
         with patch.object(runner.urllib.request, "urlopen", return_value=io.BytesIO(json.dumps({"app": "learning-agent", "capabilities": ["learnmargin_graph"]}).encode())):
             self.assertFalse(runner.existing(8010))
+
+    def test_current_login_protected_instance_is_reused(self):
+        health = {"app": "learning-agent", "version": runner.VERSION,
+                  "capabilities": ["scoped_learning_units", "learning_assistant"]}
+        for status, accepted in [(401, True), (403, False), (404, False), (500, False)]:
+            with self.subTest(status=status):
+                replies = [io.BytesIO(json.dumps(health).encode()),
+                           HTTPError("http://127.0.0.1:8010/api/courses", status, "Synthetic response", {}, None)]
+                with patch.object(runner.urllib.request, "urlopen", side_effect=replies) as request:
+                    self.assertEqual(runner.existing(8010), accepted)
+                self.assertEqual(request.call_count, 2)
+                self.assertEqual(request.call_args.args[0], "http://127.0.0.1:8010/api/courses")
+
+    def test_login_required_never_bypasses_health_compatibility(self):
+        health = {"app": "learning-agent", "version": runner.VERSION,
+                  "capabilities": ["scoped_learning_units", "learning_assistant"]}
+        for mismatch in [{"app": "another-app"}, {"version": "0.11.0"},
+                         {"capabilities": ["scoped_learning_units"]}]:
+            with self.subTest(mismatch=mismatch):
+                replies = [io.BytesIO(json.dumps({**health, **mismatch}).encode()),
+                           HTTPError("http://127.0.0.1:8010/api/courses", 401, "Login required", {}, None)]
+                with patch.object(runner.urllib.request, "urlopen", side_effect=replies) as request:
+                    self.assertFalse(runner.existing(8010))
+                self.assertEqual(request.call_count, 1)
 
     def test_project_environment_then_current_then_path_without_duplicates(self):
         with tempfile.TemporaryDirectory() as folder:

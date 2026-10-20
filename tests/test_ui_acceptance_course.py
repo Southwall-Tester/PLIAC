@@ -1,11 +1,13 @@
 """Complete the built-in course with synthetic answers in an isolated browser app."""
 import json
 import tempfile
+import uuid
 from pathlib import Path
 
 from playwright.sync_api import expect, sync_playwright
 
 from test_ui_documents import isolated_application
+from test_ui_journey import algorithmic_journey, complete_baseline, expect_student_learning_only
 from learning_agent.acceptance_course import build_graph, DEMO_ID
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -22,10 +24,15 @@ def main():
 
     try:
         with tempfile.TemporaryDirectory(prefix="pliac-demo-ui-") as temporary:
-            with isolated_application(Path(temporary)) as (base, _store, _documents), sync_playwright() as p:
+            with isolated_application(Path(temporary)) as (base, _store, _documents), algorithmic_journey(), sync_playwright() as p:
                 browser = p.chromium.launch()
                 page = browser.new_page(viewport={"width": 1440, "height": 1000})
                 page.on("pageerror", lambda e: report["page_errors"].append(str(e)))
+                def saved_state():
+                    response = page.request.get(base + "/api/learning", params={
+                        "course_id": DEMO_ID, "student_id": "synthetic-course-acceptance"})
+                    assert response.ok, response.text()
+                    return response.json()
                 page.goto(base + "/courses")
                 page.locator("[data-course-id=ml_acceptance_demo] .learning-course").click()
                 page.locator("#studentId").fill("synthetic-course-acceptance")
@@ -34,12 +41,14 @@ def main():
                 page.locator("#goals").fill("Synthetic: complete the acceptance course")
                 page.locator("#onboardForm button[type=submit]").click()
                 expect(page.locator("#onboarding")).not_to_be_visible()
-                page.locator("#nextLesson").click()
+                complete_baseline(page)
                 expect(page.locator("#lessonContent")).to_contain_text("容易出错的地方")
                 passed("Built-in complete course is available without publishing or manufacturing review")
 
-                page.locator('[name=answerChoice][value="A"]').check()
-                page.locator("#saveDraftButton").click()
+                expect(page.locator("#saveDraftButton")).to_have_count(0)
+                with page.expect_response(lambda response: response.status == 200
+                                          and "/api/learning/draft?" in response.url):
+                    page.locator('[name=answerChoice][value="A"]').check()
                 expect(page.locator("#saveStatus")).to_have_text("已保存到本机")
                 page.reload()
                 page.locator("#identityForm button[type=submit]").click()
@@ -50,7 +59,8 @@ def main():
                 page.locator("#answerConfidence").select_option("sure")
                 page.locator("#answerForm button[type=submit]").click()
                 expect(page.locator("#responses")).to_contain_text("需要再想一想")
-                expect(page.locator('[data-node="sample"] .state-dot')).to_have_class("state-dot needs_review")
+                expect(page.locator('[data-node="sample"]')).to_have_attribute("title", "正在学习")
+                assert saved_state()["learner"]["states"]["sample"]["status"] == "needs_review"
                 page.locator("#nextLesson").click()
                 expect(page.locator("#questionText")).to_contain_text("违约")
                 page.locator('[name=answerChoice][value="D"]').check()
@@ -58,7 +68,8 @@ def main():
                     page.locator("#recallToggle").click()
                 page.locator("#answerConfidence").select_option("sure")
                 page.locator("#answerForm button[type=submit]").click()
-                expect(page.locator('[data-node="sample"] .state-dot')).to_have_class("state-dot mastered")
+                expect(page.locator("#responses")).to_contain_text("回答正确")
+                assert saved_state()["learner"]["states"]["sample"]["status"] == "mastered"
                 passed("Wrong answer leads to remediation and a different retest, then mastery")
 
                 for index, node in enumerate(build_graph()["nodes"][1:], start=1):
@@ -75,7 +86,8 @@ def main():
                     page.locator("#answerForm button[type=submit]").click()
                     expect(page.locator("#responses")).to_contain_text("回答正确")
                     if index == 1:
-                        expect(page.locator('[data-node="partition"] .state-dot')).to_have_class("state-dot uncertain")
+                        expect(page.locator('[data-node="partition"]')).to_have_attribute("title", "正在学习")
+                        assert saved_state()["learner"]["states"]["partition"]["status"] == "uncertain"
                         page.locator("#nextLesson").click()
                         expect(page.locator("#questionText")).to_contain_text("200")
                         page.locator(f'[name=answerChoice][value="{node["retest_tasks"][0]["answer_key"]}"]').check()
@@ -83,7 +95,8 @@ def main():
                             page.locator("#recallToggle").click()
                         page.locator("#answerConfidence").select_option("sure")
                         page.locator("#answerForm button[type=submit]").click()
-                        expect(page.locator('[data-node="partition"] .state-dot')).to_have_class("state-dot mastered")
+                        expect(page.locator("#responses")).to_contain_text("回答正确")
+                        assert saved_state()["learner"]["states"]["partition"]["status"] == "mastered"
                         passed("Hint-assisted success requires an independent alternate question")
                     if index == 5:
                         page.screenshot(path=str(OUTPUT / "acceptance-course-desktop.png"), full_page=True)
@@ -98,20 +111,21 @@ def main():
                         page.locator("#themeButton").click()
                 expect(page.locator("#courseProgress")).to_contain_text("10 / 10")
                 expect(page.locator("#nextLesson")).to_be_disabled()
-                assert page.locator("#chapterReports .badge", has_text="当前达标").count() == 2
+                expect_student_learning_only(page)
+                assert all(chapter["passed"] for chapter in saved_state()["chapters"])
                 passed("All ten lessons complete and both chapter rules pass")
                 for chapter_id in ("data", "model"):
-                    page.locator(f'[data-report="{chapter_id}"]').click()
-                    expect(page.locator("#saveStatus")).to_have_text("已保存到本机")
-                expect(page.locator("#chapterReports")).to_contain_text("已保存 2 份报告")
-                with page.expect_download() as download:
-                    page.locator("#exportButton").click()
-                exported = json.loads(Path(download.value.path()).read_text(encoding="utf-8"))
+                    state = saved_state()
+                    response = page.request.post(base + "/api/learning/report?course_id=" + DEMO_ID, data={
+                        "student_id": "synthetic-course-acceptance", "course_version": state["course"]["version"],
+                        "expected_version": state["learner"]["version"], "request_id": uuid.uuid4().hex,
+                        "chapter_id": chapter_id})
+                    assert response.ok, response.text()
+                exported = page.request.get(base + "/api/course-graph/learner/export", params={
+                    "course_id": DEMO_ID, "student_id": "synthetic-course-acceptance"}).json()
                 assert len(exported["workspace"]["reports"]) == 2
-                with page.expect_download() as download:
-                    page.locator("#exportHandbook").click()
-                assert "划分" in Path(download.value.path()).read_text(encoding="utf-8")
-                passed("Chapter report snapshots and evidence handbook export correctly")
+                assert any("划分" in item["title"] for item in saved_state()["handbook"])
+                passed("Backend retains chapter report snapshots, exports and handbook data while learner diagnostic lists stay empty")
                 page.screenshot(path=str(OUTPUT / "acceptance-course-complete.png"), full_page=True)
                 page.goto(base + f"/review?course_id={DEMO_ID}")
                 page.locator("#identityForm button[type=submit]").click()

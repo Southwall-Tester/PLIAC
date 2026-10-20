@@ -1,17 +1,19 @@
 """Course overview -> reading -> lab -> same lesson, in an isolated app."""
 import json
 import tempfile
+import uuid
 from pathlib import Path
 
 from playwright.sync_api import expect, sync_playwright
 from test_ui_documents import isolated_application
+from test_ui_journey import algorithmic_journey, complete_baseline, expect_student_learning_only
 
 OUTPUT = Path(__file__).resolve().parents[1] / 'outputs/verification'
 
 
 def main():
     OUTPUT.mkdir(parents=True, exist_ok=True)
-    report = {'synthetic_only': True, 'checks': [], 'page_errors': []}
+    report = {'synthetic_only': True, 'checks': [], 'page_errors': [], 'learning_requests': [], 'api_conflicts': []}
 
     def passed(message):
         report['checks'].append(message)
@@ -19,15 +21,23 @@ def main():
 
     try:
         with tempfile.TemporaryDirectory() as tmp:
-            with isolated_application(Path(tmp)) as (base, _, _), sync_playwright() as p:
+            with isolated_application(Path(tmp)) as (base, _, _), algorithmic_journey(), sync_playwright() as p:
                 browser = p.chromium.launch()
                 page = browser.new_page(viewport={'width': 1440, 'height': 1000})
                 page.on('pageerror', lambda e: report['page_errors'].append(str(e)))
+                page.on('request', lambda request: report['learning_requests'].append({
+                    'path': request.url.split('/api/learning/', 1)[1],
+                    'expected_version': (request.post_data_json or {}).get('expected_version'),
+                    'request_id': (request.post_data_json or {}).get('request_id'),
+                }) if request.method == 'POST' and '/api/learning/' in request.url else None)
+                page.on('response', lambda response: report['api_conflicts'].append({
+                    'url': response.url, 'detail': response.json(),
+                }) if response.status == 409 and '/api/learning/' in response.url else None)
                 page.add_init_script("""Object.defineProperty(window,'NetworkView',{
                   get(){return this.__View},set(View){this.__View=class extends View{
                     constructor(...args){super(...args);window.__network=this;}
                   }}});""")
-                page.goto(base + '/learn?course_id=ml_acceptance_demo')
+                page.goto(base + '/learn?course_id=ml_acceptance_demo&view=overview')
                 expect(page.locator('#courseOverview')).to_be_visible()
                 expect(page.locator('#courseMap')).to_have_attribute('data-ready', 'true')
                 expect(page.locator('#readingWorkspace')).to_be_hidden()
@@ -39,6 +49,7 @@ def main():
                 expect(page.locator('#setup')).to_be_visible()
                 expect(page.locator('#studentId')).to_have_value(student)
                 page.locator('#learnLink').click()
+                page.locator('#overviewTab').click()
                 expect(page.locator('#courseOverview')).to_be_visible()
                 passed('Course-scoped Lab entry works before starting a lesson and preserves learner identity')
                 def state():
@@ -77,13 +88,30 @@ def main():
                 assert state()['current_lesson'] is None
                 page.screenshot(path=str(OUTPUT / 'course-home-desktop.png'), full_page=True)
                 passed('Course opens real course graph; chapter selection and browsing do not create lessons')
+                page.locator('#journeyTab').click()
                 page.locator('#goals').fill('理解数据划分，并能用实验说明选择模型的依据。')
                 page.locator('#onboardForm button[type=submit]').click()
-                page.locator('#nextLesson').click()
+                complete_baseline(page)
                 expect(page.locator('#readingWorkspace')).to_be_visible()
                 current = state()['current_lesson']['id']
-                page.locator('#discussionText').fill('可以举一个例子吗？')
-                page.locator('#discussionForm button').click()
+                expect(page.locator('#discussionForm')).to_have_count(0)
+                expect(page.locator('#discussionText')).to_have_count(0)
+                expect(page.locator('#saveDraftButton')).to_have_count(0)
+                expect(page.locator('#discussionPanel')).to_be_hidden()
+                expect(page.locator('pliac-assistant').get_by_role('textbox', name='向学习助手提问')).to_be_visible()
+                # Seed an old discussion through the preserved compatibility API.
+                # The current page offers one chat entry, in the right sidebar.
+                snapshot = state()
+                legacy = page.request.post(base + '/api/learning/ask?course_id=ml_acceptance_demo', data={
+                    'student_id': student, 'course_version': snapshot['course']['version'],
+                    'expected_version': snapshot['learner']['version'], 'request_id': uuid.uuid4().hex,
+                    'lesson_id': current, 'text': '可以举一个例子吗？'})
+                assert legacy.ok, legacy.text()
+                page.reload()
+                expect(page.locator('#discussionPanel')).to_be_visible()
+                assert not page.locator('#discussionPanel').evaluate('element=>element.open')
+                expect(page.locator('#discussionPanel input, #discussionPanel textarea, #discussionPanel form, #discussionPanel button')).to_have_count(0)
+                page.locator('#discussionPanel > summary').click()
                 expect(page.locator('#discussionHistory')).to_contain_text('课程讲解')
                 assert state()['current_lesson']['discussions'][0]['response_origin'] == 'course_material'
                 assert state()['learner']['states']['sample']['status'] != 'mastered'
@@ -100,27 +128,31 @@ def main():
                 expect(page.locator('#labReturnSummary')).to_contain_text('已完成 0 步')
                 expect(page.locator('#answerText')).to_have_value('我的实验前思考')
                 assert state()['current_lesson']['id'] == current
+                expect(page.locator('#discussionPanel')).to_be_visible()
+                assert not page.locator('#discussionPanel').evaluate('element=>element.open')
+                page.locator('#discussionPanel > summary').click()
                 expect(page.locator('#discussionHistory')).to_contain_text('举一个例子')
                 page.screenshot(path=str(OUTPUT / 'course-reading-desktop.png'), full_page=True)
-                passed('Question provenance, draft, learner identity and lesson survive contextual lab round trip')
+                passed('Right-side chat is the only question entry; read-only legacy discussions, autosaved draft and identity survive the lab round trip')
                 page.locator('[name=answerChoice][value="A"]').check()
                 page.locator('#answerConfidence').select_option('unsure')
                 page.locator('#answerForm button[type=submit]').click()
                 expect(page.locator('#responses')).to_contain_text('需要再想一想')
                 # A still-unreviewed question keeps the aggregate state uncertain,
                 # even though this separate objective answer was wrong.
-                expect(page.locator('[data-node="sample"] .state-dot')).to_have_class('state-dot uncertain')
+                expect(page.locator('[data-node="sample"]')).to_have_attribute('title', '正在学习')
+                assert state()['learner']['states']['sample']['status'] == 'uncertain'
                 assert state()['learner']['diagnoses'][-1]['status'] == 'needs_review'
                 page.locator('#overviewTab').click()
-                expect(page.locator('#selectedReason')).to_contain_text('小节学习状态：待核验')
-                page.locator('#selectedEvidence summary').click()
-                expect(page.locator('#selectedEvidenceBody')).to_contain_text('我的实验前思考')
+                expect(page.locator('#selectedReason')).to_have_text('正在学习')
+                expect_student_learning_only(page)
+                assert any('我的实验前思考' in item.get('text', '') for item in state()['learner']['evidence'])
                 page.locator('#continueLesson').click()
                 assert state()['current_lesson']['id'] == current
                 page.reload()
                 expect(page.locator('#readingWorkspace')).to_be_visible()
                 assert state()['current_lesson']['id'] == current
-                passed('Overview status traces actual evidence; resume and reload retain the active lesson')
+                passed('Overview shows learning progress without diagnostic lists; backend preserves evidence and resume retains the active lesson')
                 page.locator('[data-node="partition"]').click()
                 expect(page.locator('#lessonContent h3').first).to_contain_text('划分')
                 later = state()['current_lesson']['id']

@@ -1,5 +1,10 @@
-(() => {
+(async () => {
   'use strict';
+  const account=await (window.PLIACAccountReady ||= fetch('/api/account/me').then(async response=>{
+    if(response.status===401){location.assign('/login?next='+encodeURIComponent(location.pathname+location.search));return null;}
+    return response.ok?response.json():{testing:true};
+  }));
+  if(!account)return;
   const $ = id => document.getElementById(id);
   const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const clone = value => structuredClone(value);
@@ -126,7 +131,7 @@
     document.querySelector('.learner-box').hidden=view==='draft';
     $('masteredCount').parentElement.hidden=view==='draft';$('dueCount').parentElement.hidden=view==='draft';
     $('reportButton').hidden=view==='draft';
-    $('learnerNote').textContent=student?`已加载 ${student}`:'';
+    $('learnerNote').textContent=student?(account.user?`${account.user.display_name} 的学习记录`:`已加载 ${student}`):'';
     $('studentId').disabled=view==='draft';document.querySelector('#studentForm button').disabled=view==='draft';
     $('resumeButton').hidden=view!=='published'||!student||!learner.profile?.current_position?.node_id;
   }
@@ -142,6 +147,7 @@
   }
   function changeFilter(){pathResult=null;relationSelection=null;syncSelection();renderSidebar();renderDetail();renderGraph();}
   function selectNode(id,reveal=false,remember=true){
+    window.PLIACAssistant?.setContext({node_id:id,title:node(id)?.title||""});
     if(!node(id))return;selected=id;pathResult=null;structureSelection=null;relationSelection=null;
     document.body.classList.add('details-open');if(innerWidth<760)document.body.classList.remove('filters-open');
     if(reveal){chapter=node(id).chapter_id;$('search').value='';$('statusFilter').value='all';}
@@ -513,9 +519,10 @@
   $('reportButton').onclick=event=>{if(!student){toast('请先加载学习编号。',true);return;}busy(event.target,async()=>download(await api(`/learner/export?student_id=${encodeURIComponent(student)}`),`${student}-画像与原始证据.json`));};
   let initial='';if(view==='published'){
     try{initial=localStorage.getItem(studentStorageKey)||'';}catch{}
-    initial=new URL(location.href).searchParams.get('student_id')||initial;
+    initial=account.user?.student_id||new URL(location.href).searchParams.get('student_id')||initial;
   }
   $('studentId').value=initial;
+  if(account.user){$('studentForm').hidden=true;$('studentId').readOnly=true;document.querySelector('label[for="studentId"]').hidden=true;}
   NetworkView.bindTheme(()=>network?.redraw());updateToolbar();
   loadStudent(initial,true).catch(error=>{$('graphMessage').textContent=error.message;toast(error.message,true);});
 })();

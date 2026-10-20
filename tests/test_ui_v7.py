@@ -58,7 +58,7 @@ def main():
             url = f"http://127.0.0.1:{port}"
             server = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=port,
                                                    log_level="error", access_log=False))
-            with patch.object(api, "store", store):
+            with patch.object(api, "store", store), patch.object(app.state, "auth_required", False, create=True):
                 thread = threading.Thread(target=server.run, daemon=True)
                 thread.start()
                 with httpx.Client(base_url=url, timeout=15) as client:

@@ -6,6 +6,7 @@ from starlette.concurrency import run_in_threadpool
 from learning_agent.api import ChineseRoute, _body, resolve_course_store
 from learning_agent.course_graph import CourseGraphError, _dict, _list, _text
 from .workspace import LearningWorkspace
+from . import journey
 
 router = APIRouter(prefix="/api/learning", tags=["学习工作台"], route_class=ChineseRoute)
 
@@ -18,6 +19,16 @@ def workspace(student_id: str, course_store=Depends(resolve_course_store)):
 @router.get("/teacher")
 def teacher(student_id: str, course_store=Depends(resolve_course_store)):
     return LearningWorkspace(course_store).teacher_view(student_id)
+
+
+@router.get("/journey")
+def journey_view(student_id: str, course_store=Depends(resolve_course_store)):
+    return journey.view(course_store, student_id)
+
+
+@router.post("/journey/assessment")
+async def journey_assessment(request: Request, course_store=Depends(resolve_course_store)):
+    return await journey.submit(course_store, _dict(await _body(request), "起点评测"))
 
 
 @router.post("/teacher/chapter-policy")

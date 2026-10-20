@@ -117,6 +117,17 @@ class LearningWorkspace(StudyActivities):
         frontier = [i for i in unfinished if all(learner["states"][p]["status"] == "mastered" for p in dag.predecessors(i))]
         if not frontier:
             return None
+        planned = workspace.get("journey", {}).get("active") or {}
+        route = planned.get("route") or {}
+        current_profile = all(learner["profile"].get(k) == v for k, v in planned.get("profile", {}).items())
+        current_profile = current_profile and planned.get("self_assessments") == {
+            ident: item["value"] for ident, item in workspace.get("self_assessments", {}).items()}
+        if planned.get("stage") == "ready" and current_profile and route.get("course_version") == graph["version"]:
+            ranked = {step["node_id"]: index for index, step in enumerate(route.get("steps", []))}
+            if ranked:
+                return min(frontier, key=lambda i: (
+                    0 if learner["states"][i]["due"] or learner["states"][i]["status"] == "needs_review" else 1,
+                    ranked.get(i, len(ranked))))
         # The authored route is a teaching preference, never a fabricated edge.
         # Reuse the same task order and remedial loop for existing demo records.
         if graph.get("learning_order"):
@@ -160,6 +171,21 @@ class LearningWorkspace(StudyActivities):
                       "state_snapshot": copy.deepcopy(learner["states"]), "learner_revision": learner["version"],
                       "policy_version": selection["rule_version"], "selection_trace": selection,
                       "responses": [], "annotations": [], "status": "active"}
+            planned = workspace.get("journey", {}).get("active") or {}
+            route = planned.get("route") or {}
+            step = next((item for item in route.get("steps", []) if item["node_id"] == node["id"]), None)
+            current_profile = all(learner["profile"].get(k) == v for k, v in planned.get("profile", {}).items())
+            current_profile = current_profile and planned.get("self_assessments") == {
+                ident: item["value"] for ident, item in workspace.get("self_assessments", {}).items()}
+            if planned.get("stage") == "ready" and current_profile and route.get("course_version") == graph["version"] and step:
+                lesson["reason"] = step["reason"] + " " + route.get("teaching_approach", "")
+                lesson["learning_focus"] = step["focus"]
+                lesson["pace"] = step["pace"]
+                lesson["route_source"] = route["source"]
+                calibration = next((item for item in route.get("calibration", []) if item["node_id"] == node["id"]), None)
+                if calibration:
+                    lesson["baseline_calibration"] = copy.deepcopy(calibration)
+                    lesson["learning_focus"] += " " + calibration["label"] + "：" + calibration["reason"]
             if payload.get("study_protocol") == 1:
                 lesson["study"] = {"mode": "recall" if state["due"] else "reading",
                                    "recall_started": bool(state["due"]), "material_reopened": False,

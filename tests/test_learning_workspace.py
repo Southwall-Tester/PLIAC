@@ -292,7 +292,7 @@ class WorkspaceTests(unittest.TestCase):
 
     def test_api_and_separate_courses(self):
         from fastapi.testclient import TestClient
-        with patch.object(api, "store", self.store), TestClient(app) as client:
+        with patch.object(api, "store", self.store), patch.object(app.state, "auth_required", False, create=True), TestClient(app) as client:
             self.assertEqual(client.get('/learn').status_code, 200)
             self.assertEqual(client.get('/review').status_code, 200)
             self.assertEqual(client.get('/api/learning', params={"student_id":"../escape"}).status_code, 400)
@@ -310,7 +310,7 @@ class WorkspaceTests(unittest.TestCase):
 
     def test_teacher_task_edit_is_versioned_and_requires_new_review(self):
         from fastapi.testclient import TestClient
-        with patch.object(api, "store", self.store), TestClient(app) as client:
+        with patch.object(api, "store", self.store), patch.object(app.state, "auth_required", False, create=True), TestClient(app) as client:
             old = self.store.load_graph()
             body = {"expected_version":old["version"], "node_id":"a", "question":"New unseen question", "expected_answer":"Reference only",
                     "rubric":["Observable criterion"], "hint_levels":["h1", "h2", "h3", "h4"]}

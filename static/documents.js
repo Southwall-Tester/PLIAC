@@ -135,11 +135,16 @@
     if(requestedSubgraph===null)try{requestedSubgraph=localStorage.getItem(`pliac-document-subgraph.${id}`)||'';}catch{requestedSubgraph='';}
     subgraphId='';subgraphs=null;cameras.clear();scopeRequest++;closeChapters();
     current=job;graph=null;shownSignature='';structure=[];memberships=[];listedNodes=[];nodeListSignature='';collapsed.clear();remember(id);
+    window.PLIACAssistant?.setContext({document_id:id,node_id:'',title:job.title||job.filename});
     $('search').value='';$('relationFilter').value='all';$('hierarchyLevel').value='all';$('sourcePanel').hidden=true;
     $('libraryPanel').hidden=true;$('jobPanel').hidden=false;$('edgeLegend').hidden=true;$('graphCaption').textContent=job.title||job.filename;
     updateToolbar();
     await network.clearLayout();await network.setData({nodes:[],edges:[]},true);updateJob();
-    if(job.stats?.nodes>0||['completed','partial'].includes(job.status))await loadGraph(token);
+    if(job.stats?.nodes>0||['completed','partial'].includes(job.status)){
+      await loadGraph(token);
+      const requestedNode=params.get('id')===id?params.get('node_id'):null;
+      if(token===loadToken&&requestedNode&&nodeById.has(requestedNode))selectNode(requestedNode);
+    }
     schedulePoll();
   }
   // Accept explicit structural nodes separately from extracted semantic relations.
@@ -228,6 +233,7 @@
   function renderEvidence(evidence=[]){return evidence.length?evidence.map(e=>`<section class="source-quote"><a class="quote-link" href="${escape(sourceURL(e.page))}" target="_blank" rel="noopener">第 ${escape(e.page)} ${current.page_kind==='pdf'?'页':'段'} ↗</a><blockquote>${escape(e.quote)}</blockquote></section>`).join(''):'<a class="quote-link" href="'+escape(sourceURL())+'" target="_blank" rel="noopener">打开资料 ↗</a>';}
   function selectNode(id){
     if(!graph)return;const container=structureById.get(id),n=nodeById.get(id);if(!n)return;
+    window.PLIACAssistant?.setContext({document_id:current.id,node_id:id,title:n.title});
     $('sourceTitle').textContent=n.title;
     if(container){const children=childrenByParent.get(id)||[],concepts=conceptsByParent.get(id)||[];
       $('sourceContent').innerHTML=`<div class="source-type">${container.kind==='book'?'资料':container.kind==='page'?'资料页':'章节'}</div><div class="source-description">${children.length?`${children.length} 个章节 · `:''}${concepts.length} 个知识点</div>${renderEvidence(n.evidence||((n.page||n.start_page)?[{page:n.page||n.start_page,quote:n.title}]:[]))}<div class="node-list">${[...children,...concepts].map(child=>`<button data-child="${escape(child.id)}">${escape(child.title)}</button>`).join('')}</div>`;

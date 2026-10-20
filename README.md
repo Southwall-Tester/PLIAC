@@ -1,6 +1,12 @@
 # PLIAC · 课程个性化学习智能体
 
-依据《课程个性化学习智能体_项目搭建方案_v7_20261008.docx》建设的独立项目。PLIAC 承担整个平台开发，原 learning-agent 作为其中的课程知识、资料建图与证据诊断模块继续使用。项目仓库：[Southwall-Tester/PLIAC](https://github.com/Southwall-Tester/PLIAC)，本轮开发分支为 `feat/learning-workspace`。
+依据《课程个性化学习智能体_项目搭建方案_v7_20261008.docx》建设的独立项目。PLIAC 承担整个平台开发，原 learning-agent 作为其中的课程知识、资料建图与证据诊断模块继续使用。项目仓库：[Southwall-Tester/PLIAC](https://github.com/Southwall-Tester/PLIAC)。
+
+## 账号、个性化路线与学习助手（0.12.1）
+
+登录后选择课程，知识点默认还没学过，用户只需勾选已有基础；系统用最多三道题核验这些内容，零基础直接安排学习路线。规划期间显示真实处理阶段与耗时，学习片段自动准备讲义、图谱与习题。“课程全貌”保留目录与知识关系，“重新生成”按最新画像适配初学或期末复习。详见 [个性化学习流程](docs/personalized-learning-flow.md)。
+
+右侧学习助手可结合当前内容、账号画像和历史记忆答疑、分析理解卡点。长对话采用近期轮次、任务摘要与原话细节混合检索，点击“记忆”可查看依据、修正和删除。详见 [学习助手与动态画像](docs/learning-assistant.md)。
 
 ## Linux 命令入门课程
 

@@ -15,19 +15,24 @@
     const {courses}=await api();
     $('courseList').innerHTML=courses.filter(course=>managing||course.capabilities.learn).map(course=>{
       const query=new URLSearchParams({course_id:course.id}).toString(),view=course.presentation;
-      const actions=[['graph',course.capabilities.learn?'/knowledge':'/author','课程知识图谱'],['handout','/course-reader','AI 讲义']];
-      if(course.capabilities.learn)actions.push(['learning','/learn','课程练习']);
-      for(const activity of (managing?course.draft_activities:course.activities)||[])if(['/linux-lab','/ml-lab'].includes(activity.href))actions.push(['activity',activity.href,esc(activity.title)]);
+      const actions=managing?[['graph',course.capabilities.learn?'/knowledge':'/author','课程知识图谱'],['handout','/course-reader','学习内容管理']]:[['learning','/learn','进入课程'],['overview','/learn','课程全貌']];
+      if(managing&&course.capabilities.learn)actions.push(['learning','/learn','进入课程']);
+      for(const activity of (managing?course.draft_activities:[])||[])if(['/linux-lab','/ml-lab'].includes(activity.href))actions.push(['activity',activity.href,esc(activity.title)]);
       if(managing){
         if(course.capabilities.edit)actions.push(['edit','/author','编辑图谱']);
         if(course.published_version)actions.push(['published','/knowledge','查看发布版']);
         if(course.capabilities.learn)actions.push(['review','/review','教学复核']);
       }
-      return `<article class="course-card" data-course-id="${esc(course.id)}"><div class="course-status"><span>${esc(view.label)}</span>${managing?`<span>v${esc(course.published_version||course.draft_version)}</span>`:''}</div><h2>${esc(course.title)}</h2><p class="muted">${esc(view.description)}</p><p class="course-counts">${view.stats.map(stat=>`<span>${Number(stat.value)} ${esc(stat.label)}</span>`).join('')}</p><div class="course-actions">${actions.map(([kind,path,label])=>`<a class="${kind}-course" href="${path}?${query}${managing&&path==='/linux-lab'?'&mode=preview':''}">${label}</a>`).join('')}</div></article>`;
+      return `<article class="course-card" data-course-id="${esc(course.id)}"><div class="course-status"><span>${esc(view.label)}</span>${managing?`<span>v${esc(course.published_version||course.draft_version)}</span>`:''}</div><h2>${esc(course.title)}</h2><p class="muted">${esc(view.description)}</p><p class="course-counts">${view.stats.map(stat=>`<span>${Number(stat.value)} ${esc(stat.label)}</span>`).join('')}</p><div class="course-actions">${actions.map(([kind,path,label])=>`<a class="${kind}-course" href="${path}?${query}${kind==='overview'?'&view=overview':''}${managing&&path==='/course-reader'?'&mode=author':''}${managing&&path==='/linux-lab'?'&mode=preview':''}">${label}</a>`).join('')}</div></article>`;
     }).join('')||'<p class="muted">暂无可学习的课程。</p>';
 
   }
   $('themeButton').onclick=()=>GraphTheme.toggle();
+  window.PLIACAccountReady?.then(account=>{
+    if(!account?.user)return;
+    $('accountLogout').hidden=false;
+    $('accountLogout').onclick=async()=>{await fetch('/api/account/logout',{method:'POST'});location.assign('/login');};
+  });
   $('newCourseButton').onclick=()=>{error('createCourseError','');$('createCourseForm').reset();$('createCourseDialog').showModal();$('newCourseTitle').focus();};
   $('closeCreateCourse').onclick=()=>$('createCourseDialog').close();
   $('createCourseForm').onsubmit=async event=>{

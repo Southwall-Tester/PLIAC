@@ -108,7 +108,7 @@ def assert_left_toolbar(page):
 
 
 @contextmanager
-def isolated_application(directory):
+def isolated_application(directory, *, auth_required=False):
     course = CourseGraphStore(output_dir=directory / "course")
     documents = DocumentStore(directory / "documents")
     with socket.socket() as listener:
@@ -118,7 +118,9 @@ def isolated_application(directory):
     server = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=port,
                                          log_level="error", access_log=False))
     thread = threading.Thread(target=server.run, daemon=True)
-    with patch.object(api, "store", course), patch.object(document_api, "document_store", documents):
+    with patch.object(api, "store", course), patch.object(document_api, "document_store", documents), \
+            patch.object(app.state, "auth_required", auth_required, create=True), \
+            patch.object(app.state, "account_directory", directory / "account", create=True):
         try:
             thread.start()
             with httpx.Client(base_url=base, timeout=2) as client:
