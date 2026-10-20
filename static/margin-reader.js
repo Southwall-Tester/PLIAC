@@ -5,6 +5,7 @@
   const authorMode=params.get('mode')==='author',initialView=params.get('view')||(authorMode?'graph':'read');
   let jobId=params.get('job_id'),preferredJob=jobId,base='',studentId='',assistantOwner='',query='course_id='+encodeURIComponent(courseId)+(authorMode?'&mode=author':'');
   const preparedScopes=new Set();
+  const generationProgress=new HandoutProgress($('jobProgressDetail'),{progressId:'jobProgress'});
   const scopeFields=['chapter_id','section_id','node_id','source_job_id','concept_id'];
   let selection=Object.fromEntries(scopeFields.map(k=>[k,params.get(k)||''])),scopeData=null,refreshRevision=0,loadRevision=0;
   let selectedConcept=null;
@@ -12,7 +13,7 @@
   let lesson,map,network,ready=false,pending='overview',sourceButton,sourceScroll=0;
   const fail=e=>{$('error').hidden=false;$('error').textContent=e.message||String(e);};
 
-  async function get(url){const r=await fetch(url+(url.includes('?')?'&':'?')+query);if(!r.ok){const e=await r.json();throw new Error(e.detail||'讲义读取失败');}return r.json();}
+  async function get(url){const r=await fetch(url+(url.includes('?')?'&':'?')+query);if(!r.ok){const e=await r.json(),error=new Error(e.detail||'讲义读取失败');error.status=r.status;throw error;}return r.json();}
   const practice=new HandoutPractice(courseId,fail);
   function show(mode){viewRevision++;selectedView=mode;$('graphScreen').hidden=mode!=='graph';$('readingScreen').hidden=mode!=='read';$('exerciseScreen').hidden=mode!=='exercise';$('exerciseMode').setAttribute('aria-pressed',mode==='exercise');if(mode==='exercise')practice.load(jobId).catch(fail);$('mapMode').setAttribute('aria-pressed',mode==='graph');$('readMode').setAttribute('aria-pressed',mode==='read');if(mode==='read'){const frame=$('lessonFrame');if(frame.dataset.url&&frame.getAttribute('src')!==frame.dataset.url)frame.src=frame.dataset.url;else jump();}}
   function markReading(anchor){
@@ -121,6 +122,20 @@
   };
   async function loadLesson(id){const revision=++loadRevision;practice.reset();$('exerciseScreen').hidden=true;$('studyConcept').hidden=true;ready=false;delete $('lessonFrame').dataset.ready;selectedConcept=null;jobId=id;$('conceptTitle').textContent='内容总览';base='/api/handouts/'+encodeURIComponent(id);$('graphScreen').hidden=false;$('readingScreen').hidden=true;$('relationships').innerHTML='';$('conceptSources').innerHTML='';$('evidence').hidden=true;const [nextLesson,nextMap]=await Promise.all([get(base+'/artifacts/lesson.json'),get(base+'/artifacts/knowledge-map.json')]);if(revision!==loadRevision)return;lesson=nextLesson;map=nextMap;window.PLIACAssistant?.setContext({job_id:jobId,title:lesson.title});practice.sections=lesson.sections.map(s=>s.id);$('graphNotice').hidden=!map.notice;$('graphNotice').textContent=map.notice||'';$('title').textContent=lesson.title;$('definition').textContent=lesson.overview.summary;$('outline').innerHTML=lesson.sections.map((s,i)=>`<button data-section="section-${i+1}">${esc(s.title)}</button>`).join('');$('sectionLinks').innerHTML='<a href="#overview" data-section="overview">阅读内容总览</a>';$('conceptList').innerHTML=map.nodes.map(n=>`<button data-concept="${esc(n.id)}" aria-pressed="false">${esc(n.title)}</button>`).join('');$('search').value='';filterConcepts();$('pdfDownload').href=base+'/artifacts/lesson.pdf?'+query;$('pdfDownload').download='讲义.pdf';if(!network)network=new NetworkView($('graph'),select,id=>relation(Number(id.slice(1))));window.marginNetwork=network;await network.setData({nodes:map.nodes.map(n=>({id:n.id,data:{title:n.title},style:{size:24,fill:GraphEncoding.family(n.family_index??Math.max(0,lesson.sections.findIndex(s=>s.id===n.section_ids[0]))),labelFontSize:13}})),edges:map.edges.map((e,i)=>({id:'e'+i,source:e.source,target:e.target,data:{label:e.predicate},style:{endArrow:e.directed,opacity:.6}}))},true);if(revision!==loadRevision)return;$('graph').dataset.ready='true';pending='overview';try{pending=localStorage.getItem('pliac.margin.'+jobId)||'overview';}catch{}if(![...$('readingScreen').querySelectorAll('nav [data-section]')].some(button=>button.dataset.section===pending))pending='overview';markReading(pending);ready=false;$('lessonFrame').removeAttribute('src');$('lessonFrame').dataset.url=base+'/artifacts/lesson.html?'+query;}
   let polling,shown=null,activeJob=null,latestScopeData=null;
+  function pollRefresh(delay=2000){
+    clearTimeout(polling);
+    const scopeKey=new URLSearchParams(selection).toString();
+    polling=setTimeout(async()=>{
+      const pending=refresh(),revision=refreshRevision;
+      try{await pending;}
+      catch(error){
+        if(revision!==refreshRevision||scopeKey!==new URLSearchParams(selection).toString())return;
+        fail(error);
+        if(!error.status||error.status>=500)pollRefresh(4000);
+        else generationProgress.stop();
+      }
+    },delay);
+  }
   function readerURL(url){
     const target=new URL(url,location.origin);
     if(authorMode)target.searchParams.set('mode','author');
@@ -143,9 +158,10 @@
     $('generate').textContent=['failed','cancelled'].includes(latest?.status)?'重新生成图谱、讲义与习题':'生成图谱、讲义与习题';
     $('cancelJob').hidden=!active;
     $('regenerate').hidden=authorMode||busy||data.scope.kind==='course';
-    $('jobProgress').hidden=!active;
-    if(active)$('jobProgress').value=Math.max(0,Math.min(100,Number(active.progress)||0));
-    $('jobStatus').textContent=active?active.stage+' · '+active.progress+'%':submitting?'正在提交生成任务':latest?.status==='failed'?latest.error:latest?.status==='cancelled'?'已取消':latest?.status==='completed'?'讲义 '+latest.page_count+' 页':'使用本范围已有资料';
+    const detailJob=active||(!submitting&&['failed','cancelled'].includes(latest?.status)?latest:null);
+    generationProgress.update(detailJob);
+    $('jobStatus').hidden=!!active;
+    $('jobStatus').textContent=submitting?'正在提交生成任务':latest?.status==='failed'?latest.error:latest?.status==='cancelled'?'已取消':latest?.status==='completed'?(latest.page_count?'讲义 '+latest.page_count+' 页':'讲义已完成'):'使用本范围已有资料';
     $('generationNotice').hidden=!busy;
     $('generationNotice').textContent=authorMode?(submitting?'正在提交本范围的生成任务。':completed?'正在生成新版本，当前版本可继续阅读。生成完成后会自动打开新版本。':'正在生成本范围的图谱、讲义与习题，完成后会自动打开。可返回上一级继续学习，再次进入本范围可查看进度。'):(completed?'正在根据最新学习画像准备新版本，当前版本可继续学习。':'正在为你准备讲解、例题与练习。可以先阅读下面的课程讲解，完成后会自动打开。');
     $('scopeEmpty').hidden=completed||busy;
@@ -158,6 +174,7 @@
     history.replaceState(null,'',url);
   }
   async function changeScope(value){
+    clearTimeout(polling);generationProgress.clear();
     selection=Object.fromEntries(scopeFields.map(k=>[k,value[k]||'']));
     jobId=null;preferredJob=null;shown=null;lesson=null;ready=false;loadRevision++;practice.reset();
     window.PLIACAssistant?.setContext({});
@@ -169,6 +186,7 @@
     const revision=++refreshRevision;
     const data=await get('/api/handouts?'+new URLSearchParams({...selection,...(jobId?{job_id:jobId}:{})}));
     if(revision!==refreshRevision)return;
+    $('error').hidden=true;
     scopeData=data.scope;selection=Object.fromEntries(scopeFields.map(k=>[k,data.scope[k]||'']));
     const graphQuery=new URLSearchParams({course_id:courseId,...(selection.node_id?{node_id:selection.node_id}:{})});
     $('savedGraphLink').href=(data.source_view==='draft'?'/author':'/knowledge')+'?'+graphQuery;
@@ -199,7 +217,7 @@
     for(const id of ['mapMode','readMode','exerciseMode'])$(id).disabled=!completed;
     if(completed){$('unitVersion').value=completed.id;if(shown!==completed.id){const viewAtLoad=viewRevision;await loadLesson(completed.id);if(revision!==refreshRevision)return;shown=completed.id;show(viewAtLoad===viewRevision?(initialView==='read'?'read':'graph'):selectedView);}writeLocation();$('sourceLesson').hidden=true;}
     else{$('graphScreen').hidden=true;$('readingScreen').hidden=true;$('exerciseScreen').hidden=true;}
-    clearTimeout(polling);if(active)polling=setTimeout(()=>refresh().catch(fail),2000);
+    clearTimeout(polling);if(active)pollRefresh();
     if(!authorMode&&data.scope.kind!=='course'&&!preparedScopes.has(data.scope.key)){
       preparedScopes.add(data.scope.key);
       await prepareUnit();
@@ -213,7 +231,7 @@
       const data=await response.json();
       if(targetScope!==new URLSearchParams(selection).toString())return;
       if(!response.ok){
-        if(response.status===429){preparedScopes.delete(latestScopeData.scope.key);polling=setTimeout(()=>refresh().catch(fail),4000);}
+        if(response.status===429){preparedScopes.delete(latestScopeData.scope.key);pollRefresh(4000);}
         throw new Error(data.detail||'学习片段准备遇到问题，可以继续阅读课程讲解。');
       }
       $('error').hidden=true;preferredJob=data.id;await refresh();

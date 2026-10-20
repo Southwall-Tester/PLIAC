@@ -22,9 +22,9 @@
       lesson.innerHTML='<iframe id="personalizedLessonFrame" title="本节 LearnMargin 讲义" sandbox="allow-scripts allow-same-origin" referrerpolicy="same-origin"></iframe>';
       $('lessonContent').before(lesson);
       lesson.before($('autoLesson'));
-      const lessonProgress=document.createElement('progress');
-      lessonProgress.id='autoLessonProgress';lessonProgress.max=100;lessonProgress.hidden=true;
-      lessonProgress.setAttribute('aria-labelledby','autoLessonStatus');
+      const lessonProgress=document.createElement('section');
+      lessonProgress.id='autoLessonProgressDetail';
+      this.handoutProgress=new HandoutProgress(lessonProgress,{compact:true,progressId:'autoLessonProgress'});
       $('autoLessonStatus').after(lessonProgress);
     }
     render(state){
@@ -232,7 +232,7 @@
       frame.onload=null;frame.onerror=null;frame.removeAttribute('src');delete frame.dataset.ready;
       frame.style.height='';$('personalizedLesson').hidden=true;
       $('readingWorkspace').classList.remove('has-personalized-lesson');
-      $('autoLessonProgress').hidden=true;
+      this.handoutProgress.clear();
     }
     applyLessonView(state){
       const current=state.current_lesson,task=this.materialTask;
@@ -247,16 +247,15 @@
       if(task!==this.materialTask)return;
       task.jobId=job.id;
       $('autoLessonLink').hidden=false;
-      const busy=['queued','running'].includes(job.status),progress=Number(job.progress);
-      $('autoLessonProgress').hidden=!busy;
-      if(Number.isFinite(progress))$('autoLessonProgress').value=Math.max(0,Math.min(100,progress));
-      else $('autoLessonProgress').removeAttribute('value');
+      const busy=['queued','running'].includes(job.status);
+      this.handoutProgress.update(job);
       if(job.status==='completed'){
+        $('autoLessonProgressDetail').hidden=true;
         $('autoLessonStatus').textContent='讲义已准备好，正在打开…';
         $('autoLessonLink').textContent='完整阅读、图谱与重新生成';
         this.openLesson(job,task);
       }else if(busy){
-        $('autoLessonStatus').textContent=(job.stage||'正在准备本节讲义')+(Number.isFinite(progress)?' · '+progress+'%':'')+'；可以先读下面的课程讲解。';
+        $('autoLessonStatus').textContent='讲义正在准备，可以先读下面的课程讲解。';
         $('autoLessonLink').textContent='打开本节讲义与进度';
         this.pollLesson(task);
       }else{
@@ -279,7 +278,7 @@
           if(task!==this.materialTask)return;
           $('autoLessonStatus').textContent='正在恢复讲义进度查询。'+error.message;
           if(!error.status||error.status>=500)this.pollLesson(task,4000);
-          else $('autoLessonProgress').hidden=true;
+          else this.handoutProgress.stop();
         }
       },delay);
     }
@@ -349,7 +348,6 @@
       this.materialTask=task;this.materialKey=key;
       this.applyLessonView(state);
       $('autoLesson').hidden=false;$('autoLessonLink').hidden=false;
-      $('autoLessonProgress').hidden=false;$('autoLessonProgress').removeAttribute('value');
       $('autoLessonStatus').textContent='正在准备适合本节的学习内容，课程讲解和练习可以先学。';
       const query=new URLSearchParams({course_id:state.course.id,student_id:state.learner.student_id,node_id:current.node_id,view:'read'});
       $('autoLessonLink').href='/course-reader?'+query;
@@ -363,7 +361,7 @@
         this.lessonStatus(job,task);
       }catch(e){
         if(task!==this.materialTask)return;
-        $('autoLessonProgress').hidden=true;
+        this.handoutProgress.clear();
         $('autoLessonStatus').textContent='课程讲解和练习已就绪。'+e.message;
       }
     }

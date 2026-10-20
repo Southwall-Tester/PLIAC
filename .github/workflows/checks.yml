@@ -45,6 +45,7 @@ jobs:
       - run: node --check static/assistant-panel.js
       - run: node --check static/login.js
       - run: node --check static/learning-journey.js
+      - run: node --check static/handout-progress.js
 
   browser:
     runs-on: ubuntu-latest
@@ -78,6 +79,7 @@ jobs:
       - run: python -X utf8 tests/test_ui_assistant.py
       - run: python -X utf8 tests/test_ui_journey.py
       - run: python -X utf8 tests/test_ui_choice_waiting.py
+      - run: python -X utf8 tests/test_ui_handout_progress.py
       - run: python -X utf8 tests/test_ui_study.py
       - uses: actions/upload-artifact@v4
         if: always()

@@ -57,6 +57,8 @@ def assert_dark_surfaces(page, selectors):
 
 
 def assert_left_controls(page):
+    toolbar = page.locator('.topbar').bounding_box()
+    toolbar_right = toolbar['x'] + toolbar['width']
     controls = page.locator('.topbar button:not(#themeButton):visible, .topbar a:visible, .topbar .active-course-title:visible').evaluate_all('''elements => elements.map(element => {
       const r=element.getBoundingClientRect();return {x:r.x,right:r.right,center:r.y+r.height/2};
     })''')
@@ -70,9 +72,11 @@ def assert_left_controls(page):
         row.sort(key=lambda item: item['x'])
         assert row[0]['x'] <= 16, row
         assert all(-1 <= right['x'] - left['right'] <= 28 for left, right in zip(row, row[1:])), row
-        assert row[-1]['right'] <= page.viewport_size['width'], row
+        assert row[-1]['right'] <= toolbar_right, row
     theme = page.locator('#themeButton').bounding_box()
-    assert 8 <= page.viewport_size['width'] - theme['x'] - theme['width'] <= 16
+    # The persistent assistant reserves its own desktop column; graph controls
+    # align with the graph page's toolbar, not the browser's outer right edge.
+    assert 8 <= toolbar_right - theme['x'] - theme['width'] <= 16
     assert theme['y'] <= 12
     assert page.locator('#themeButton').inner_text() == ''
     expect(page.locator('#themeButton svg')).to_be_visible()

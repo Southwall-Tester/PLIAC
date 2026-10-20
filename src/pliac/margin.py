@@ -19,6 +19,7 @@ from learnmargin.rendering import render_lesson
 from learnmargin.storage import Store, atomic_json, new_id, now
 from .margin_graph import generate_map
 from . import learning_scope, handout_practice
+from .handout_progress import ProgressReporter, finish_progress
 
 router = APIRouter(prefix="/api/handouts", route_class=ChineseRoute)
 TASKS = {}
@@ -145,9 +146,8 @@ def readable_guidance(lesson):
 
 async def run_job(store, job, request, docs, origins):
     output = store.directory("jobs", job["id"])
-    def progress(stage, amount):
-        job.update(stage=stage, progress=amount)
-        store.save_job(job)
+    progress = ProgressReporter(store, job)
+    heartbeat = asyncio.create_task(progress.heartbeat())
     try:
         job["status"] = "running"
         job.pop("failed_stage", None)
@@ -157,6 +157,7 @@ async def run_job(store, job, request, docs, origins):
             store.save_document(doc)
         atomic_json(output / "materials.json", {"documents":[doc.model_dump() for doc in docs], "origins":origins})
         async with Provider(request.api) as provider:
+            provider.observer = progress.model_event
             checkpoint = output / "lesson.json"
             lesson = None
             if checkpoint.is_file():
@@ -165,16 +166,20 @@ async def run_job(store, job, request, docs, origins):
                     lesson = None
             if lesson is None:
                 lesson = await generate_lesson(request, docs, store, output, provider, progress)
+            else:
+                progress("恢复已完成的课程讲解", 80)
             lesson = readable_guidance(lesson)
             if job.get("scope") and not any(section.practice for section in lesson.sections):
                 raise ValueError("这次讲义没有生成范围内练习，请重新生成完整学习单元。")
             atomic_json(checkpoint, lesson.model_dump())
-            progress("生成知识概念及关系", 83)
-            concept_map = await generate_map(lesson, provider)
+            progress.data["sections"] = {"completed": len(lesson.sections), "total": len(lesson.sections)}
+            progress("生成知识概念及关系", 82)
+            concept_map = await generate_map(lesson, provider, progress=progress)
             usage = provider.usage
         atomic_json(output / "knowledge-map.json", concept_map)
         progress("排版详细讲义", 88)
         rendered = await render_lesson(lesson, output, layout="a4")
+        progress("检查排版与阅读导航", 96)
         atomic_json(output / "generation.json", {"engine":ENGINE, "course_id":job["course_id"], "course_version":job["course_version"], "scope":job.get("scope"), "api_usage":usage})
         job.update(status="completed", stage="图谱、讲义与习题已生成", progress=100, title=lesson.title, page_count=rendered["page_count"])
     except asyncio.CancelledError:
@@ -188,6 +193,9 @@ async def run_job(store, job, request, docs, origins):
         failed_stage = job.get("stage", "生成讲义")
         job.update(status="failed", stage="生成失败", failed_stage=failed_stage, error=f"{failed_stage}：{detail}")
     finally:
+        heartbeat.cancel()
+        await asyncio.gather(heartbeat, return_exceptions=True)
+        progress.finish(job["status"])
         store.save_job(job)
 
 
@@ -221,6 +229,7 @@ def listing(course_store=Depends(resolve_course_store), chapter_id: str = "", no
     for job in jobs:
         if job["status"] in {"running", "queued"} and job["id"] not in TASKS:
             job.update(status="failed", stage="任务已中断", error="服务已重启，请重新生成。")
+            finish_progress(job, "failed")
             store.save_job(job)
     return {"course_id":graph["id"], "title":graph["title"], "version":graph["version"], "source_view":view,
             "chapters":graph["chapters"], "jobs":jobs, "scope":scope,
@@ -426,6 +435,7 @@ async def prepare(request: Request, course_store=Depends(resolve_course_store)):
         if not regenerate and job.get("profile_fingerprint") == signature:
             if job["status"] in {"running", "queued"} and job["id"] not in TASKS:
                 job.update(status="failed", stage="任务已中断", error="服务已重启，可以重新生成学习片段。")
+                finish_progress(job, "failed")
                 store.save_job(job)
             return job
     return start_generation(course_store, {"scope": scope}, {
@@ -484,5 +494,6 @@ async def cancel(job_id: str, course_store=Depends(resolve_course_store), studen
         job = read_job(store, job_id)
         if job["status"] in {"queued", "running"}:
             job.update(status="cancelled", stage="已取消")
+            finish_progress(job, "cancelled")
             store.save_job(job)
     return job

@@ -86,6 +86,8 @@ def assert_surface_theme(page, selectors, *, dark):
 
 
 def assert_left_toolbar(page):
+    toolbar = page.locator(".toolbar").bounding_box()
+    toolbar_right = toolbar["x"] + toolbar["width"]
     controls = page.locator(".toolbar button:not(#themeButton):visible, .toolbar a:visible, .toolbar select:visible, .toolbar .active-course-title:visible").evaluate_all("""elements => elements.map(element => {
         const r=element.getBoundingClientRect(); return {x:r.x,right:r.right,center:r.y+r.height/2};
     })""")
@@ -99,9 +101,10 @@ def assert_left_toolbar(page):
         row.sort(key=lambda item: item["x"])
         assert row[0]["x"] <= 16, row
         assert all(-1 <= right["x"] - left["right"] <= 28 for left, right in zip(row, row[1:])), row
-        assert row[-1]["right"] <= page.viewport_size["width"], row
+        assert row[-1]["right"] <= toolbar_right, row
     theme = page.locator('#themeButton').bounding_box()
-    assert 8 <= page.viewport_size['width'] - theme['x'] - theme['width'] <= 16
+    # The assistant has a separate desktop column outside this toolbar.
+    assert 8 <= toolbar_right - theme['x'] - theme['width'] <= 16
     assert theme['y'] <= 12
     assert page.locator('#themeButton').inner_text() == ''
     expect(page.locator('#themeButton svg')).to_be_visible()
@@ -362,6 +365,14 @@ def main():
                         assert collapsed_geometry["zoom"] == before_menu["zoom"]
                         assert collapsed_geometry["origin"] == before_menu["origin"]
                         assert collapsed_geometry["positions"][book_target["id"]] == before_menu["positions"][book_target["id"]]
+                        # Hidden toolbar actions can change wrapping in the
+                        # narrower page beside the assistant. Keep graph-space
+                        # invariants above, but measure its current screen origin.
+                        book_target.update(page.evaluate("""id => {
+                            const g=window.testGraph,p=g.getViewportByCanvas(g.getElementPosition(id));
+                            const rect=document.querySelector('#graph').getBoundingClientRect();
+                            return {x:p[0]+rect.x,y:p[1]+rect.y};
+                        }""", book_target["id"]))
                         page.mouse.click(book_target["x"],book_target["y"],button="right")
                         page.get_by_role("menuitem",name=re.compile(r"^展开下级")).click()
                         page.wait_for_function("count=>window.testGraph.getNodeData().length===count",arg=len(data["nodes"]))
@@ -422,6 +433,11 @@ def main():
                         remaining_geometry = geometry()
                         assert remaining_geometry["zoom"] == before_menu["zoom"] and remaining_geometry["origin"] == before_menu["origin"]
                         assert all(coords == before_menu["positions"][node] for node,coords in remaining_geometry["positions"].items())
+                        branch_target = page.evaluate("""id => {
+                            const g=window.testGraph,p=g.getViewportByCanvas(g.getElementPosition(id));
+                            const rect=document.querySelector('#graph').getBoundingClientRect();
+                            return {x:p[0]+rect.x,y:p[1]+rect.y};
+                        }""", chapter_node["id"])
                         page.mouse.click(branch_target["x"],branch_target["y"],button="right")
                         page.get_by_role("menuitem",name=re.compile(r"^展开下级")).click()
                         page.wait_for_function("count=>window.testGraph.getNodeData().length===count",arg=len(data["nodes"]))

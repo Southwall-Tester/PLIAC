@@ -38,7 +38,7 @@ async def synthetic_lesson(request, docs, *args):
     return lesson
 
 
-async def synthetic_map(lesson, provider):
+async def synthetic_map(lesson, provider, progress=None):
     return overview_map(lesson)
 
 
@@ -90,9 +90,21 @@ def main():
                 return job
             release_stage = threading.Event()
             async def staged_lesson(*args):
-                args[-1]("整理内容总览与学习路线", 24)
+                progress = args[-1]
+                progress("整理内容总览与学习路线", 24)
+                progress.detail({"task_id": "plan:outline", "phase": "planning", "status": "running",
+                                 "label": "逐项安排概念与学习顺序"})
+                progress.model_event({"request_id": "synthetic-plan", "phase": "request_started",
+                                      "attempt": 1, "transport": "sse"})
+                progress.model_event({"request_id": "synthetic-plan", "phase": "receiving",
+                                      "response_chars": 1200, "reasoning_chars": 240, "attempt": 1,
+                                      "transport": "sse"})
                 while not release_stage.is_set():
                     await asyncio.sleep(.05)
+                progress.model_event({"request_id": "synthetic-plan", "phase": "completed",
+                                      "response_chars": 1200, "attempt": 1})
+                progress.detail({"task_id": "plan:outline", "phase": "planning", "status": "completed",
+                                 "label": "逐项安排概念与学习顺序"})
                 return await synthetic_lesson(*args)
             with patch.object(margin, "generate_lesson", side_effect=staged_lesson):
                 try:
@@ -101,14 +113,28 @@ def main():
                     chapter_job = response.value.json()
                     assert response.value.status == 200, chapter_job
                     def assert_generating():
-                        expect(page.locator("#jobStatus")).to_have_text("整理内容总览与学习路线 · 24%")
+                        expect(page.locator("#jobProgressDetail .hp-task")).to_have_text("逐项安排概念与学习顺序")
+                        expect(page.locator("#jobProgressDetail .hp-step")).to_have_count(5)
+                        expect(page.locator("#jobProgressDetail .hp-step[aria-current=step]")).to_contain_text("安排讲解")
+                        expect(page.locator("#jobProgressDetail .hp-response")).to_contain_text("已接收 1,200 字符")
+                        expect(page.locator("#jobProgressDetail .hp-response")).to_contain_text("思考输出 240 字符")
+                        expect(page.locator("#jobProgressDetail .hp-sections")).to_be_hidden()
                         expect(page.locator("#generate")).to_be_hidden()
                         expect(page.locator("#scopeEmpty")).to_be_hidden()
                         expect(page.locator("#cancelJob")).to_be_visible()
                         expect(page.locator("#jobProgress")).to_have_attribute("value", "24")
                         expect(page.locator("#generationNotice")).to_contain_text("完成后会自动打开")
                     assert_generating()
+                    before = page.locator("#jobProgressDetail .hp-elapsed").inner_text()
+                    page.wait_for_function("text=>document.querySelector('#jobProgressDetail .hp-elapsed').textContent!==text", arg=before)
+                    expect(page.locator("#jobProgress")).to_have_attribute("value", "24")
                     page.reload()
+                    assert_generating()
+                    assert page.locator("#jobProgressDetail .hp-elapsed").inner_text() != "已用时 0 秒"
+                    page.route("**/api/handouts?*", lambda route: route.fulfill(
+                        status=503, json={"detail": "合成进度查询暂时中断"}), times=1)
+                    expect(page.locator("#error")).to_have_text("合成进度查询暂时中断", timeout=10000)
+                    expect(page.locator("#error")).to_be_hidden(timeout=15000)
                     assert_generating()
                     page.locator("#parentScope").click()
                     expect(page.locator("#scopeEmpty")).to_be_visible()
@@ -116,6 +142,12 @@ def main():
                     page.locator("#chapter").select_option(chapter)
                     assert_generating()
                     page.screenshot(path=str(OUT / "scoped-unit-generating.png"), full_page=True)
+                    page.set_viewport_size({"width": 390, "height": 844})
+                    page.locator("#themeButton").click()
+                    assert page.evaluate("document.documentElement.scrollWidth <= innerWidth + 1")
+                    page.screenshot(path=str(OUT / "scoped-unit-generating-mobile-dark.png"), full_page=True)
+                    page.locator("#themeButton").click()
+                    page.set_viewport_size({"width": 1440, "height": 1000})
                 finally:
                     release_stage.set()
                 page.wait_for_function("id=>new URL(location.href).searchParams.get('job_id')===id", arg=chapter_job["id"], timeout=60000)
@@ -226,6 +258,9 @@ def main():
                     expect(page.locator("#scopeEmpty")).to_contain_text("生成已取消")
                     expect(page.locator("#generationNotice")).to_be_hidden()
                     expect(page.locator("#jobProgress")).to_be_hidden()
+                    elapsed = page.locator("#jobProgressDetail .hp-elapsed").inner_text()
+                    page.wait_for_timeout(1200)
+                    expect(page.locator("#jobProgressDetail .hp-elapsed")).to_have_text(elapsed)
                 finally:
                     release_stage.set()
             # Student flow prepares the current fragment automatically and opens
@@ -277,6 +312,8 @@ def main():
         report = {"scopes": [chapter_job["scope"]["kind"], node_job["scope"]["kind"], concept_job["scope"]["kind"]],
                   "versions": 2, "saved_attempts": 1, "failed_stage": failed["failed_stage"],
                   "generation_states": ["running", "resumed", "completed", "failed", "cancelled"],
+                  "detailed_progress": ["task", "steps", "elapsed", "received_characters", "reasoning_count",
+                                        "refresh_continuity", "poll_recovery", "cancelled_timer_stopped", "mobile_dark"],
                   "student_flow": ["automatic_prepare", "resume", "linear_reading", "graph", "regenerate_exam_review"],
                   "live_model_calls": 0, "page_errors": errors}
         (OUT / "learning-scopes.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
