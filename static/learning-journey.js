@@ -8,11 +8,11 @@
       this.actions=actions;this.data=null;this.identity='';this.questionKey='';this.materialKey='';
       this.refreshVersion=0;this.submitting=false;this.autoAttemptKey='';this.submitError='';
       $('baselineForm').onsubmit=e=>{e.preventDefault();actions.run(()=>this.submit());};
-      $('journeyRetry').onclick=()=>actions.run(()=>this.submit(true));
+      $('journeyRetry').onclick=()=>actions.run(()=>this.data?this.submit(true):this.refresh());
       $('beginRoute').onclick=()=>actions.resume();
       const progress=document.createElement('div');
       progress.id='journeyProgress';progress.className='journey-progress';progress.hidden=true;
-      progress.innerHTML='<div id="journeyProgressBar" class="journey-progress-track" role="progressbar" aria-label="学习路线准备进度"><span></span></div><div class="journey-progress-meta"><span id="journeyElapsed"></span><span>完成后会自动显示学习路线</span></div>';
+      progress.innerHTML='<div id="journeyProgressBar" class="journey-progress-track" role="progressbar" aria-label="学习路线准备进度"><span></span></div><div class="journey-progress-meta"><span id="journeyElapsed"></span><span id="journeyProgressHint">完成后会自动显示学习路线</span></div>';
       $('journeyStatus').insertAdjacentElement('afterend',progress);
       const lesson=document.createElement('section');
       lesson.id='personalizedLesson';lesson.className='personalized-lesson';lesson.hidden=true;
@@ -41,10 +41,26 @@
     }
     async refresh(){
       const state=this.actions.state(),identity=this.identity,version=++this.refreshVersion;
-      const data=await this.actions.api('/api/learning/journey?student_id='+encodeURIComponent(state.learner.student_id));
+      const preparing=state.workspace.onboarded&&(!this.data||['profile','assessment'].includes(this.data.stage))&&
+        Object.values(state.workspace.self_assessments||{}).some(item=>['confident','unsure'].includes(item.value));
+      if(preparing){
+        $('readingWorkspace').before($('journeyStatus'),$('journeyProgress'),$('journeyRetry'));
+        $('journeyStatus').hidden=false;$('journeyRetry').hidden=true;
+        $('journeyStatus').textContent='正在准备基础核验题选项…';
+        $('journeyProgressHint').textContent='准备好后会自动显示题目';
+        this.paintProgress(true);
+      }
+      let data;
+      try{data=await this.actions.api('/api/learning/journey?student_id='+encodeURIComponent(state.learner.student_id));}
+      catch(error){
+        if(identity===this.identity&&version===this.refreshVersion&&preparing){
+          this.data=null;this.questionKey='';
+          this.paintProgress(false);$('journeyStatus').textContent=error.message;$('journeyRetry').hidden=false;
+        }
+        throw error;
+      }
       if(identity!==this.identity||version!==this.refreshVersion)return;
       this.data=data;this.paint(this.actions.state());this.prepareLesson(this.actions.state());
-      this.prepareLesson(this.actions.state());
       clearTimeout(this.timer);
       if(data.stage==='planning')this.scheduleRefresh();
       else{
@@ -85,6 +101,7 @@
       const phaseLabels={preparing:'正在整理学习目标和已有基础…',model_wait:'AI 正在分析学习起点、安排路线…',validating:'正在核对学习路线与先修关系…',saving:'正在保存你的学习路线…'};
       $('journeyStatus').textContent=waiting?(progress?.label||phaseLabels[progress?.phase]||
         (this.submitting?'正在提交学习起点…':'正在安排你的学习路线…')):this.submitError||data.error||'';
+      $('journeyProgressHint').textContent='完成后会自动显示学习路线';
       this.paintProgress(waiting,progress);
       $('journeySteps').textContent=stage==='ready'?'根据你的学习目标和起点安排':
         hasQuestions?'1 学习起点　→　2 已学内容简短核验　→　3 你的路线':'1 学习起点　→　2 安排路线　→　3 开始学习';
@@ -92,12 +109,21 @@
         const key=state.learner.student_id+JSON.stringify(data.questions);
         if(this.questionKey!==key){
           this.questionKey=key;
-          $('baselineQuestions').innerHTML=data.questions.map((q,i)=>`<section class="baseline-question"><h3>${i+1}. ${esc(q.title)}</h3><small>你的自评：${esc(selfNames[q.self_assessment]||'待核验')}</small><p>${esc(q.question)}</p><label class="sr-only" for="baseline-${i}">回答：${esc(q.title)}</label><textarea id="baseline-${i}" data-baseline="${esc(q.node_id)}" required maxlength="2000" placeholder="简单写下你的理解和判断理由。"></textarea></section>`).join('');
+          $('baselineQuestions').innerHTML=data.questions.map((q,i)=>`<section class="baseline-question" data-baseline-question="${esc(q.node_id)}"><h3>${i+1}. ${esc(q.title)}</h3><small>你的自评：${esc(selfNames[q.self_assessment]||'待核验')}</small><p>${esc(q.question)}</p><fieldset class="baseline-options"><legend class="sr-only">选择${esc(q.title)}的答案</legend>${(q.options||[]).map(option=>`<label class="answer-choice"><input type="radio" name="baselineChoice-${i}" data-baseline-choice="${esc(q.node_id)}" value="${esc(option.id)}" required><span><b>${esc(option.id)}</b>${esc(option.text)}</span></label>`).join('')}</fieldset><details class="optional-details"><summary>补充判断理由 <span>可选</span></summary><label class="sr-only" for="baseline-${i}">补充：${esc(q.title)}</label><textarea id="baseline-${i}" data-baseline="${esc(q.node_id)}" maxlength="2000" placeholder="可以补充理由、举例或仍不确定的地方。"></textarea></details></section>`).join('');
           for(const input of document.querySelectorAll('[data-baseline]')){
             const saved=data.answers?.find(a=>a.node_id===input.dataset.baseline);
-            let draft='';try{draft=localStorage.getItem(this.draftKey(input.dataset.baseline))||'';}catch{}
-            input.value=draft||saved?.text||'';
-            input.oninput=()=>{try{localStorage.setItem(this.draftKey(input.dataset.baseline),input.value);}catch{}};
+            const question=data.questions.find(q=>q.node_id===input.dataset.baseline);
+            let draft;try{const raw=localStorage.getItem(this.draftKey(input.dataset.baseline));if(raw){try{draft=JSON.parse(raw);}catch{draft={text:raw};}}}catch{}
+            if(!draft||typeof draft!=='object')draft=null;
+            input.value=draft?.text??saved?.free_text??saved?.text??'';
+            const record=draft||saved,choice=record?.choice_id;
+            const row=input.closest('.baseline-question');
+            if(!record?.option_set_id||record.option_set_id===question.option_set_id){
+              for(const radio of row.querySelectorAll('[data-baseline-choice]'))radio.checked=radio.value===choice;
+            }
+            row.querySelector('details').open=!!input.value;
+            const persist=()=>{try{localStorage.setItem(this.draftKey(input.dataset.baseline),JSON.stringify(this.baselineAnswer(question)));}catch{}};
+            input.oninput=persist;row.querySelector('fieldset').onchange=persist;
           }
         }
       }
@@ -132,6 +158,12 @@
       tick();this.elapsedTimer=setInterval(tick,1000);
     }
     draftKey(node){const s=this.actions.state();return `pliac.baseline.${s.learner.student_id}.${s.course.id}.${node}`;}
+    baselineAnswer(question){
+      const row=$('baselineQuestions').querySelector(`[data-baseline-question="${CSS.escape(question.node_id)}"]`);
+      return {node_id:question.node_id,choice_id:row?.querySelector('[data-baseline-choice]:checked')?.value||'',
+        text:row?.querySelector('[data-baseline]')?.value.trim()||'',
+        ...(question.option_set_id?{option_set_id:question.option_set_id}:{})};
+    }
     async submit(retry=false){
       if(this.submitting)return;
       const s=this.actions.state(),identity=this.identity;
@@ -148,10 +180,18 @@
           this.data=latest;
           try{localStorage.removeItem(pendingKey);}catch{}
         }else{
-          const questions=latest.questions||[],expected=new Set(questions.map(q=>q.node_id));
-          const answers=questions.length?(retry&&latest.stage==='failed'?latest.answers:
-            [...document.querySelectorAll('[data-baseline]')].filter(i=>expected.has(i.dataset.baseline)).map(i=>({node_id:i.dataset.baseline,text:i.value.trim()}))):[];
-          if(answers?.length!==questions.length||answers.some(a=>!a.text))throw Error('请简单写下每题的理解和判断理由。');
+          const questions=latest.questions||[];
+          if(!retry&&questions.length&&JSON.stringify(questions)!==JSON.stringify(this.data?.questions)){
+            this.data=latest;this.questionKey='';this.paint(s);
+            throw Error('本次题目已更新，请按当前选项作答。');
+          }
+          const answers=questions.length?(retry&&latest.stage==='failed'?(latest.answers||[]).map(answer=>({
+            node_id:answer.node_id,choice_id:answer.choice_id||'',text:answer.free_text??answer.text??'',
+            ...(answer.option_set_id?{option_set_id:answer.option_set_id}:{})})):questions.map(question=>this.baselineAnswer(question))):[];
+          if(answers.length!==questions.length||questions.some(question=>{
+            const answer=answers.find(item=>item.node_id===question.node_id);
+            return !answer||((question.options||[]).length?!question.options.some(option=>option.id===answer.choice_id):!answer.text);
+          }))throw Error('请为每道题点选一个答案，文字补充可以留空。');
           const body={student_id:s.learner.student_id,course_version:s.course.version,expected_version:latest.learner_version,answers};
           const signature=JSON.stringify(body);
           let pending;
@@ -181,7 +221,10 @@
       }
       if(identity===this.identity)await this.refresh();
     }
-    ready(){return this.data?.stage==='ready';}
+    ready(){
+      return this.data?.stage==='ready'&&
+        this.data.learner_version<=this.actions.state().learner.version;
+    }
     resetLesson(){
       clearTimeout(this.materialTimer);clearInterval(this.frameTimer);this.frameResize?.disconnect();
       this.materialTask=null;this.materialKey='';

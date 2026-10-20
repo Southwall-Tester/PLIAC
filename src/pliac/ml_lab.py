@@ -114,12 +114,12 @@ class MLLab(LearningWorkspace):
         elif task["id"] == "select":
             passed = (chosen is not None and {0, 1}.issubset(depths) and any(2 <= d <= 8 for d in depths)
                       and chosen["result"]["validation_accuracy"] >= max(r["result"]["validation_accuracy"] for r in group)
-                      and answer.get("basis") == "validation" and len(note.strip()) >= 12)
+                      and answer.get("basis") == "validation")
             refs = [r["evidence_id"] for r in group]
             if passed:
                 session["selected_id"] = chosen["id"]
         elif task["id"] == "deliver":
-            passed = answer.get("test_role") == "report" and len(note.strip()) >= 12
+            passed = answer.get("test_role") == "report"
             chosen = next(r for r in runs if r["id"] == session["selected_id"])
             refs = [chosen["evidence_id"]]
             if passed:
@@ -127,7 +127,9 @@ class MLLab(LearningWorkspace):
                                     "created_at": self.store._stamp()}
         context = {"task_id": "ml_lab_" + task["id"], "task_version": VERSION,
                    "skeleton_id": "ml_tree_lab", "skeleton_version": VERSION,
-                   "lab_session_id": session["id"], "experiment_evidence_ids": refs}
+                   "lab_session_id": session["id"], "experiment_evidence_ids": refs,
+                   "answer_mode": "structured_choices", "supplement": note,
+                   "assessment_rule": "ml-lab-choice-v2"}
         records = []
         activity = next((a for a in graph.get("activities", []) if a.get("engine") == "classification_lab"), {})
         bindings = activity.get("node_bindings", {})
@@ -142,7 +144,7 @@ class MLLab(LearningWorkspace):
         session["checks"].append({"id": uuid.uuid4().hex, "task_id": task["id"], "passed": bool(passed),
                                    "prompt_level": level, "evidence_ids": records, "experiment_evidence_ids": refs,
                                    "feedback": feedback, "note": note, "answer": copy.deepcopy(answer),
-                                   "rule_id": "ml-lab-contract-v1", "created_at": self.store._stamp()})
+                                   "rule_id": "ml-lab-choice-v2", "created_at": self.store._stamp()})
         if passed:
             session["step"] += 1
         else:
@@ -160,7 +162,7 @@ class MLLab(LearningWorkspace):
                 "sessions": view["lab"]["sessions"], "scripts": scripts,
                 "assessment": {"practice_complete": session["step"] == len(TASKS),
                                "assisted_tasks": [key for key, value in session["hints"].items() if value],
-                               "explanation_review": "pending_human_review"}}
+                               "explanation_review": "pending_human_review" if any(c.get("note") for c in session["checks"]) else "not_provided"}}
 
     def hints(self, result):
         active = result["active"]

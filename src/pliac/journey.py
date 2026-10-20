@@ -16,6 +16,7 @@ from starlette.concurrency import run_in_threadpool
 from learning_agent.course_graph import CourseGraphError, _dict, _list, _text, safe_id
 from learnmargin.provider import Provider, ProviderError
 from .margin import configured_api
+from .answer_options import bundle_for_request, node_choice_request, public_bundle, selected_response
 
 TASKS: dict[tuple[str, str, str], asyncio.Task] = {}
 RUNTIME_ID = uuid.uuid4().hex
@@ -62,6 +63,9 @@ SYSTEM = """你是 PLIAC 的课程学习规划老师。根据学习目标、已�
 根据具体作答判断需要补充的解释或可进入练习的内容，diagnosis 每条 quote 必须是对应学生作答的连续原文。
 不知道、空泛复述、求助不能判定已经掌握；正确解释可标 ready_to_practice，错误或推理缺环用 needs_support，
 证据不足用 unknown。这个评测用于教学安排，与正式掌握核验分开。
+response_mode 为 selection 的证据来自选择现成候选，是识别型作答；selection.option_text 不是学习者独立写出的解释，
+只有 free_text 才是自写补充。不要把选择正确选项描述为独立推导或掌握证明。
+answer_mode 为 support_request 的选择只是讲解需求，不能据此判定理解正确或错误，signal 必须为 unknown。
 标记 new 的知识点尚未学过，系统只核验 confident/unsure 的已有基础。
 当 assessment_mode 为 profile_only、baseline 为空时，只根据个人信息和自评规划路线，diagnosis 必须为 []；
 此时没有进行起点作答核验，不能编造核验结果或声称发现作答错误。
@@ -145,11 +149,26 @@ def questions(graph, profile, self_assessments=None):
         take([n for n in candidates if declared[n] == value])
     while candidates and len(chosen) < MAX_QUESTIONS:
         take(candidates)
-    return [{"node_id": ident, "title": nodes[ident]["title"],
-             "self_assessment": declared[ident],
-             "question": nodes[ident].get("check_question") or
-                         f"请用自己的话解释“{nodes[ident]['title']}”，并举一个例子；还没学过也可以直接说明。"}
+    return [{"node_id": ident, "title": nodes[ident]["title"], "self_assessment": declared[ident],
+             **public_bundle(bundle_for_request(node_choice_request(graph, nodes[ident])))}
             for ident in chosen]
+
+
+def option_requests(store, student):
+    graph = store.load_graph()
+    if not graph:
+        return []
+    learner = store.load_learner(student, graph)
+    active = _active(learner)
+    if active and active.get("course_version") == graph["version"] and active.get("stage") in ("planning", "failed", "ready"):
+        if (active.get("profile_signature") == signature(profile_data(learner))
+                and active.get("self_assessments") == self_assessments_data(learner)):
+            return []
+    if not learner.get("workspace", {}).get("onboarded"):
+        return []
+    selected = questions(graph, profile_data(learner), learner["workspace"].get("self_assessments"))
+    requests = [node_choice_request(graph, store._node(graph, q["node_id"])) for q in selected]
+    return [request for request in requests if not request["existing_options"]]
 
 
 def _active(learner):
@@ -184,7 +203,9 @@ def view(store, student):
         progress = {"phase": phase, "label": PHASE_LABELS.get(phase, PHASE_LABELS["preparing"]),
                     "started_at": saved_progress.get("started_at", current.get("created_at")),
                     "updated_at": saved_progress.get("updated_at", current.get("completed_at", current.get("created_at")))}
-    return {"stage": stage, "questions": questions(graph, profile, learner.get("workspace", {}).get("self_assessments")) if graph else [],
+    prompts = (copy.deepcopy(current["questions"]) if current and stage in ("planning", "ready", "failed")
+               else questions(graph, profile, learner.get("workspace", {}).get("self_assessments")) if graph else [])
+    return {"stage": stage, "questions": prompts,
             "route": route, "error": error, "course_version": graph["version"] if graph else None,
             "learner_version": learner["version"], "assessment_id": current["id"] if current else None,
             "progress": progress,
@@ -197,7 +218,7 @@ def _start(store, payload):
 
     def apply(graph, learner, workspace):
         if not workspace["onboarded"]:
-            raise CourseGraphError("请先填写学习目标和已有基础。", 409)
+            raise CourseGraphError("请先完成这门课程的学习起点选择。", 409)
         assessments = workspace.get("self_assessments", {})
         if any(not isinstance(assessments.get(node["id"]), dict)
                or assessments[node["id"]].get("value") not in ("new", "unsure", "confident")
@@ -209,7 +230,11 @@ def _start(store, payload):
         if old and old["stage"] == "planning" and old.get("runtime_id") == RUNTIME_ID:
             raise CourseGraphError("正在分析起点评测，请稍候。", 409)
         profile = profile_data(learner)
-        prompts = questions(graph, profile, workspace.get("self_assessments"))
+        same_snapshot = (old and old.get("course_version") == graph["version"]
+                         and old.get("profile_signature") == signature(profile)
+                         and old.get("self_assessments") == self_assessments_data(learner))
+        prompts = (copy.deepcopy(old["questions"]) if same_snapshot else
+                   questions(graph, profile, workspace.get("self_assessments")))
         expected = {q["node_id"] for q in prompts}
         answers = _list(payload.get("answers"), "起点评测作答", MAX_QUESTIONS)
         clean, seen = [], set()
@@ -218,7 +243,9 @@ def _start(store, payload):
             ident = safe_id(answer.get("node_id"), "知识点编号")
             if ident not in expected or ident in seen:
                 raise CourseGraphError("请回答本次起点评测中的知识点，每题提交一次。")
-            clean.append({"node_id": ident, "text": _text(answer.get("text"), "起点评测作答", 2000)})
+            question = next(item for item in prompts if item["node_id"] == ident)
+            clean.append({"node_id": ident, **selected_response(
+                question, answer, allow_legacy_text=question.get("option_origin") != "authored")})
             seen.add(ident)
         if seen != expected:
             raise CourseGraphError("请完成本次已有基础核验题，再安排学习路线。")
@@ -282,7 +309,11 @@ def build_route(graph, learner, current, reply=None):
                     or item.quote not in evidence[item.node_id]["text"]):
                 raise CourseGraphError("模型评测与原始作答的引用不一致，请重试。", 502)
             diagnosed.add(item.node_id)
-            diagnoses.append({**item.model_dump(), "evidence_id": evidence[item.node_id]["id"],
+            diagnosis = item.model_dump()
+            if evidence[item.node_id].get("selection", {}).get("answer_mode") == "support_request":
+                diagnosis["signal"] = "unknown"
+                diagnosis["reason"] = "这次选择记录了讲解需求，接下来用实际练习了解理解情况。"
+            diagnoses.append({**diagnosis, "evidence_id": evidence[item.node_id]["id"],
                               "origin": "model_diagnosis"})
     else:
         diagnoses = [{"node_id": n, "quote": e["text"], "signal": "unknown",

@@ -38,7 +38,7 @@ def main():
                 page.locator("#studentId").fill("synthetic-course-acceptance")
                 page.locator("#identityForm button[type=submit]").click()
                 expect(page.locator("#notice")).to_be_hidden()
-                page.locator("#goals").fill("Synthetic: complete the acceptance course")
+                expect(page.locator("#goals")).to_have_count(0)
                 page.locator("#onboardForm button[type=submit]").click()
                 expect(page.locator("#onboarding")).not_to_be_visible()
                 complete_baseline(page)

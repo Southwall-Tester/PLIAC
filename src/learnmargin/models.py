@@ -118,6 +118,24 @@ class LessonPlan(Model):
 PromptPlacement = Literal["before_explanation", "after_explanation", "before_example", "after_example",
                           "before_practice", "after_practice"]
 
+class AnswerOption(Model):
+    id: str = Field(pattern=r"^[A-D]$")
+    text: str = Field(min_length=1, max_length=1000)
+
+class SidebarAnswerOption(AnswerOption):
+    text: str = Field(min_length=1, max_length=120,
+                     description="侧栏选项保持简短，直接表达一个结论或推理，完整解释放到answer。")
+
+def validate_options(options, answer_key):
+    if not options and not answer_key:
+        return
+    ids = [option.id for option in options]
+    texts = [option.text.strip() for option in options]
+    if len(options) < 3 or len(set(ids)) != len(ids) or len(set(texts)) != len(texts) or not all(texts):
+        raise PydanticCustomError("answer_options_invalid", "答案选项须包含3至4个不同的具体答案，编号唯一。")
+    if answer_key not in ids:
+        raise PydanticCustomError("answer_options_invalid", "正确答案编号必须属于选项。")
+
 
 class StudyPrompt(Model):
     id: str
@@ -134,22 +152,30 @@ class StudyPrompt(Model):
     check: str = Field(description="知识题的核对要点随答案后置；流程指导只写需要的后续操作或核对入口，"
         "可留空，不把行动记录当成知识测验。")
     answer: str | None = None
+    options: list[AnswerOption] = Field(default_factory=list, max_length=4)
+    answer_key: str = ""
 
     @model_validator(mode="after")
     def question_has_answer(self):
         if self.kind == "question" and (self.answer is None or not self.answer.strip()):
             raise PydanticCustomError("question_answer_required", "需要作答的侧栏提示必须提供参考答案。")
+        validate_options(self.options, self.answer_key)
         return self
 
 
 class GeneratedStudyPrompt(StudyPrompt):
     placement: PromptPlacement = Field(description="卡片实际位置，与when及当前学习动作一致。"
         "before/after_practice针对本节整组练习，没有练习时不可选。")
+    options: list[SidebarAnswerOption] = Field(default_factory=list, max_length=4)
 
     @model_validator(mode="after")
     def action_has_no_knowledge_answer(self):
         if self.kind == "action" and self.answer is not None:
             raise PydanticCustomError("action_answer_not_allowed", "流程指导不另设知识答案；新知识问题请用question。")
+        if self.kind == "question" and len(self.options) < 3:
+            raise PydanticCustomError("answer_options_invalid", "知识题须给出3至4个具体答案选项，文字解释可选。")
+        if self.kind == "action" and self.options:
+            raise PydanticCustomError("answer_options_invalid", "流程指导无需答案选项。")
         return self
 
 
@@ -158,6 +184,19 @@ class Practice(Model):
     prompt: str
     hint: str
     answer: str
+    options: list[AnswerOption] = Field(default_factory=list, max_length=4)
+    answer_key: str = ""
+
+    @model_validator(mode="after")
+    def valid_options(self):
+        validate_options(self.options, self.answer_key)
+        return self
+
+
+class GeneratedPractice(Practice):
+    options: list[AnswerOption] = Field(min_length=3, max_length=4,
+        description="三个或四个直接回答题干的具体答案，含一个正确答案和合理的常见误解；不要用我会了等自评选项。")
+    answer_key: str = Field(pattern=r"^[A-D]$")
 
 
 class Pause(Model):
@@ -223,6 +262,7 @@ class GeneratedLessonSection(LessonSection):
     """New generation requires explicit author checks; saved lessons remain compatible."""
 
     study_load: StudyLoad
+    practice: list[GeneratedPractice] = Field(default_factory=list, max_length=2)
     study_prompts: list[GeneratedStudyPrompt] = Field(default_factory=list, max_length=2)
     unresolved_prerequisites: list[str] = Field(max_length=8,
         description="仍缺乏依据、导致无法理解本节或验证论证的必要定义或结论；没有则必须返回空数组。"

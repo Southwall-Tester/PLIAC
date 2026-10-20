@@ -30,6 +30,7 @@ def main():
                 page.locator("#identityForm button").click()
                 expect(page.locator("#setup")).to_be_visible()
                 page.locator("#scene").select_option("space")
+                page.locator("#labPreferences > summary").click()
                 page.locator("#goal").fill("通过实际训练比较模型，理解数据划分与泛化表现。")
                 page.locator("#startForm button").click()
                 expect(page.locator("#sceneTitle")).to_have_text("轨道站 · 设备预警")
@@ -86,14 +87,15 @@ def main():
                 best = max(valid, key=lambda r: r["result"]["validation_accuracy"])
                 page.locator("#chosenRun").select_option(best["id"])
                 page.locator("#basis").select_option("validation")
-                page.locator("#note").fill("比较三种深度在同一份验证集上的表现，选择验证准确率最高的模型。")
+                assert not page.locator("#note").evaluate("element => element.required")
+                expect(page.locator("#note")).to_have_value("")
                 page.screenshot(path=str(OUTPUT / "ml-lab-desktop.png"), full_page=True)
                 page.locator("#checkButton").click()
                 expect(page.locator("#progress")).to_have_text("4 / 5")
                 expect(page.locator("#runButton")).to_be_disabled()
                 passed("Real experiments expose overlap, compare depth and freeze the selected model before test")
                 page.locator("#testRole").select_option("report")
-                page.locator("#note").fill("测试集用于报告封存模型对新数据的表现，后续模型选择需要另备测试数据。")
+                expect(page.locator("#note")).to_have_value("")
                 page.locator("#checkButton").click()
                 expect(page.locator("#progress")).to_have_text("5 / 5")
                 expect(page.locator("#report")).to_contain_text("测试准确率")
@@ -103,6 +105,8 @@ def main():
                 assert exported["assessment"]["practice_complete"]
                 assert len(exported["scripts"]) == 4
                 assert exported["sessions"][0]["final"]["run_id"] == best["id"]
+                assert exported["assessment"]["explanation_review"] == "not_provided"
+                assert all(not check["note"] for check in exported["sessions"][0]["checks"])
                 passed("Report exports real metrics, evidence references, hints and reproducible Python scripts")
                 page.set_viewport_size({"width": 390, "height": 844})
                 page.locator("#themeButton").click()
@@ -123,7 +127,11 @@ def main():
                 expect(page.locator("#studentId")).to_have_value("synthetic-ml-ui")
                 page.locator("#identityForm button[type=submit]").click()
                 page.locator("#journeyTab").click()
-                expect(page.locator("#goals")).to_have_value("通过实际训练比较模型，理解数据划分与泛化表现。")
+                expect(page.locator("#goals")).to_have_count(0)
+                saved = page.request.get(base + "/api/learning", params={
+                    "student_id": "synthetic-ml-ui",
+                    "course_id": page.evaluate("new URL(location.href).searchParams.get('course_id')")}).json()
+                assert saved["learner"]["profile"]["goals"] == "通过实际训练比较模型，理解数据划分与泛化表现。"
                 page.locator("#onboardForm button[type=submit]").click()
                 complete_baseline(page)
                 page.locator('[data-node="roles"]').click()

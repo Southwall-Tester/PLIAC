@@ -7,12 +7,16 @@ from learning_agent.api import ChineseRoute, _body, resolve_course_store
 from learning_agent.course_graph import CourseGraphError, _dict, _list, _text
 from .workspace import LearningWorkspace
 from . import journey
+from .choice_generation import prepare_choice_requests
+from learnmargin.provider import ProviderError
 
 router = APIRouter(prefix="/api/learning", tags=["学习工作台"], route_class=ChineseRoute)
 
 
 @router.get("")
-def workspace(student_id: str, course_store=Depends(resolve_course_store)):
+async def workspace(student_id: str, course_store=Depends(resolve_course_store)):
+    requests = await run_in_threadpool(LearningWorkspace(course_store).option_requests, student_id, current=True)
+    await prepare_options(course_store, requests)
     return LearningWorkspace(course_store).view(student_id)
 
 
@@ -22,13 +26,32 @@ def teacher(student_id: str, course_store=Depends(resolve_course_store)):
 
 
 @router.get("/journey")
-def journey_view(student_id: str, course_store=Depends(resolve_course_store)):
+async def journey_view(student_id: str, course_store=Depends(resolve_course_store)):
+    requests = await run_in_threadpool(journey.option_requests, course_store, student_id)
+    await prepare_options(course_store, requests)
     return journey.view(course_store, student_id)
+
+
+async def prepare_options(store, requests):
+    requests = [value for value in requests if value.get("reference_answer") or value.get("context")]
+    if not requests:
+        return
+    try:
+        await prepare_choice_requests(requests, store.output_dir / "answer_options")
+    except CourseGraphError as exc:
+        if str(exc) == "课程模型尚未配置。":
+            return
+        raise
+    except ProviderError as exc:
+        raise CourseGraphError("题目选项暂未准备好，请重试。", 503) from exc
 
 
 @router.post("/journey/assessment")
 async def journey_assessment(request: Request, course_store=Depends(resolve_course_store)):
-    return await journey.submit(course_store, _dict(await _body(request), "起点评测"))
+    body = _dict(await _body(request), "起点评测")
+    requests = await run_in_threadpool(journey.option_requests, course_store, body.get("student_id"))
+    await prepare_options(course_store, requests)
+    return await journey.submit(course_store, body)
 
 
 @router.post("/teacher/chapter-policy")
@@ -76,5 +99,9 @@ async def mutate(operation: str, request: Request, course_store=Depends(resolve_
     if operation not in {"onboard", "next", "draft", "hint", "answer", "ask", "annotate", "resource", "report", "study", "card", "mixed", "rest"}:
         raise CourseGraphError("不支持的学习操作。", 404)
     body = _dict(await _body(request), "学习请求")
+    if operation == "next":
+        requests = await run_in_threadpool(LearningWorkspace(course_store).option_requests,
+                                          body.get("student_id"), body.get("node_id"))
+        await prepare_options(course_store, requests)
     method = "next_lesson" if operation == "next" else operation
     return await run_in_threadpool(getattr(LearningWorkspace(course_store), method), body)

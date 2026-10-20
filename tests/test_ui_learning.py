@@ -15,6 +15,14 @@ ROOT = Path(__file__).resolve().parents[1]
 OUTPUT = ROOT / "outputs" / "verification"
 
 
+def optional_text(page, selector, value):
+    field = page.locator(selector)
+    details = field.locator("xpath=ancestor::details[1]")
+    if details.count() and details.get_attribute("open") is None:
+        details.locator("summary").first.click()
+    field.fill(value)
+
+
 def main():
     OUTPUT.mkdir(parents=True, exist_ok=True)
     report = {"synthetic_only": True, "persistent_course_store_used": False, "checks": [], "page_errors": [], "screenshots": []}
@@ -36,8 +44,12 @@ def main():
                  "同时观察训练与验证表现，区分模型能力不足和对训练数据过度适应。"]):
                 node.update(title=title, description=description)
             graph["nodes"][0]["check_question"] = "用设备温度和振动预测是否故障时，哪些是特征，哪个是标签？请说明理由。"
+            graph["nodes"][0]["expected_answer"] = "温度和振动是预测时可取得的特征，是否故障是希望预测的类别标签。"
             graph["nodes"][0]["check_task"]["hint_levels"] = ["先检查输入与预测目标的区分。", "预测时能获得哪些信息？", "把输入与事后结果分开。", "列出预测时可用的观测值。"]
             graph["nodes"][1]["check_question"] = "为什么不能根据测试集表现反复选择模型？请说明验证集的作用。"
+            graph["nodes"][1]["expected_answer"] = "验证集用于比较候选设置；测试集保留到最后独立评估，反复按测试表现选模型会引入测试信息。"
+            for node in graph["nodes"][2:]:
+                node["expected_answer"] = node["description"]
             seed = directory / "seed.json"
             seed.write_text(json.dumps(graph, ensure_ascii=False), encoding="utf-8")
             with isolated_application(directory) as (base, store, _documents), algorithmic_journey():
@@ -56,9 +68,9 @@ def main():
                     expect(page.locator('#courseLabs')).to_have_attribute('data-ready','true')
                     expect(page.locator('#courseLabs')).to_be_hidden()
                     expect(page.locator('#courseLabList a')).to_have_count(0)
-                    page.locator('#goals').fill('能独立解释数据划分的作用，并应用于分类任务。')
-                    page.locator('#background').fill('了解基础 Python，正在学习机器学习。')
-                    page.locator('#interests').fill('科幻，音乐')
+                    expect(page.locator('#goals')).to_have_count(0)
+                    optional_text(page, '#background', '了解基础 Python，正在学习机器学习。')
+                    optional_text(page, '#interests', '科幻，音乐')
                     mark_known(page, "a", "confident")
                     page.locator('#onboardForm button[type=submit]').click()
                     expect(page.locator('#onboarding')).not_to_be_visible()
@@ -67,7 +79,8 @@ def main():
                     assert store.load_learner('synthetic-ui')['states']['a']['status'] == 'uncertain'
                     passed('Initial profile and self-assessment do not manufacture mastery; first lesson uses course content')
 
-                    page.locator('#answerText').fill('温度和振动是输入，是否故障是希望预测的结果。草稿尚未完成。')
+                    page.locator('#answerChoices label').filter(has_text='温度和振动是预测时可取得的特征').get_by_role('radio').check()
+                    optional_text(page, '#answerText', '温度和振动是输入，是否故障是希望预测的结果。草稿尚未完成。')
                     expect(page.locator('#saveStatus')).to_have_text('已保存到本机')
                     page.reload()
                     page.locator('#identityForm button[type=submit]').click()
@@ -76,18 +89,18 @@ def main():
 
                     page.locator('#hintButton').click()
                     expect(page.locator('#promptBadge')).to_have_text('已使用 1 级提示')
-                    page.locator('#answerText').fill('温度和振动属于预测时可取得的特征，是否故障属于类别标签。')
+                    optional_text(page, '#answerText', '温度和振动属于预测时可取得的特征，是否故障属于类别标签。')
                     page.locator('#answerConfidence').select_option('sure')
                     page.locator('#answerForm button[type=submit]').click()
                     expect(page.locator('#responses')).to_contain_text('作答已保存')
                     expect(page.locator('#answerText')).to_have_value('')
                     page.locator('[data-paragraph="concept"]').click()
-                    page.locator('#annotationQuestion').fill('预测之后才取得的信息为什么不能作为特征？')
+                    page.locator('[name="annotationCategory"][value="concept"]').check()
                     page.locator('#annotationForm button[type=submit]').click()
                     expect(page.locator('#annotationDialog')).not_to_be_visible()
-                    expect(page.locator('#lessonContent')).to_contain_text('已记录 1 处困惑')
+                    expect(page.locator('#lessonContent')).to_contain_text('已记录 1 处提问')
                     assert store.load_learner('synthetic-ui')['evidence'][-2]['prompt_level'] == 1
-                    passed('Hints, learner answers and paragraph annotations persist with separate provenance')
+                    passed('Hints, choice answers, optional explanations and click-only paragraph annotations retain separate provenance')
                     page.screenshot(path=str(OUTPUT / 'learning-workspace-desktop.png'), full_page=True)
                     report['screenshots'].append('learning-workspace-desktop.png')
 
@@ -115,7 +128,8 @@ def main():
                     page.locator('[data-node="b"]').click()
                     expect(page.locator('#questionText')).to_contain_text('测试集')
                     page.locator('#recallToggle').click()
-                    page.locator('#answerText').fill('验证集用于选择设置，测试集只在最终评估时使用，否则会把测试信息带入模型选择。')
+                    page.locator('#answerChoices label').filter(has_text='验证集用于比较候选设置').get_by_role('radio').check()
+                    optional_text(page, '#answerText', '验证集用于选择设置，测试集只在最终评估时使用，否则会把测试信息带入模型选择。')
                     page.locator('#answerConfidence').select_option('sure')
                     page.locator('#answerForm button[type=submit]').click()
                     expect(page.locator('#responses')).to_contain_text('作答已保存')

@@ -14,8 +14,11 @@ from learning_agent.course_graph import (
 from learning_agent.recommendation import recommend_resources
 from .study import StudyActivities, study_view, confidence
 from .rhythm import course_rhythm
+from .answer_options import bundle_for_request, node_choice_request, public_bundle, selected_response
 
 SELF_LABELS = {"new": "尚未学过", "unsure": "学过但不确定", "confident": "能够独立解释和应用"}
+ANNOTATION_LABELS = {"concept": "概念含义没弄清", "steps": "步骤推导没跟上",
+                     "example": "例子没看明白", "another_example": "想看另一个例子"}
 
 
 def empty_workspace():
@@ -35,6 +38,8 @@ class LearningWorkspace(StudyActivities):
         workspace.pop("receipts", None)
         workspace.pop("exposures", None)
         current = next((x for x in workspace["lessons"] if x["id"] == workspace["current_lesson_id"]), None)
+        if current and graph and current["course_version"] == graph["version"]:
+            self._ensure_options(graph, current)
         return {"course": student_graph(graph), "publication": self.store.publication(),
                 "capabilities": {"edit": self.store.content_editable, "objective_assessment": bool(self.store.assessment)},
                 "concept_map": self.store.concept_map() if hasattr(self.store, "concept_map") else None,
@@ -90,7 +95,8 @@ class LearningWorkspace(StudyActivities):
     def onboard(self, payload):
         def apply(graph, learner, workspace):
             for name, label in (("goals", "学习目标"), ("background", "学习背景")):
-                learner["profile"][name] = _text(payload.get(name, ""), label, 2000, False)
+                if name in payload:
+                    learner["profile"][name] = _text(payload[name], label, 2000, False)
             learner["profile"]["interests"] = [_text(x, "兴趣", 100) for x in _list(payload.get("interests", []), "兴趣", 30)]
             assessments = _dict(payload.get("self_assessments", {}), "三档自评")
             if len(assessments) > 500:
@@ -142,7 +148,7 @@ class LearningWorkspace(StudyActivities):
     def next_lesson(self, payload):
         def apply(graph, learner, workspace):
             if not workspace["onboarded"]:
-                raise CourseGraphError("请先保存学习目标与起点自评。", 409)
+                raise CourseGraphError("请先保存这门课程的学习起点选择。", 409)
             requested = payload.get("node_id") or self._choose_node(graph, learner, workspace)
             if not requested:
                 raise CourseGraphError("所有节点当前均有掌握证据，可查看章节报告或选择节点复习。", 409)
@@ -151,6 +157,7 @@ class LearningWorkspace(StudyActivities):
             state = learner["states"][node["id"]]
             task = self.store.choose_task(node, workspace)
             question = task.get("question", node.get("check_question")) if task else node.get("check_question")
+            question = question or node_choice_request(graph, node, task)["prompt"]
             # Re-labeling a seen question with a new version cannot erase assistance.
             task_key = hashlib.sha256(json.dumps([node["id"], question], ensure_ascii=False).encode()).hexdigest()
             level = workspace["exposures"].get(task_key, 0)
@@ -192,8 +199,7 @@ class LearningWorkspace(StudyActivities):
                                    "support_viewed": False}
             if node.get("lesson_content"):
                 lesson["paragraphs"] = copy.deepcopy(node["lesson_content"])
-            if task and task.get("options"):
-                lesson["options"] = copy.deepcopy(task["options"])
+            self._ensure_options(graph, lesson)
             lesson["sources"] = [{**copy.deepcopy(source), "url": source.get("url") or "/course-reader?course_id=" + graph["id"]}
                                  for source in graph.get("sources", []) if source["id"] in node.get("source_ids", [])]
             workspace["lessons"].append(lesson)
@@ -210,7 +216,41 @@ class LearningWorkspace(StudyActivities):
             raise CourseGraphError("学习小节已切换，请重新载入。", 409)
         if lesson["course_version"] != graph["version"]:
             raise CourseGraphError("这个小节属于旧课程版本，请生成新小节后继续。", 409)
+        self._ensure_options(graph, lesson)
         return lesson
+
+    def _ensure_options(self, graph, lesson):
+        """Freeze new lessons; deterministically adapt pre-choice saved lessons."""
+        if lesson.get("option_set_id"):
+            return
+        node = self.store._node(graph, lesson["node_id"])
+        task = self.store.lesson_task(node, lesson) if lesson.get("task") else {}
+        task = task or {}
+        if lesson.get("options"):
+            task = {**task, "options": lesson["options"]}
+        bundle = bundle_for_request(node_choice_request(graph, node, task, lesson["question"]))
+        lesson.update(public_bundle(bundle))
+
+    def option_requests(self, student, node_id=None, *, current=False):
+        graph = self.store.load_graph()
+        if not graph:
+            return []
+        learner = self.store.load_learner(student, graph)
+        workspace = learner.get("workspace", empty_workspace())
+        if current:
+            lesson = next((x for x in workspace["lessons"] if x["id"] == workspace["current_lesson_id"]), None)
+            if not lesson or lesson.get("option_set_id") or lesson["course_version"] != graph["version"]:
+                return []
+            node = self.store._node(graph, lesson["node_id"])
+            task = self.store.lesson_task(node, lesson) if lesson.get("task") else None
+            request = node_choice_request(graph, node, task, lesson["question"])
+        else:
+            selected = node_id or self._choose_node(graph, learner, workspace)
+            if not selected:
+                return []
+            node = self.store._node(graph, selected)
+            request = node_choice_request(graph, node, self.store.choose_task(node, workspace))
+        return [] if request["existing_options"] else [request]
 
     def draft(self, payload):
         def apply(graph, learner, workspace):
@@ -261,22 +301,23 @@ class LearningWorkspace(StudyActivities):
             context = {"turn_id": len(lesson["responses"]) + 1}
             if lesson.get("study"):
                 context["study"] = copy.deepcopy(lesson["study"])
-                context["confidence"] = confidence(payload.get("confidence"))
+                context["confidence"] = confidence(payload["confidence"]) if payload.get("confidence") else "unspecified"
             if task:
                 context.update(task_id=task["id"], task_version=task["version"])
             text = payload.get("text")
             if lesson.get("options"):
                 if lesson["status"] == "assessed":
                     raise CourseGraphError("本小节已提交，请安排新的复测小节；原始作答已保留。", 409)
-                choice = self._choice(lesson, payload)
-                option = next(o for o in lesson["options"] if o["id"] == choice)
-                reasoning = _text(payload.get("text", ""), "作答思路", 3500, False)
-                text = f"{choice}. {option['text']}" + (f"\n我的思路：{reasoning}" if reasoning else "")
+                response = selected_response(lesson, payload, max_text=3500,
+                                             allow_legacy_text=lesson.get("option_origin") != "authored")
+                text = response.pop("text")
+                context.update(response)
             record = self._evidence(graph, learner, node, text, "quiz" if task else "dialog", level, context)
             lesson["responses"].append({"evidence_id": record["id"], "text": record["text"], "prompt_level": level, "created_at": record["created_at"], "context": copy.deepcopy(context)})
             lesson["status"] = "awaiting_review"
             if self.store.assessment and lesson.get("options"):
-                lesson["responses"][-1]["judgement"] = self.store.assessment.grade(graph, learner, workspace, lesson, node, record, choice)
+                lesson["responses"][-1]["judgement"] = self.store.assessment.grade(
+                    graph, learner, workspace, lesson, node, record, context["choice_id"])
             workspace["drafts"].pop(lesson["id"], None)
             self._event(workspace, "answer", lesson_id=lesson["id"], evidence_id=record["id"], prompt_level=level)
         return self._mutate(payload, "answer", apply)
@@ -288,10 +329,19 @@ class LearningWorkspace(StudyActivities):
             quote = _text(payload.get("quote"), "标记原文", 3000)
             if not paragraph or quote not in paragraph["text"]:
                 raise CourseGraphError("标记必须逐字对应当前小节的段落。")
-            question = _text(payload.get("question"), "困惑说明", 800)
+            question = _text(payload.get("question", ""), "困惑说明", 800, False)
+            category = payload.get("category", "")
+            if not isinstance(category, str) or (category and category not in ANNOTATION_LABELS):
+                raise CourseGraphError("请选择当前提供的困惑类型。")
+            if not category and not question:
+                raise CourseGraphError("请选择困惑类型，或补充你的问题。")
+            label = ANNOTATION_LABELS.get(category, "")
+            context = {"category": category, "category_label": label, "free_text": question}
+            text = f"原文：{quote}" + (f"\n所选困惑：{label}" if label else "") + (f"\n补充问题：{question}" if question else "")
             record = self._evidence(graph, learner, self.store._node(graph, lesson["node_id"]),
-                                    f"原文：{quote}\n我的问题：{question}", "annotation")
-            lesson["annotations"].append({"paragraph_id": paragraph["id"], "quote": quote, "question": question, "evidence_id": record["id"]})
+                                    text, "annotation", context=context)
+            lesson["annotations"].append({"paragraph_id": paragraph["id"], "quote": quote, "question": question,
+                                          **context, "evidence_id": record["id"]})
             self._event(workspace, "annotation", lesson_id=lesson["id"], evidence_id=record["id"])
         return self._mutate(payload, "annotate", apply)
 

@@ -76,7 +76,7 @@
         if(s.step===2) fields+=select('interpretation','训练表现高、验证表现下降说明什么',[['gap','模型对新样本的泛化表现较弱'],['perfect','训练分数高说明已可靠掌握全部规律'],['more_test','应反复查看测试集调参']]);
         if(s.step===3) fields+=select('basis','选择方案的主要依据',[['validation','验证集表现'],['train','训练集表现'],['test','测试集表现']]);
         if(s.step===4) fields=select('testRole','测试结果的用途',[['report','报告已封存方案的泛化表现'],['tune','反复调整参数直到测试分数最高']]);
-        $('answerFields').innerHTML=fields; $('noteLabel').hidden=s.step<3; $('note').required=s.step>=3;
+        $('answerFields').innerHTML=fields; $('noteLabel').hidden=s.step<3; $('noteLabel').open=false; $('note').required=false;
         $('checkButton').textContent=s.step===4?'封存方案并完成测试':'检查本步成果';
       }
       if($('chosenRun')){ $('chosenRun').innerHTML='<option value="">请选择实验</option>'+s.runs.map(r=>`<option value="${r.id}">#${r.number} · 深度 ${r.config.depth||'自由'} · 验证 ${pct(r.result.validation_accuracy)}</option>`).join(''); if(s.runs.some(r=>r.id===oldRun)) $('chosenRun').value=oldRun; }
@@ -99,7 +99,7 @@
     $('reportPanel').hidden=s.step<state.tasks.length;
     if(s.final){
       const assisted=Object.keys(s.hints).filter(k=>s.hints[k]);
-      $('report').innerHTML=`<p>本轮 5 项实操验收完成，共运行 ${s.runs.length} 次实验。</p><div class="metrics"><div class="metric"><span>封存实验</span><strong>#${s.runs.find(r=>r.id===s.selected_id).number}</strong></div><div class="metric"><span>测试准确率</span><strong>${pct(s.final.result.test_accuracy)}</strong></div><div class="metric"><span>提示使用</span><strong>${assisted.length} 项</strong></div></div><p>${assisted.length?'下一步：换一批数据，独立完成曾借助提示的任务。':'下一步：换一批数据，验证这套方法能否迁移。'} 文字解释已保存，可在教师复核中查看。</p>${s.checks.filter(c=>c.passed).map(c=>`<details><summary>${esc(state.tasks.find(t=>t.id===c.task_id).title)} · 查看证据</summary><p>${esc(c.note||c.feedback)}</p><p class="muted">作答证据：${c.evidence_ids.map(esc).join('、')}<br>实验依据：${c.experiment_evidence_ids.map(esc).join('、')}</p></details>`).join('')}`;
+      $('report').innerHTML=`<p>本轮 5 项实操验收完成，共运行 ${s.runs.length} 次实验。</p><div class="metrics"><div class="metric"><span>封存实验</span><strong>#${s.runs.find(r=>r.id===s.selected_id).number}</strong></div><div class="metric"><span>测试准确率</span><strong>${pct(s.final.result.test_accuracy)}</strong></div><div class="metric"><span>提示使用</span><strong>${assisted.length} 项</strong></div></div><p>${assisted.length?'下一步：换一批数据，独立完成曾借助提示的任务。':'下一步：换一批数据，验证这套方法能否迁移。'} ${s.checks.some(c=>c.note)?'补充说明已保存。':''}</p>${s.checks.filter(c=>c.passed).map(c=>`<details><summary>${esc(state.tasks.find(t=>t.id===c.task_id).title)} · 查看记录</summary><p>${esc(c.note||c.feedback)}</p></details>`).join('')}`;
     }
     lockControls();
   }

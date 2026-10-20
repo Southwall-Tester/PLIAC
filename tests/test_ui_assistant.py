@@ -28,7 +28,10 @@ def main():
         if "先给结论" in text:
             updates=[dict(category="preference",slot="detail",value="先给结论，再举例",quote="先给结论",basis="explicit")]
         return reply("**先看结论**：这是合成模型的浏览器验收回答。\n\n- 第一步理解概念\n- 第二步换一个例子\n\n```bash\npwd\n```",
-                     profile_updates=updates)
+                     profile_updates=updates,
+                     memory_note=dict(domain="learning", subject="讲解方式",
+                                      summary="本轮学习希望先给结论，再给例子。",
+                                      quote="请先给结论，再举例讲解。") if updates else None)
     with tempfile.TemporaryDirectory() as temp, patch.object(assistant,"configured_api",return_value=CONFIG), \
          patch.object(assistant.ChatProvider,"chat",side_effect=model), \
          isolated_application(Path(temp)) as (base,store,_), sync_playwright() as p:
@@ -49,7 +52,7 @@ def main():
         panel.locator("#input").fill("暂存草稿")
         page.reload()
         expect(panel.locator("#input")).to_have_value("暂存草稿")
-        panel.locator("#profileButton").click()
+        panel.locator("#assistantMemoryButton").click()
         expect(panel.locator(".profile-item")).to_contain_text("先给结论，再举例")
         panel.locator("[data-edit]").click()
         panel.locator(".profile-item textarea").fill("用步骤和短例子解释")
@@ -77,7 +80,7 @@ def main():
         expect(panel.locator("#input")).to_be_visible()
         assert page.evaluate("document.documentElement.scrollWidth <= innerWidth + 1")
         page.screenshot(path=str(output/"chat-mobile.png"))
-        panel.locator("#profileButton").click()
+        panel.locator("#assistantMemoryButton").click()
         panel.locator("[data-delete]").click()
         expect(panel.locator(".empty-profile")).to_be_visible()
         panel.locator("#backChat").click()

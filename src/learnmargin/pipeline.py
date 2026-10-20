@@ -157,6 +157,14 @@ Markdown 表格内公式的竖线使用 LaTeX 命令（如条件概率用 mid �
 
 
 BASE_SYSTEM += "面向学生的正文与侧栏必须使用自然语言名称，如正文讲解、完整例题、练习；不得暴露 explanation、worked_example、study_prompts 等内部字段名。"
+BASE_SYSTEM += (
+    "每道practice和kind=question的侧栏题均提供3至4个直接回答题干的options，编号A、B、C、D，"
+    "answer_key指向唯一正确答案，answer保留完整解析。选项写具体结论、计算结果、命令或原因，"
+    "干扰项来自该题的真实易错点；不得写我会了、我不确定等自我评价，也不要要求必须再输入文字。"
+    "解释、证明和计算题可改成选择正确推理或找出错误步骤，保留关键条件与推理，补充说明可选。"
+    "正确答案不要总是A，不在题干或选项标签中提前标注正确。侧栏每个选项不超过120字，完整推导放到后置answer。"
+    "kind=action的流程卡options为空、answer_key为空。"
+)
 
 
 def validate_material(units, store: Store, vision: bool):

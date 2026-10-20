@@ -9,7 +9,7 @@ import tempfile
 import threading
 import time
 import unittest
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 import uuid
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
@@ -20,6 +20,7 @@ from learning_agent import course_graph
 from learning_agent.course_graph import CourseGraphError, CourseGraphStore
 from learnmargin.models import APIConfig
 from pliac import journey
+from pliac import api as workspace_api
 from pliac.api import router
 from pliac.workspace import LearningWorkspace
 from test_learning_workspace import platform_fixture, publish_synthetic
@@ -55,6 +56,7 @@ class JourneyTests(unittest.TestCase):
         publish_synthetic(self.store)
         self.workspace = LearningWorkspace(self.store)
         self.enterContext(patch.object(api, "store", self.store))
+        self.enterContext(patch.object(workspace_api, "prepare_choice_requests", new_callable=AsyncMock, return_value={}))
         self.config = self.enterContext(patch.object(journey, "configured_api", return_value=CONFIG))
         self.model = self.enterContext(patch.object(journey.JourneyProvider, "plan", return_value=result()))
         app = FastAPI(lifespan=lifespan)
@@ -100,6 +102,60 @@ class JourneyTests(unittest.TestCase):
         self.assertLessEqual(len(view["questions"]), 3)
         self.assertIsNone(view["progress"])
         self.assertNotIn("TEACHER_ONLY", json.dumps(view))
+        self.assertNotIn("answer_key", json.dumps(view))
+
+    def test_selected_baseline_keeps_recognition_snapshot_and_empty_supplement(self):
+        before = self.store.load_learner("s1")
+        prompts = self.view()["questions"]
+        self.model.return_value = result(quote=prompts[0]["options"][0]["text"])
+        payload = self.payload(answers=[{"node_id": q["node_id"], "choice_id": q["options"][0]["id"],
+                                        "option_set_id": q["option_set_id"], "text": ""} for q in prompts])
+        self.assertEqual(self.submit(payload=payload).status_code, 200)
+        planned = self.wait()
+        self.assertEqual(planned["stage"], "ready", planned.get("error"))
+        self.assertEqual(planned["questions"], prompts)
+        saved = self.store.load_learner("s1")
+        raw = saved["workspace"]["journey"]["active"]["evidence"][0]
+        self.assertEqual(raw["response_mode"], "selection")
+        self.assertEqual(raw["free_text"], "")
+        self.assertEqual(raw["selection"]["options"], prompts[0]["options"])
+        self.assertEqual(raw["selection"]["answer_mode"], "recognition")
+        self.assertEqual(saved["evidence"], before["evidence"])
+        self.assertEqual(saved["diagnoses"], before["diagnoses"])
+        self.assertEqual(planned["answers"][0]["choice_id"], prompts[0]["options"][0]["id"])
+        self.assertEqual(self.model.call_args.args[0]["baseline"][0]["selection"], raw["selection"])
+        self.assertEqual(self.submit(payload=payload).status_code, 200)
+        self.assertEqual(self.model.call_count, 1)
+
+    def test_invalid_or_stale_baseline_choice_cannot_commit(self):
+        prompts = self.view()["questions"]
+        answers = [{"node_id": q["node_id"], "choice_id": q["options"][0]["id"], "text": ""} for q in prompts]
+        bad = copy.deepcopy(answers)
+        bad[0]["choice_id"] = "invented"
+        self.assertEqual(self.submit(payload=self.payload(answers=bad)).status_code, 400)
+        bad = copy.deepcopy(answers)
+        bad[0]["option_set_id"] = "old-set"
+        self.assertEqual(self.submit(payload=self.payload(answers=bad)).status_code, 409)
+        self.assertIsNone(self.store.load_learner("s1")["workspace"].get("journey"))
+
+    def test_retry_reuses_frozen_questions_even_after_generator_changes(self):
+        prompts = self.view()["questions"]
+        self.model.side_effect = RuntimeError("synthetic model unavailable")
+        answers = [{"node_id": q["node_id"], "choice_id": q["options"][0]["id"],
+                    "option_set_id": q["option_set_id"], "text": ""} for q in prompts]
+        self.assertEqual(self.submit(payload=self.payload(answers=answers)).status_code, 200)
+        self.assertEqual(self.wait()["stage"], "failed")
+        self.model.side_effect = None
+        self.model.return_value = result(quote=prompts[0]["options"][0]["text"])
+        # Restart/config changes can change available builders; saved assessment
+        # choices remain the answer contract for a retry.
+        with patch.object(journey, "questions", return_value=[]):
+            self.assertEqual(self.view()["questions"], prompts)
+            self.assertEqual(self.submit(payload=self.payload(answers=answers)).status_code, 200)
+            self.assertEqual(self.wait()["stage"], "ready")
+        active = self.store.load_learner("s1")["workspace"]["journey"]
+        self.assertEqual(active["history"][-1]["questions"], prompts)
+        self.assertEqual(active["active"]["questions"], prompts)
 
     def test_all_new_skips_questions_and_plans_from_profile_without_diagnoses(self):
         self.onboard(self_assessments={n: "new" for n in "abcd"})

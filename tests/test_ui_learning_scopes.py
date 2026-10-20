@@ -12,7 +12,7 @@ from learning_agent.acceptance_course import AcceptanceCourseStore
 from learnmargin.demo import demo_lesson
 from learnmargin.models import APIConfig
 from learnmargin.provider import ProviderError
-from pliac import margin
+from pliac import margin, choice_generation
 from pliac.margin_graph import overview_map
 
 OUT = Path(__file__).resolve().parents[1] / "outputs/verification"
@@ -42,6 +42,20 @@ async def synthetic_map(lesson, provider):
     return overview_map(lesson)
 
 
+async def synthetic_choices(items):
+    """The legacy artifact remains unchanged; only its answer cache is upgraded."""
+    result = []
+    for item in items:
+        texts = (["P(R|S)=2/5，R与S独立。", "P(R|S)=1/10，R与S不独立。", "P(R|S)=1/4，R与S独立。"]
+                 if "40" in item["prompt"] else
+                 ["P(A|B)以戴眼镜的10人为分母，P(B|A)以社团成员12人为分母。",
+                  "两个条件概率都以全班30人为分母。", "两个条件概率都以同时满足条件的6人为分母。"])
+        result.append({"item_id": item["item_id"],
+                       "options": [{"id": chr(65 + i), "text": text} for i, text in enumerate(texts)],
+                       "answer_key": "A"})
+    return choice_generation.ChoiceReply(items=result)
+
+
 def main():
     OUT.mkdir(parents=True, exist_ok=True)
     with patch.dict(app.state._state, {"auth_required": False}), \
@@ -49,7 +63,8 @@ def main():
          patch.object(margin, "configured_api", return_value=APIConfig(base_url="http://localhost", model="synthetic")), \
          patch.object(margin, "Provider", return_value=SyntheticProvider()), \
          patch.object(margin, "generate_lesson", side_effect=synthetic_lesson), \
-         patch.object(margin, "generate_map", side_effect=synthetic_map):
+         patch.object(margin, "generate_map", side_effect=synthetic_map), \
+         patch.object(choice_generation.ChoiceProvider, "choices", side_effect=synthetic_choices):
         course = AcceptanceCourseStore(default)
         graph = course.load_graph()
         chapter = graph["chapters"][0]["id"]
@@ -125,6 +140,9 @@ def main():
             card = page.locator(".practice-card").first
             expect(card).to_be_visible()
             student = page.locator("#practiceStudent").input_value()
+            expect(card.locator("input[type=radio]")).to_have_count(3)
+            card.locator("input[type=radio]").first.check()
+            card.locator(".practice-supplement > summary").click()
             card.locator("textarea").fill("Synthetic saved draft")
             card.locator('[data-action="draft"]').click()
             expect(page.locator("#practiceStatus")).to_have_text("草稿已保存。")
@@ -132,6 +150,9 @@ def main():
             expect(page.locator("#graphScreen")).to_be_visible()
             page.locator("#exerciseMode").click()
             expect(card.locator("textarea")).to_have_value("Synthetic saved draft")
+            expect(card.locator("input[type=radio]").first).to_be_checked()
+            card.locator(".practice-supplement > summary").click()
+            card.locator("textarea").fill("")
             card.locator('[data-action="hint"]').click()
             expect(card.locator(".practice-hint")).to_be_visible()
             expect(card.locator(".practice-solution")).to_have_count(0)
@@ -161,6 +182,10 @@ def main():
             page.locator("#unitVersion").select_option(node_job["id"])
             page.wait_for_function("id=>new URL(location.href).searchParams.get('job_id')===id", arg=node_job["id"])
             page.set_viewport_size({"width": 390, "height": 844})
+            page.locator("#exerciseMode").click()
+            expect(page.locator(".practice-options").first).to_be_visible()
+            assert page.evaluate("document.documentElement.scrollWidth <= innerWidth"), "Mobile choices overflow"
+            page.screenshot(path=str(OUT / "scoped-unit-practice-mobile.png"), full_page=True)
             page.locator("#readMode").click()
             expect(page.locator("#pdfDownload")).to_be_visible()
             expect(page.locator("#lessonFrame")).to_have_attribute("data-ready", "true", timeout=30000)
@@ -168,6 +193,9 @@ def main():
             page.screenshot(path=str(OUT / "scoped-unit-mobile.png"), full_page=True)
             raw = course._read_learner(student)
             assert len(raw["evidence"]) == 1 and raw["evidence"][0]["prompt_level"] == 1
+            assert raw["evidence"][0]["context"]["answer_mode"] == "recognition"
+            assert raw["evidence"][0]["context"]["supplement"] == ""
+            assert raw["evidence"][0]["context"]["selected_option"]["id"]
             assert raw["diagnoses"] == []
             # A new scope failure must show the original stage in the actual reader.
             other = next(n for n in graph["nodes"] if n["id"] != node["id"])

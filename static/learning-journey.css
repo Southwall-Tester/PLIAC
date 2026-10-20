@@ -19,3 +19,24 @@
 #autoLessonProgress{display:block;width:100%;max-width:420px;height:7px;margin:10px 0;accent-color:var(--accent,#596d68)}
 #autoLessonProgress[hidden]{display:none}
 @media(max-width:700px){.personalized-lesson{margin:12px -8px;width:calc(100% + 16px)}.personalized-lesson iframe{border-radius:5px}}
+.student-home .reading-grid{grid-template-columns:minmax(0,1fr);gap:4px}
+.student-home .reading-grid>.tutor-column{width:100%;min-width:0}
+.reading-grid #lessonContent{padding:6px 0 10px}
+.reading-grid #lessonContent .lesson-title{margin:18px 0 28px;padding-bottom:20px;border-bottom:1px solid var(--line)}
+.reading-grid #lessonContent .lesson-title h3{font-size:28px;line-height:1.4;letter-spacing:-.4px;margin:0}
+.reading-grid #lessonContent .paragraph{margin:24px 0}
+.reading-grid #lessonContent .paragraph-body h4{font-size:17px;font-weight:600;color:var(--ink);margin:0 0 12px}
+.reading-grid #lessonContent .paragraph-body p,.reading-grid #lessonContent .paragraph-body li{font-size:16px;line-height:1.95}
+.reading-grid #lessonContent .paragraph-body p+p{margin-top:14px}
+.reading-grid #lessonContent code{font-family:Consolas,monospace;font-size:.92em;background:var(--hover);border:1px solid var(--line);border-radius:4px;padding:2px 5px;overflow-wrap:anywhere}
+.reading-grid #lessonContent pre{padding:16px;background:var(--hover);border-radius:8px;overflow:auto;white-space:pre-wrap}
+.reading-grid #lessonContent pre code{border:0;padding:0}
+.reading-grid #lessonContent .lesson-example{padding:20px 22px;border-left:3px solid #8bb5a3;background:var(--hover);border-radius:0 8px 8px 0}
+.reading-grid #lessonContent .lesson-check{margin-top:28px;padding-top:22px;border-top:1px solid var(--line)}
+.reading-grid #lessonContent .paragraph>button{border:1px solid var(--line);border-radius:5px;padding:5px 9px;margin-top:14px}
+.lesson-references{margin-top:28px;padding-top:16px;border-top:1px solid var(--line)}
+.reading-grid #lessonContent .lesson-references .paragraph-body p{font-size:13px;color:var(--muted)}
+.baseline-options{border:0;padding:0;margin:14px 0}
+.baseline-question .optional-details{padding-top:10px;margin-top:12px}
+.baseline-question .answer-choice{font-size:14px}
+@media(max-width:700px){.reading-grid #lessonContent .lesson-title h3{font-size:23px}.reading-grid #lessonContent .lesson-example{padding:16px}.reading-grid #lessonContent .paragraph-body p,.reading-grid #lessonContent .paragraph-body li{font-size:15px}.student-home .reading-grid>.panel{padding:20px 18px}}

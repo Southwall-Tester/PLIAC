@@ -49,7 +49,11 @@ class UnifiedCourseTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(lesson["paragraphs"], node["lesson_content"])
         self.assertEqual(lesson["options"], node["check_task"]["options"])
         answered = workspace.answer(payload(lesson_id=lesson["id"], choice_id="B", text="Synthetic reasoning"))
-        self.assertIn("B. Root", answered["learner"]["evidence"][-1]["text"])
+        evidence = answered["learner"]["evidence"][-1]
+        self.assertIn("Root", evidence["text"])
+        self.assertEqual(evidence["context"]["selection"]["choice_id"], "B")
+        self.assertEqual(evidence["context"]["selection"]["option_text"], "Root")
+        self.assertEqual(evidence["context"]["free_text"], "Synthetic reasoning")
         self.assertEqual(answered["learner"]["diagnoses"], [])
         self.assertEqual(answered["study_activities"]["mixed_task"]["id"], "plant-compare")
         self.assertNotIn("SERVER_ONLY_KEY", json.dumps(student_graph(store.load_graph())))

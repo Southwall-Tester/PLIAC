@@ -105,11 +105,14 @@ class StudyActivities:
             if type(choice) is not int or not 0 <= choice < len(task["options"]):
                 raise CourseGraphError("请选择当前题目的一个选项。")
             certainty = confidence(payload.get("confidence"))
-            reason = _text(payload.get("reason"), "判断依据", 1200)
+            reason = _text(payload.get("reason", ""), "补充说明", 1200, False)
             context = {"task_id": "mixed_" + task["id"], "task_version": 1, "activity": "mixed",
-                       "confidence": certainty, "related_node_ids": task["nodes"]}
+                       "confidence": certainty, "related_node_ids": task["nodes"],
+                       "response_mode": "choice", "selected_choice": choice,
+                       "selected_option": task["options"][choice], "supplement": reason}
             record = self._evidence(graph, learner, self.store._node(graph, task["nodes"][0]),
-                                    task["options"][choice] + "\n" + reason, "quiz", context=context)
+                                    task["options"][choice] + ("\n补充说明：" + reason if reason else ""),
+                                    "quiz", context=context)
             attempts.append({"id": uuid.uuid4().hex, "task_id": task["id"], "question": task["question"],
                              "choice": choice, "reason": reason, "confidence": certainty,
                              "correct": choice == task["key"], "explanation": task["explanation"],

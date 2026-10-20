@@ -38,7 +38,7 @@ def main():
             folder = course.output_dir / "linuxlab/runs" / binding_id
             args = ["wsl", "-d", "Ubuntu", "--", "python3", linux_path(ROOT / "tests/linuxlab_wsl_scenario.py"),
                     "--lab", linux_path(Path.home() / "Desktop/LinuxLab"), "--manifest", linux_path(folder / "binding.json")]
-            result = subprocess.run(args, capture_output=True, text=True, encoding="utf-8", timeout=100)
+            result = subprocess.run(args, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=100)
             assert result.returncode == 0, result.stderr
             report["native"] = json.loads(result.stdout)
             page.locator("#sync").click()
@@ -49,12 +49,21 @@ def main():
             expect(backup.locator('a[href*="node_id=cp"]').first).to_be_visible()
             expect(backup).to_contain_text("待核验")
             page.screenshot(path=str(output / "diagnosis.png"), full_page=True)
+            backup.locator(".optional-reflection > summary").click()
+            assert not backup.locator('textarea').evaluate("element => element.required")
+            before = len(page.request.get(base + "/api/linux-lab/runs/" + binding_id, params={
+                "course_id": COURSE_ID, "student_id": page.locator("#studentId").input_value(), "mode": "preview"
+            }).json()["summary"]["diagnosis"]["cases"][0]["learner_explanations"])
+            backup.locator("[data-skip-reflection]").click()
+            expect(page.locator("main > #status")).to_contain_text("已跳过")
+            expect(backup.locator("blockquote")).to_have_count(before)
+            backup.locator(".optional-reflection > summary").click()
             backup.locator('select[name="node_id"]').select_option("cp")
             backup.locator('textarea').fill("测试解释：目标目录预先存在，复制目录本身使它成为目标的子目录；需要先核对目录层级。")
             backup.locator('button[type="submit"]').click()
             expect(backup.locator("blockquote")).to_contain_text("测试解释")
             page.locator("#sync").click()
-            expect(page.locator("#status")).to_contain_text("已同步")
+            expect(page.locator("main > #status")).to_contain_text("已同步")
             expect(backup.locator("blockquote")).to_have_count(1)
             with page.expect_download() as download:
                 page.locator("#export").click()

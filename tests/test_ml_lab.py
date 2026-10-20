@@ -118,6 +118,32 @@ class MLLabTests(unittest.TestCase):
         with self.assertRaises(CourseGraphError):
             self.lab.view("../escape")
 
+    def test_substantive_choices_complete_experiment_without_written_notes(self):
+        self.act("start", scene="space")
+        self.act("check", answer={"target": "target", "features": "sensors", "timing": "after"})
+        shallow = self.run_model(1)
+        self.act("check", answer={"run_id": shallow["id"]})
+        deep = self.run_model(0)
+        self.act("check", answer={"run_id": deep["id"], "interpretation": "gap"})
+        medium = self.run_model(4)
+        best = max([shallow, deep, medium], key=lambda r: r["result"]["validation_accuracy"])
+        wrong = self.act("check", answer={"run_id": best["id"], "basis": "test"})
+        self.assertEqual(wrong["active"]["step"], 3)
+        selected = self.act("check", answer={"run_id": best["id"], "basis": "validation"})
+        self.assertEqual(selected["active"]["step"], 4)
+        self.assertIsNone(selected["active"]["final"])
+        wrong = self.act("check", answer={"test_role": "tune"})
+        self.assertEqual(wrong["active"]["step"], 4)
+        final = self.act("check", answer={"test_role": "report"})
+        self.assertEqual(final["active"]["step"], 5)
+        self.assertTrue(all(check["note"] == "" for check in final["active"]["checks"]))
+        self.assertEqual(self.lab.export(self.student)["assessment"]["explanation_review"], "not_provided")
+        learner = self.store._read_learner(self.student)
+        self.assertEqual(learner["diagnoses"], [])
+        choices = [e for e in learner["evidence"] if e["source_type"] == "practice"]
+        self.assertTrue(all(e["context"]["answer_mode"] == "structured_choices" for e in choices))
+        self.assertTrue(all(e["context"]["supplement"] == "" for e in choices))
+
     def test_api_uses_isolated_platform_store_and_hides_future_hints(self):
         with patch.object(api, "store", self.default), patch.object(app.state, "auth_required", False, create=True), TestClient(app) as client:
             self.assertEqual(client.get("/ml-lab").status_code, 200)

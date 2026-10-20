@@ -35,9 +35,9 @@ def main():
                 act("answer", lesson_id=l["id"], choice_id=n["check_task"]["answer_key"], confidence="unsure")
             page.goto(base + "/learn?course_id=ml_acceptance_demo&student_id=" + student + "&view=study")
             expect(page.locator("#questionText")).not_to_be_empty()
-            expect(page.locator(".tutor-column > #restPrompt")).to_be_visible()
+            expect(page.locator("#lessonPanel > #restPrompt")).to_be_visible()
             assert view()["rhythm"]["current"]["estimated_minutes"] >= 15
-            page.screenshot(path=str(OUT / "study-rest-sidebar.png"), full_page=True)
+            page.screenshot(path=str(OUT / "study-rest-below-lesson.png"), full_page=True)
             page.locator("#resumeNote").fill("回来从三份数据的用途继续")
             page.locator("#takeBreak").click()
             expect(page.locator("#restText")).to_contain_text("已暂存")
@@ -45,7 +45,7 @@ def main():
             expect(page.locator("#resumeNote")).to_have_value("回来从三份数据的用途继续")
             page.locator("#skipBreak").click()
             expect(page.locator("#restPrompt")).to_be_hidden()
-            report["checks"].append("Planned sidebar pause, optional continuation and return note survive reload")
+            report["checks"].append("Pause below the lesson, optional continuation and return note survive reload")
 
             page.locator("#chunkEditor summary").click()
             page.locator('[data-card-field="trigger"]').fill("需要选择模型或报告最终表现时")
@@ -67,11 +67,12 @@ def main():
             expect(page.locator("#mixedDialog")).to_be_visible()
             before = len(view()["learner"]["diagnoses"])
             page.locator('[name="mixedChoice"][value="1"]').check()
-            page.locator("#mixedReason").fill("验证集用于比较候选模型")
+            expect(page.locator("#mixedReason")).not_to_have_attribute("required", "")
             page.locator("#mixedConfidence").select_option("sure")
             page.locator("#mixedForm button").click()
             expect(page.locator("#mixedHistory")).to_contain_text("选择正确")
             assert len(view()["learner"]["diagnoses"]) == before
+            assert view()["study_activities"]["mixed_history"][-1]["reason"] == ""
             page.set_viewport_size({"width":390,"height":844})
             page.evaluate("GraphTheme.toggle()")
             assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
@@ -79,7 +80,7 @@ def main():
             assert background != "rgb(255, 255, 255)", background
             page.screenshot(path=str(OUT / "study-practice-mobile-dark.png"), full_page=False)
             page.locator("#closeMixed").click()
-            report["checks"].append("Mixed practice requires its own entry and preserves diagnoses; mobile dark layout fits")
+            report["checks"].append("Mixed practice submits by selection without typed text and preserves diagnoses; mobile dark layout fits")
             assert not report["page_errors"], report["page_errors"]
             browser.close()
     finally:

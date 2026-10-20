@@ -2,6 +2,24 @@
   'use strict';
   const $ = id => document.getElementById(id);
   const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  function lessonInline(value) {
+    return String(value ?? '').split(/(`[^`]+`|\[[^\]]+\]\(https?:\/\/[^\s)]+\))/g).map(part => {
+      if (part.startsWith('`') && part.endsWith('`')) return `<code>${esc(part.slice(1,-1))}</code>`;
+      const link = /^\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)$/.exec(part);
+      if (link) return `<a href="${esc(link[2])}" target="_blank" rel="noopener noreferrer">${esc(link[1])}</a>`;
+      return esc(part).replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>');
+    }).join('');
+  }
+  function lessonText(value) {
+    return String(value ?? '').split(/(```[\s\S]*?```)/g).map(part => {
+      if (part.startsWith('```')) return '<pre><code>'+esc(part.replace(/^```[^\n]*\n?/,'').replace(/```$/,''))+'</code></pre>';
+      return part.split(/\n\s*\n/).filter(Boolean).map(block => {
+        const lines=block.split('\n');
+        if(lines.every(line=>/^\s*[-*]\s/.test(line)))return '<ul>'+lines.map(line=>'<li>'+lessonInline(line.replace(/^\s*[-*]\s/,''))+'</li>').join('')+'</ul>';
+        return '<p>'+lessonInline(block).replaceAll('\n','<br>')+'</p>';
+      }).join('');
+    }).join('');
+  }
   const teacher = location.pathname === '/review';
   const courseId = new URLSearchParams(location.search).get('course_id') || '';
   const hasChoices = () => !!state?.current_lesson?.options?.length;
@@ -19,8 +37,16 @@
     })[text] || text;
   }
   let state, draftGraph, studentId = '', busy = false, annotationId, saveTimer, failedRequest, home, study, journey;
+  let requestTimer;
   const storageKey = `pliac.student.${courseId}`;
   function error(message = '') { $('workspaceError').textContent = message; $('workspaceError').hidden = !message; }
+  function requestProgress(message=''){
+    clearInterval(requestTimer);$('learningRequest').hidden=!message;
+    if(!message)return;
+    $('learningRequestLabel').textContent=message;
+    const started=Date.now(),tick=()=>{$('learningRequestElapsed').textContent='已用时 '+Math.floor((Date.now()-started)/1000)+' 秒';};
+    tick();requestTimer=setInterval(tick,1000);
+  }
   async function api(path, body, method = 'POST') {
     let response;
     try { response = await fetch(`${path}${path.includes('?') ? '&' : '?'}${query}`, body === undefined ? {} : {method, headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)}); }
@@ -52,6 +78,7 @@
     if (study) for (const id of ['recallToggle','takeBreak','skipBreak']) $(id).disabled = !!state.course_changed;
     const complete = state.chapters.length > 0 && state.chapters.every(c => c.passed);
     $('nextLesson').disabled = busy || !state.workspace.onboarded || complete || planning;
+    if(!teacher)$('beginRoute').disabled=busy||planning;
     if(!teacher)$('studyTab').disabled=!state.workspace.onboarded;
     $('nextLesson').textContent = complete ? '本课程当前已完成' : current && state.learner.states[current.node_id].status !== 'mastered' ? '继续练习' : '继续学习';
   }
@@ -60,6 +87,7 @@
     const signature = JSON.stringify({operation, data});
     const requestId = failedRequest?.signature === signature ? failedRequest.id : crypto.randomUUID();
     failedRequest = {signature, id:requestId};
+    if(operation==='next')requestProgress('正在准备本节练习…');
     try {
       state = await api(`/api/learning/${operation}`, {...data, expected_version:state.learner.version, request_id:requestId});
       failedRequest = null;
@@ -68,7 +96,7 @@
     } catch (failure) {
       if (failure.status) failedRequest = null;
       throw failure;
-    }
+    } finally {if(operation==='next')requestProgress();}
   }
   function render() {
     $('refreshButton').hidden = false; $('exportButton').hidden = false;
@@ -84,7 +112,6 @@
     $('onboarding').hidden = teacher || !state.course || state.workspace.onboarded;
     if (teacher) { renderTeacher(); return; }
     if (!state.course) return;
-    $('goals').value = state.learner.profile.goals;
     $('background').value = state.learner.profile.background;
     $('interests').value = state.learner.profile.interests.join('，');
     $('selfAssessments').innerHTML = state.course.chapters.map(c => {
@@ -120,13 +147,23 @@
     $('reportsPanel').hidden = true; $('handbookPanel').hidden = true;
     $('chapterReports').replaceChildren(); $('handbook').replaceChildren();
     renderLesson(); home?.render(state); study?.render(state); journey?.render(state); setAvailability();
-    if(state.current_lesson)window.PLIACAssistant?.setContext({course_id:state.course.id,node_id:state.current_lesson.node_id,title:state.current_lesson.title});
+    if(state.current_lesson){
+      const material=journey?.materialTask;
+      const job_id=material?.lessonId===state.current_lesson.id&&$('personalizedLessonFrame')?.dataset.ready==='true'?material.jobId:'';
+      window.PLIACAssistant?.setContext({course_id:state.course.id,node_id:state.current_lesson.node_id,job_id,title:state.current_lesson.title});
+    }
   }
   function renderLesson() {
     const lesson = state.current_lesson;
     $('taskPanel').hidden = !lesson;
     if (!lesson) { $('lessonContent').innerHTML = '<p class="muted">保存起点资料后，安排第一小节。</p>'; return; }
-    $('lessonContent').innerHTML = `<h3>${esc(lesson.title)}</h3>${lesson.paragraphs.filter(p => p.text).map(p => `<div class="paragraph"><div class="paragraph-body">${p.heading ? `<h4>${esc(p.heading)}</h4>` : ''}<p>${esc(p.text)}</p></div><button data-paragraph="${esc(p.id)}">不明白</button></div>`).join('')}<div>${lesson.resources.length ? '<h3>可选学习材料</h3>' + lesson.resources.map(r => `<a class="resource-card" data-resource="${esc(r.id)}" href="${esc(r.url)}" target="_blank" rel="noopener noreferrer">${esc(r.title)}<small>${esc(r.organization)} · ${esc(r.applicable_segment || '')}</small></a>`).join('') : ''}</div>${(lesson.sources || []).map(s => `<a class="resource-card" href="${esc(s.url)}" target="_blank" rel="noopener noreferrer">延伸阅读：${esc(s.title)}<small>${esc(s.locator)}</small></a>`).join('')}${lesson.annotations.length ? `<details><summary>已记录 ${lesson.annotations.length} 处困惑</summary>${lesson.annotations.map(a => `<p>${esc(a.question)}</p>`).join('')}</details>` : ''}`;
+    const paragraphs=lesson.paragraphs.filter(p=>p.text);
+    const sameQuestion=text=>String(text).replace(/\s+/g,'')===String(lesson.question||'').replace(/\s+/g,'');
+    const paragraph=p=>`<section class="paragraph ${p.id==='example'?'lesson-example':p.id==='check'?'lesson-check':''}"><div class="paragraph-body">${p.heading?`<h4>${esc(p.heading)}</h4>`:''}${lessonText(p.text)}</div><button data-paragraph="${esc(p.id)}">这里想再讲一讲</button></section>`;
+    const references=paragraphs.filter(p=>p.id==='source');
+    const resources=(lesson.resources||[]).map(r=>`<a class="resource-card" data-resource="${esc(r.id)}" href="${esc(r.url)}" target="_blank" rel="noopener noreferrer">${esc(r.title)}<small>${esc(r.organization)} · ${esc(r.applicable_segment||'')}</small></a>`).join('');
+    const sources=(lesson.sources||[]).map(s=>`<a class="resource-card" href="${esc(s.url)}" target="_blank" rel="noopener noreferrer">${esc(s.title)}<small>${esc(s.locator)}</small></a>`).join('');
+    $('lessonContent').innerHTML = `<header class="lesson-title"><h3>${esc(lesson.title)}</h3></header>${paragraphs.filter(p=>p.id!=='source'&&p.id!=='check').map(paragraph).join('')}${paragraphs.filter(p=>p.id==='check'&&!sameQuestion(p.text)).map(paragraph).join('')}${references.length||resources||sources?`<details class="lesson-references"><summary>参考资料与延伸阅读</summary>${references.map(paragraph).join('')}${resources}${sources}</details>`:''}${lesson.annotations.length?`<details><summary>已记录 ${lesson.annotations.length} 处提问</summary>${lesson.annotations.map(a=>`<p>${esc(a.question)}</p>`).join('')}</details>`:''}`;
     $('questionText').textContent = lesson.question;
     $('promptBadge').textContent = autoAssessed() && lesson.prompt_level === 4 ? '已显示本题解析' : lesson.prompt_level ? `已使用 ${lesson.prompt_level} 级提示` : '本题尚未使用提示';
     $('taskNotice').textContent = autoAssessed() ? '' : lesson.task ? '提交后由教师复核。' : '请先记录理解与困惑，教师将补充诊断题。';
@@ -134,9 +171,13 @@
     $('hintList').innerHTML = lesson.hints.map(h => `<div class="hint">提示 ${h.level}：${esc(h.text)}</div>`).join('');
     $('answerText').value = state.workspace.drafts[lesson.id]?.text || '';
     $('answerText').maxLength = hasChoices() ? 3500 : 4000;
-    $('answerText').placeholder = hasChoices() ? '可选：写下你的判断理由。选项会和思路一起保存。' : '写下结论，也写下你这样判断的原因。';
-    $('answerChoices').hidden = !lesson.options;
-    $('answerChoices').innerHTML = (lesson.options || []).map(o => `<label class="answer-choice"><input type="radio" name="answerChoice" value="${esc(o.id)}" ${state.workspace.drafts[lesson.id]?.choice_id === o.id ? 'checked' : ''}><span>${esc(o.id)}. ${esc(o.text)}</span></label>`).join('');
+    $('answerText').placeholder = '可以补充理由、举例或仍不确定的地方。';
+    $('answerChoices').hidden = !hasChoices();
+    $('answerChoices').innerHTML = (lesson.options || []).map(o => `<label class="answer-choice"><input type="radio" name="answerChoice" value="${esc(o.id)}" ${state.workspace.drafts[lesson.id]?.choice_id === o.id ? 'checked' : ''}><span><b>${esc(o.id)}</b>${esc(o.text)}</span></label>`).join('');
+    if($('answerSupplement').dataset.lesson!==lesson.id){
+      $('answerSupplement').dataset.lesson=lesson.id;
+      $('answerSupplement').open=!!$('answerText').value||!hasChoices();
+    }
     $('responses').innerHTML = lesson.responses.map(r => {
       const feedback = state.learner.diagnoses.filter(d => d.review_status === 'reviewed' && d.evidence_ids.includes(r.evidence_id));
       return `<article><span class="badge">${r.prompt_level ? `${r.prompt_level} 级提示或解析后作答` : '未使用本题提示'}</span><p>${esc(r.text)}</p>${r.judgement ? `<p class="quiz-feedback"><strong>${r.judgement.passed ? '回答正确' : '需要再想一想'}</strong><br>${esc(r.judgement.explanation)}</p>` : ''}${feedback.length ? feedback.map(d => `<p class="muted">教师反馈：${esc(displayReason(d.basis))}</p>`).join('') : '<p class="muted">作答已保存。</p>'}</article>`;
@@ -229,7 +270,7 @@
   $('refreshButton').onclick = () => run(async () => { if (!teacher) await saveDraft(); await load(); });
   $('onboardForm').onsubmit = event => { event.preventDefault(); run(async () => {
     const selfAssessments = Object.fromEntries([...document.querySelectorAll('[data-assess]')].filter(s => s.value).map(s => [s.dataset.assess,s.value]));
-    await mutate('onboard', {goals:$('goals').value, background:$('background').value, interests:$('interests').value.split(/[,，]/).map(x => x.trim()).filter(Boolean), self_assessments:selfAssessments});
+    await mutate('onboard', {background:$('background').value, interests:$('interests').value.split(/[,，]/).map(x => x.trim()).filter(Boolean), self_assessments:selfAssessments});
     home?.show('journey');await journey?.refresh();
   }); };
   $('nextLesson').onclick = () => run(async () => { await saveDraft(); await mutate('next'); home?.show('study'); });
@@ -241,12 +282,12 @@
   $('hintButton').onclick = () => run(async () => { await saveDraft(); await mutate('hint', {lesson_id:state.current_lesson.id}); });
   $('lessonContent').onclick = event => {
     const paragraph = event.target.closest('[data-paragraph]');
-    if (paragraph) { annotationId = paragraph.dataset.paragraph; const text = String(state.current_lesson.paragraphs.find(p => p.id === annotationId)?.text || ''); const selected = window.getSelection()?.toString(); $('annotationQuote').value = selected && text.includes(selected) ? selected.slice(0,3000) : text.slice(0,3000); $('annotationQuestion').value = ''; $('annotationDialog').showModal(); }
+    if (paragraph) { annotationId = paragraph.dataset.paragraph; const text = String(state.current_lesson.paragraphs.find(p => p.id === annotationId)?.text || ''); const selected = window.getSelection()?.toString(); $('annotationQuote').value = selected && text.includes(selected) ? selected.slice(0,3000) : text.slice(0,3000); $('annotationQuestion').value = ''; $('annotationForm').querySelectorAll('[name=annotationCategory]').forEach(input=>input.checked=false);$('annotationSupplement').open=false;$('annotationDialog').showModal(); }
     const resource = event.target.closest('[data-resource]');
     if (resource) { event.preventDefault(); if (busy) return; const tab = window.open('about:blank', '_blank'); if (tab) tab.opener = null; run(async () => { try { await saveDraft(); await mutate('resource', {lesson_id:state.current_lesson.id, resource_id:resource.dataset.resource}); if (tab) tab.location.href = resource.href; } catch (failure) { tab?.close(); throw failure; } }); }
   };
   $('cancelAnnotation').onclick = () => $('annotationDialog').close();
-  $('annotationForm').onsubmit = event => { event.preventDefault(); run(async () => { await saveDraft(); await mutate('annotate', {lesson_id:state.current_lesson.id, paragraph_id:annotationId, quote:$('annotationQuote').value, question:$('annotationQuestion').value}); $('annotationDialog').close(); }); };
+  $('annotationForm').onsubmit = event => { event.preventDefault(); const category=$('annotationForm').querySelector('[name=annotationCategory]:checked')?.value;if(!category){error('请选择需要帮助的地方。');return;}run(async () => { await saveDraft(); await mutate('annotate', {lesson_id:state.current_lesson.id, paragraph_id:annotationId, quote:$('annotationQuote').value, category, question:$('annotationQuestion').value}); $('annotationDialog').close(); }); };
   $('lessonLabLink').onclick = event => {event.preventDefault();run(async()=>{await saveDraft();location.assign($('lessonLabLink').href);});};
   $('courseLabList').onclick = event => {const link=event.target.closest('a');if(!link)return;event.preventDefault();run(async()=>{await saveDraft();location.assign(link.href);});};
   $('chapterReports').onclick = event => { const button = event.target.closest('[data-report]'); if (button) run(async () => { await saveDraft(); await mutate('report', {chapter_id:button.dataset.report}); }); };

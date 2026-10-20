@@ -18,8 +18,8 @@
   document.body.appendChild(host);
   const shadow=host.attachShadow({mode:'open'});
   const icon='<svg class="mark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M5 4h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-8l-6 4v-4H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z"/><path d="m8 11 2 2 5-5"/></svg>';
-  shadow.innerHTML=`<link rel="stylesheet" href="/static/assistant-panel.css?v=2">
-  <aside class="panel" aria-label="学习助手"><div class="heading">${icon}<strong>学习助手</strong><button id="profileButton" title="查看画像与记忆">记忆</button><button class="icon" id="new" title="新对话" aria-label="新对话">＋</button><button class="icon" id="close" title="收起助手" aria-label="收起助手">›</button></div>
+  shadow.innerHTML=`<link rel="stylesheet" href="/static/assistant-panel.css?v=3">
+  <aside class="panel" aria-label="学习助手"><div class="heading">${icon}<strong>学习助手</strong><button id="assistantMemoryButton" title="查看画像与记忆">记忆</button><button class="icon" id="new" title="新对话" aria-label="新对话">＋</button><button class="icon" id="close" title="收起助手" aria-label="收起助手">›</button></div>
   <section id="profile" class="profile" hidden><div class="profile-head"><strong>画像与记忆</strong><button id="backChat">返回聊天</button></div><label class="profile-toggle"><input id="profileEnabled" type="checkbox">记住对话，并用于个性化回答</label><div id="profileItems"></div><div id="episodeItems"></div></section>
   <div class="history"><select id="history" aria-label="历史对话"><option value="">新对话</option></select></div>
   <div class="context"><label><input type="checkbox" id="attach" checked><span id="context">结合当前页面</span></label><small>上下文</small></div>
@@ -98,7 +98,7 @@
   async function editProfile(body){try{renderProfile(await api('/profile',body));}catch(e){$('profileItems').insertAdjacentHTML('afterbegin','<p>'+esc(e.message)+'</p>');}}
   async function editMemory(body){try{renderProfile(await api('/memory',body));}catch(e){$('episodeItems').insertAdjacentHTML('afterbegin','<p>'+esc(e.message)+'</p>');}}
   $('profileEnabled').onchange=()=>editProfile({action:'toggle',enabled:$('profileEnabled').checked});
-  $('profileButton').onclick=async()=>{profileMode(true);try{renderProfile(await api('/profile?owner='+owner));}catch(e){$('profileItems').textContent=e.message;}};
+  $('assistantMemoryButton').onclick=async()=>{profileMode(true);try{renderProfile(await api('/profile?owner='+owner));}catch(e){$('profileItems').textContent=e.message;}};
   $('backChat').onclick=()=>profileMode(false);
   function theme(){host.toggleAttribute('dark',document.documentElement.classList.contains('network-dark'));}
   new MutationObserver(theme).observe(document.documentElement,{attributes:true,attributeFilter:['class']});theme();

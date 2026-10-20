@@ -108,6 +108,21 @@ class StudyTests(unittest.TestCase):
         self.assertNotIn("study", old)
         self.assertEqual(self.answer(old)["learner"]["states"]["sample"]["status"], "mastered")
 
+    def test_mixed_choice_without_typed_reason_preserves_selection_provenance(self):
+        for node in ["roles", "partition"]:
+            self.answer(self.lesson(node))
+        before = self.service.view("study-test")
+        task = before["study_activities"]["mixed_task"]
+        result = self.call("mixed", task_id=task["id"], choice=1, confidence="unsure")
+        attempt = result["study_activities"]["mixed_history"][-1]
+        evidence = next(e for e in result["learner"]["evidence"] if e["id"] == attempt["evidence_id"])
+        self.assertEqual(attempt["reason"], "")
+        self.assertEqual(evidence["text"], task["options"][1])
+        self.assertEqual(evidence["context"]["response_mode"], "choice")
+        self.assertEqual(evidence["context"]["selected_option"], task["options"][1])
+        self.assertEqual(evidence["context"]["supplement"], "")
+        self.assertEqual(result["learner"]["diagnoses"], before["learner"]["diagnoses"])
+
 
 if __name__ == "__main__":
     unittest.main()

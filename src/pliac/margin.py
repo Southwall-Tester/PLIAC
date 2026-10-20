@@ -443,17 +443,21 @@ def artifact(job_id: str, name: str, course_store=Depends(resolve_course_store),
 
 
 @router.get("/{job_id}/practice")
-def practice_view(job_id: str, student_id: str, course_store=Depends(resolve_course_store)):
-    student_job(storage(course_store), job_id, student_id)
-    return handout_practice.view(course_store, storage(course_store), job_id, student_id)
+async def practice_view(job_id: str, student_id: str, course_store=Depends(resolve_course_store)):
+    store = storage(course_store)
+    student_job(store, job_id, student_id)
+    await handout_practice.prepare_choices(store, job_id)
+    return handout_practice.view(course_store, store, job_id, student_id)
 
 
 @router.post("/{job_id}/practice")
 async def practice_write(job_id: str, request: Request, course_store=Depends(resolve_course_store)):
     from starlette.concurrency import run_in_threadpool
     payload = await _body(request)
-    student_job(storage(course_store), job_id, payload.get("student_id", ""))
-    return await run_in_threadpool(handout_practice.mutate, course_store, storage(course_store), job_id, payload)
+    store = storage(course_store)
+    student_job(store, job_id, payload.get("student_id", ""))
+    await handout_practice.prepare_choices(store, job_id)
+    return await run_in_threadpool(handout_practice.mutate, course_store, store, job_id, payload)
 
 
 @router.get("/{job_id}/sources/{document_id}/{index}")

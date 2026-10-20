@@ -12,7 +12,7 @@
       $('journeyTab').onclick=()=>actions.changeView('journey');
       $('overviewTab').onclick=()=>actions.changeView('overview');
       $('studyTab').onclick=()=>actions.changeView('study');
-      $('continueLesson').onclick=()=>{if(!this.state.workspace.onboarded){this.show('journey');$('onboarding').hidden=false;$('goals').focus();}else actions.study(this.selected);};
+      $('continueLesson').onclick=()=>{if(!this.state.workspace.onboarded){this.show('journey');$('onboarding').hidden=false;$('onboardContinue').focus();}else actions.study(this.selected);};
       $('overviewChapter').onchange=()=>{this.chapter=$('overviewChapter').value;this.drawMap();};
       $('mapColorMode').onchange=()=>this.drawMap();
       $('fitCourseMap').onclick=()=>this.network?.fit();

@@ -11,11 +11,13 @@ from unittest.mock import AsyncMock, patch
 from test_learning_workspace import platform_fixture, publish_synthetic
 from learning_agent.course_graph import CourseGraphStore, CourseGraphError
 from learnmargin.demo import demo_lesson
-from learnmargin.models import APIConfig, Document, SourceUnit
+from learnmargin.models import APIConfig, Document, SourceUnit, Practice, GeneratedPractice, GeneratedStudyPrompt
 from learnmargin.storage import atomic_json
+from learnmargin.rendering import render_lesson
 from pliac import margin, learning_scope, handout_practice
 from pliac.margin_graph import overview_map
 from pliac.workspace import LearningWorkspace
+from pliac.answer_options import build_choice_bundle, register_generated
 
 
 class ScopeTests(unittest.IsolatedAsyncioTestCase):
@@ -123,6 +125,96 @@ class ScopeTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(2, learner["evidence"][0]["prompt_level"])
         self.assertEqual(job["scope"], learner["evidence"][0]["context"]["scope"])
         self.assertTrue(all(s["status"] != "mastered" for s in learner["states"].values()))
+
+    def test_generated_practice_requires_actual_distinct_answer_options(self):
+        data = dict(id="q", prompt="求 P(R|S) 并判断独立性", hint="检查分母", answer="2/5，独立")
+        self.assertFalse(Practice(**data).options)  # Old artifacts remain loadable.
+        with self.assertRaises(ValueError):
+            GeneratedPractice(**data)
+        options = [{"id": "A", "text": "2/5，独立"}, {"id": "B", "text": "1/10，不独立"},
+                   {"id": "C", "text": "1/4，独立"}]
+        generated = GeneratedPractice(**data, options=options, answer_key="A")
+        self.assertEqual(generated.options[0].text, "2/5，独立")
+        with self.assertRaises(ValueError):
+            GeneratedPractice(**data, options=options, answer_key="D")
+        with self.assertRaises(ValueError):
+            GeneratedPractice(**data, options=[options[0], options[0], options[2]], answer_key="A")
+        sidebar = dict(id="s", kind="question", placement="after_example", when="看完例题后",
+                       task=data["prompt"], check="核对条件", answer=data["answer"])
+        with self.assertRaises(ValueError):
+            GeneratedStudyPrompt(**sidebar)
+        self.assertEqual(len(GeneratedStudyPrompt(**sidebar, options=options, answer_key="A").options), 3)
+
+    def test_choices_validate_scope_and_keep_supplement_and_exposure_separate(self):
+        job = self.seed_job()
+        folder = self.store.directory("jobs", job["id"])
+        lesson = learning_scope.saved(self.store, job["id"], "lesson.json")
+        question = next(item for section in lesson["sections"] for item in section.get("practice", []))
+        question.update(options=[{"id": "A", "text": "2/5，独立"}, {"id": "B", "text": "1/10，不独立"},
+                                 {"id": "C", "text": "1/4，独立"}], answer_key="A")
+        atomic_json(folder / "lesson.json", lesson)
+        state = handout_practice.view(self.course, self.store, job["id"], "choices")
+        original = next(item for item in state["questions"] if item["kind"] == "practice")
+        self.assertEqual(original["options"], question["options"])
+        self.assertNotIn("answer_key", original)
+        self.assertIsNone(original["answer"])
+        legacy = next(item for item in state["questions"] if item["kind"] == "study_question")
+        legacy_bundle = build_choice_bundle(legacy["original_prompt"], existing_options=[
+            {"id": "A", "text": "P(A|B) 的分母为戴眼镜的10人，P(B|A) 的分母为社团成员12人。"},
+            {"id": "B", "text": "两个条件概率都以全班30人为分母。"},
+            {"id": "C", "text": "两个条件概率都以同时满足条件的6人为分母。"}], answer_key="A",
+            scope=f"handout:{job['id']}:{legacy['id']}")
+        legacy_bundle["origin"] = "model_generated"
+        register_generated(f"handout:{job['id']}:{legacy['id']}", legacy_bundle)
+        state = handout_practice.view(self.course, self.store, job["id"], "choices")
+        upgraded = next(item for item in state["questions"] if item["id"] == legacy["id"])
+        self.assertNotIn("check", upgraded)
+        self.assertIsNone(upgraded["hint"])
+        self.assertEqual(upgraded["prompt"], legacy["original_prompt"])
+        self.assertEqual(len(upgraded["options"]), 3)
+        self.assertEqual(upgraded["origin"], "model_generated")
+        def payload(operation="answer", **values):
+            return dict(student_id="choices", expected_version=state["version"], request_id=uuid.uuid4().hex,
+                        question_id=original["id"], operation=operation, **values)
+        for fields in ({"choice_id": "outside"}, {"choice_id": "A", "option_set_id": "forged"}):
+            with self.assertRaises(CourseGraphError):
+                handout_practice.mutate(self.course, self.store, job["id"], payload(**fields))
+        state = handout_practice.mutate(self.course, self.store, job["id"], payload(
+            "draft", choice_id="B", option_set_id=original["option_set_id"], text="optional draft"))
+        self.assertEqual(state["choice_drafts"][original["id"]], "B")
+        state = handout_practice.mutate(self.course, self.store, job["id"], payload("hint"))
+        submission = payload(choice_id="B", option_set_id=original["option_set_id"], text="", choice_text="forged text")
+        state = handout_practice.mutate(self.course, self.store, job["id"], submission)
+        self.assertEqual(handout_practice.mutate(self.course, self.store, job["id"], submission), state)
+        record = self.course._read_learner("choices")
+        evidence = record["evidence"][0]
+        self.assertIn("1/10，不独立", evidence["text"])
+        self.assertNotIn("forged text", evidence["text"])
+        self.assertEqual(evidence["context"]["supplement"], "")
+        self.assertEqual(evidence["context"]["answer_mode"], "recognition")
+        self.assertEqual(evidence["prompt_level"], 1)
+        self.assertEqual(record["diagnoses"], [])
+        self.assertEqual(state["drafts"], {})
+        self.assertEqual(state["choice_drafts"], {})
+
+    async def test_new_options_preserve_a4_and_wide_pagination_and_navigation(self):
+        lesson = demo_lesson()
+        options = [{"id": "A", "text": "条件概率以已知事件中的人数为分母，并保留交集中同时满足两个条件的人数。"},
+                   {"id": "B", "text": "条件概率总以全部样本为分母，无论已经给定了什么条件，抽取范围都不变化。"},
+                   {"id": "C", "text": "条件概率以交集人数为分母，并用全部样本的人数作为分子，得到比较的比例。"}]
+        sidebar = lesson.sections[0].study_prompts[0]
+        sidebar.options = Practice(id="q", prompt="q", hint="h", answer="a",
+                                   options=options, answer_key="A").options
+        sidebar.answer_key = "A"
+        practice = lesson.sections[1].practice[0]
+        practice.options = sidebar.options
+        practice.answer_key = "A"
+        for layout in ("a4", "wide"):
+            result = await render_lesson(lesson, Path(self.tmp.name) / ("render-" + layout), layout=layout)
+            self.assertTrue(result["content_preserved"])
+            self.assertEqual(result["overflow"], [])
+            self.assertEqual(result["browser_errors"], [])
+            self.assertTrue(result["sidebar_navigation"])
 
     async def test_generation_scopes_and_versions_keep_jobs_separate(self):
         calls = []

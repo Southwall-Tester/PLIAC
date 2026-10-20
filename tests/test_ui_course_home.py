@@ -89,7 +89,7 @@ def main():
                 page.screenshot(path=str(OUTPUT / 'course-home-desktop.png'), full_page=True)
                 passed('Course opens real course graph; chapter selection and browsing do not create lessons')
                 page.locator('#journeyTab').click()
-                page.locator('#goals').fill('理解数据划分，并能用实验说明选择模型的依据。')
+                expect(page.locator('#goals')).to_have_count(0)
                 page.locator('#onboardForm button[type=submit]').click()
                 complete_baseline(page)
                 expect(page.locator('#readingWorkspace')).to_be_visible()
@@ -116,10 +116,12 @@ def main():
                 assert state()['current_lesson']['discussions'][0]['response_origin'] == 'course_material'
                 assert state()['learner']['states']['sample']['status'] != 'mastered'
                 assert not state()['learner']['diagnoses']
+                page.locator('#answerSupplement > summary').click()
                 page.locator('#answerText').fill('我的实验前思考')
                 page.locator('#lessonLabLink').click()
                 expect(page.locator('#studentId')).to_have_value(student)
                 expect(page.locator('#setup')).to_be_visible()
+                page.locator('#labPreferences > summary').click()
                 page.locator('#goal').fill('用一次实验检验样本与标签的区分。')
                 page.locator('#startForm button').click()
                 expect(page.locator('#progress')).to_have_text('0 / 5')

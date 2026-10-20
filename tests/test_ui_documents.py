@@ -109,6 +109,21 @@ def assert_left_toolbar(page):
 
 @contextmanager
 def isolated_application(directory, *, auth_required=False):
+    from pliac import choice_generation
+    from learnmargin.models import APIConfig
+
+    async def synthetic_choices(items):
+        # Explicit synthetic provider: browser tests never consume live model quotas.
+        return choice_generation.ChoiceReply(items=[
+            choice_generation.ChoiceItem(
+                item_id=item["item_id"],
+                options=[
+                    choice_generation.Option(id="A", text=(item["reference_answer"] or item["context"])[:1000]),
+                    choice_generation.Option(id="B", text="合成测试干扰项：条件发生变化也始终得到相同结果。"),
+                    choice_generation.Option(id="C", text="合成测试干扰项：只依据名称判断，忽略题目给定条件。"),
+                ], answer_key="A")
+            for item in items])
+
     course = CourseGraphStore(output_dir=directory / "course")
     documents = DocumentStore(directory / "documents")
     with socket.socket() as listener:
@@ -119,6 +134,9 @@ def isolated_application(directory, *, auth_required=False):
                                          log_level="error", access_log=False))
     thread = threading.Thread(target=server.run, daemon=True)
     with patch.object(api, "store", course), patch.object(document_api, "document_store", documents), \
+            patch.object(choice_generation, "choice_config", return_value=APIConfig(
+                base_url="http://127.0.0.1:9999/v1", api_key="synthetic-only", model="synthetic-choice")), \
+            patch.object(choice_generation.ChoiceProvider, "choices", side_effect=synthetic_choices), \
             patch.object(app.state, "auth_required", auth_required, create=True), \
             patch.object(app.state, "account_directory", directory / "account", create=True):
         try:

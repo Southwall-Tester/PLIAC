@@ -8,7 +8,7 @@ import uuid
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from learning_agent import api
@@ -16,13 +16,21 @@ from learning_agent.course_graph import CourseGraphError, CourseGraphStore, vali
 from learning_agent.course_catalog import create_course, resolve_course
 from learning_agent.main import app
 from pliac.workspace import LearningWorkspace
+from pliac import api as workspace_api
 from test_course_graph import fixture
 
 
 def platform_fixture():
     graph = fixture()
+    tasks = {
+        "a": ("pwd 的输出表示什么？", "pwd 输出当前工作目录的绝对路径。", "pwd 会把当前目录切换到用户主目录。"),
+        "b": ("grep 没有找到匹配行时退出状态为什么？", "没有匹配行时退出状态为 1。", "没有匹配行时退出状态为 0。"),
+        "c": ("管道把前一条命令的什么交给后一条命令？", "把标准输出连接到后一条命令的标准输入。", "把前一条命令的退出状态作为后一条的全部输入。"),
+        "d": ("for x in 'a one' 'b' 的循环体执行几次？", "执行两次，引号内的 a one 是一个词。", "执行三次，空格总会拆分出额外一项。"),
+    }
     for node in graph["nodes"]:
-        node.update(check_question=f"合成问题：请解释 {node['id']}。", expected_answer="TEACHER_ONLY_ANSWER")
+        prompt, reference, misconception = tasks[node["id"]]
+        node.update(check_question=prompt, expected_answer=reference, misconception=misconception)
         node["check_task"] = {"id": "check_" + node["id"], "version": 1,
                               "rubric": ["TEACHER_ONLY_RUBRIC"], "hint_levels": [f"HINT_{i}" for i in range(1, 5)]}
     return graph
@@ -48,6 +56,7 @@ class WorkspaceTests(unittest.TestCase):
         self.now = datetime(2026, 10, 8, tzinfo=timezone.utc)
         self.store = CourseGraphStore(self.seed, self.root / "records", clock=lambda: self.now)
         self.workspace = LearningWorkspace(self.store)
+        self.enterContext(patch.object(workspace_api, "prepare_choice_requests", new_callable=AsyncMock, return_value={}))
         publish_synthetic(self.store)
 
     def payload(self, student="synthetic", **values):
@@ -111,9 +120,92 @@ class WorkspaceTests(unittest.TestCase):
     def test_student_responses_do_not_expose_teacher_material_or_future_hints(self):
         self.start()
         raw = json.dumps(self.workspace.view("synthetic"))
-        for secret in ("TEACHER_ONLY_ANSWER", "TEACHER_ONLY_RUBRIC", "HINT_1", "HINT_4"):
+        for secret in ("answer_key", "expected_answer", "TEACHER_ONLY_RUBRIC", "HINT_1", "HINT_4"):
             self.assertNotIn(secret, raw)
-        self.assertIn("TEACHER_ONLY_ANSWER", json.dumps(self.workspace.teacher_view("synthetic")))
+        self.assertIn("expected_answer", json.dumps(self.workspace.teacher_view("synthetic")))
+
+    def test_selectable_answer_preserves_selection_and_optional_free_text(self):
+        lesson = self.start()
+        self.assertEqual(lesson["question"], self.store.load_graph()["nodes"][0]["check_question"])
+        self.assertGreaterEqual(len(lesson["options"]), 2)
+        self.assertEqual(lesson["options"], self.workspace.view("synthetic")["current_lesson"]["options"])
+        chosen = lesson["options"][0]
+        view = self.answer(lesson, choice_id=chosen["id"], text="", option_set_id=lesson["option_set_id"])
+        raw = view["learner"]["evidence"][-1]
+        self.assertEqual(raw["text"], "所选答案：" + chosen["text"])
+        self.assertEqual(raw["context"]["free_text"], "")
+        self.assertEqual(raw["context"]["response_mode"], "selection")
+        self.assertEqual(raw["context"]["selection"]["options"], lesson["options"])
+        self.assertEqual(raw["context"]["selection"]["option_text"], chosen["text"])
+        self.assertEqual(view["learner"]["states"]["a"]["status"], "uncertain")
+        self.assertEqual(view["learner"]["diagnoses"], [])
+        with self.assertRaises(CourseGraphError):
+            self.answer(lesson, choice_id="not-an-option", text="")
+        with self.assertRaises(CourseGraphError):
+            self.answer(lesson, choice_id=chosen["id"], option_set_id="stale", text="")
+
+    def test_optional_profile_goals_and_annotation_category(self):
+        lesson = self.start()
+        view = self.workspace.onboard(self.payload(background="一些命令行基础"))
+        self.assertEqual(view["learner"]["profile"]["goals"], "Synthetic goal")
+        paragraph = lesson["paragraphs"][0]
+        result = self.workspace.annotate(self.payload(
+            lesson_id=lesson["id"], paragraph_id=paragraph["id"],
+            quote=paragraph["text"], category="steps", question=""))
+        raw = result["learner"]["evidence"][-1]
+        self.assertEqual(raw["context"], {"category": "steps", "category_label": "步骤推导没跟上", "free_text": ""})
+        self.assertIn("所选困惑：步骤推导没跟上", raw["text"])
+        with self.assertRaises(CourseGraphError):
+            self.workspace.annotate(self.payload(lesson_id=lesson["id"], paragraph_id=paragraph["id"],
+                quote=paragraph["text"], category="made-up", question=""))
+
+    def test_old_saved_lesson_gets_stable_choices_without_rewriting_past_evidence(self):
+        lesson = self.start()
+        with self.store._writer():
+            learner = self.store._read_learner("synthetic")
+            old = learner["workspace"]["lessons"][-1]
+            for field in ("options", "option_set_id", "option_origin", "answer_mode", "original_question"):
+                old.pop(field, None)
+            self.store._commit(learner)
+        first = self.workspace.view("synthetic")["current_lesson"]
+        second = LearningWorkspace(self.store).view("synthetic")["current_lesson"]
+        self.assertEqual(first["options"], second["options"])
+        self.assertEqual(first["option_set_id"], lesson["option_set_id"])
+        result = self.answer(first, text="", choice_id=first["options"][0]["id"])
+        self.assertEqual(result["current_lesson"]["option_set_id"], first["option_set_id"])
+
+    def test_api_prepares_same_default_question_that_next_lesson_freezes(self):
+        from fastapi.testclient import TestClient
+        from pliac.answer_options import register_generated
+        graph = self.store.load_graph("draft")
+        graph["nodes"][0].pop("check_question")
+        graph["nodes"][0].pop("check_task")
+        publish_synthetic(self.store, graph)
+        self.workspace.onboard(self.payload(self_assessments={"a": "new"}))
+        requests_seen = []
+
+        async def prepare(requests, cache_dir):
+            for request in requests:
+                requests_seen.append(request)
+                register_generated(request["scope"], {"prompt": request["prompt"],
+                    "options": [{"id": "A", "text": "当前工作目录的路径"}, {"id": "B", "text": "系统日期"},
+                                {"id": "C", "text": "主机名称"}], "answer_key": "A",
+                    "origin": "model_generated", "answer_mode": "recognition"})
+            return {}
+
+        with patch.object(workspace_api, "prepare_choice_requests", side_effect=prepare), \
+                patch.object(api, "store", self.store), \
+                patch.object(app.state, "auth_required", False, create=True), TestClient(app) as client:
+            response = client.post("/api/learning/next", json=self.payload(node_id="a"))
+            self.assertEqual(response.status_code, 200, response.text)
+            lesson = response.json()["current_lesson"]
+            self.assertEqual(lesson["option_origin"], "model_generated")
+            self.assertEqual(lesson["question"], requests_seen[0]["prompt"])
+            refreshed = client.get("/api/learning", params={"student_id": "synthetic"}).json()["current_lesson"]
+            self.assertEqual(refreshed["options"], lesson["options"])
+            self.assertEqual(refreshed["option_set_id"], lesson["option_set_id"])
+            self.assertEqual(len(requests_seen), 1)
+            self.assertNotIn("answer_key", json.dumps(lesson))
 
     def test_hint_is_server_owned_and_persists_across_restart_and_new_lesson(self):
         lesson = self.start()

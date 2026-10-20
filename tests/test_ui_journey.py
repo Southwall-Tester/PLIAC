@@ -29,12 +29,12 @@ def algorithmic_journey():
 
 def complete_baseline(page):
     """Finish selected prior-knowledge questions, or await a beginner's route."""
-    page.wait_for_function("""() => ['baselinePanel','personalRoute','journeyProgress'].some(id=>{
+    page.wait_for_function("""() => ['baselinePanel','personalRoute'].some(id=>{
         const el=document.getElementById(id);return el&&!el.hidden&&el.getClientRects().length;
-    })""")
+    })""", timeout=30000)
     if page.locator("#baselinePanel").is_visible():
-        for field in page.locator("[data-baseline]").all():
-            field.fill("学过这个概念，需要结合例子重新核验。")
+        for question in page.locator(".baseline-question").all():
+            question.locator("[data-baseline-choice]").first.check()
         page.locator("#baselineForm button[type=submit]").click()
     expect(page.locator("#personalRoute")).to_be_visible(timeout=15000)
     page.locator("#beginRoute").click()
@@ -53,6 +53,8 @@ def mark_known(page, node_id, confidence="confident"):
 
 def expect_beginner_defaults(page, count):
     expect(page.locator("#onboarding")).to_be_visible()
+    expect(page.locator("#goals")).to_have_count(0)
+    assert not page.locator("#profileDetails").evaluate("el=>el.open")
     expect(page.locator("#allNew")).to_have_count(0)
     expect(page.locator("[data-known]")).to_have_count(count)
     expect(page.locator("[data-known]:checked")).to_have_count(0)
@@ -149,6 +151,10 @@ def main():
                 node["title"] = title
             graph["nodes"][0].update(check_question="ls 和 cd 分别做什么？", expected_answer="ls列出目录，cd改变当前目录。")
             graph["nodes"][1].update(check_question="搜索文本内容可以使用哪个命令？", expected_answer="grep")
+            graph["nodes"][0]["check_task"]["options"] = [
+                dict(id="A", text="ls会切换目录"), dict(id="B", text="ls列出目录，cd切换目录")]
+            graph["nodes"][1]["check_task"]["options"] = [
+                dict(id="A", text="搜索使用grep"), dict(id="B", text="搜索使用cd")]
             seed = Path(temporary) / "seed.json"
             seed.write_text(json.dumps(graph, ensure_ascii=False), encoding="utf-8")
             store.seed_path = seed
@@ -176,9 +182,6 @@ def main():
             assert page.evaluate("document.documentElement.scrollWidth <= innerWidth + 1")
             page.screenshot(path=str(OUTPUT / "onboarding-mobile.png"), full_page=True)
             page.set_viewport_size({"width": 1440, "height": 1000})
-            page.locator("#goals").fill("能独立定位目录并搜索文本")
-            page.locator("#background").fill("学过一些命令，希望核验理解。")
-            page.locator("#interests").fill("科幻")
             mark_known(page, "a", "confident")
             mark_known(page, "b", "unsure")
             expect(page.locator('[data-assess="c"]')).to_have_value("new")
@@ -191,13 +194,26 @@ def main():
             expect(page.locator('[data-baseline="c"]')).to_have_count(0)
             expect(page.locator('[data-baseline="d"]')).to_have_count(0)
             expect(page.locator(".baseline-question").filter(has=page.locator('[data-baseline="a"]'))).to_contain_text("我认为已经会了")
-            page.locator('[data-baseline="a"]').fill("ls会切换目录")
-            page.locator('[data-baseline="b"]').fill("搜索使用grep")
+            page.locator('[data-baseline-choice="a"][value="A"]').check()
+            page.locator('[data-baseline-choice="b"][value="A"]').check()
+            assert page.locator("[data-baseline]").evaluate_all("fields=>fields.every(field=>field.value==='')")
+            page.reload()
+            expect(page.locator('[data-baseline-choice="a"][value="A"]')).to_be_checked()
+            expect(page.locator('[data-baseline-choice="b"][value="A"]')).to_be_checked()
             page.locator("#baselineForm button[type=submit]").click()
             expect_planning_progress(page)
             page.screenshot(path=str(OUTPUT / "route-planning.png"), full_page=True)
+            pending_reloads = []
+            page.route("**/api/learning?*", lambda route: pending_reloads.append(route))
             model_gate.set()
             expect(page.locator("#personalRoute")).to_be_visible(timeout=15000)
+            expect(page.locator("#beginRoute")).to_be_disabled()
+            page.wait_for_timeout(100)
+            assert pending_reloads
+            for reload_request in pending_reloads:
+                reload_request.continue_()
+            page.unroute("**/api/learning?*")
+            expect(page.locator("#beginRoute")).to_be_enabled()
             expect(page.locator("#journeyProgress")).to_be_hidden()
             expect(page.locator("#routeSummary")).to_contain_text("校正路径定位")
             page.locator("#entryCalibration summary").click()
@@ -207,9 +223,12 @@ def main():
             page.screenshot(path=str(OUTPUT / "calibrated-route.png"), full_page=True)
             report["checks"].append("Initial defaults are new; two selected learned topics produce exactly two calibration questions")
             report["checks"].append("Planning shows the real model stage and increasing elapsed time without a fabricated percentage")
+            report["checks"].append("A ready route waits for the updated learner snapshot before enabling lesson entry")
             assert contexts[0]["self_assessments"]["a"] == "confident"
             assert contexts[0]["self_assessments"]["b"] == "unsure"
             assert {question["node_id"] for question in contexts[0]["questions"]} == {"a", "b"}
+            assert all(answer["choice_id"] == "A" and answer.get("text", "") == ""
+                       for answer in assessments[0]["answers"])
             first_record = store.load_learner(first_user["student_id"])
             assert all(state["status"] != "mastered" for state in first_record["states"].values())
             assert not first_record["diagnoses"]
@@ -223,7 +242,25 @@ def main():
             assert prepares[-1]["assistant_owner"] == first_user["assistant_owner"]
             expect_student_learning_only(page)
             page.screenshot(path=str(OUTPUT / "current-learning.png"), full_page=True)
+            assert page.locator("#readingWorkspace").evaluate("el=>getComputedStyle(el).gridTemplateColumns.split(' ').length") == 1
+            lesson_box = page.locator("#lessonPanel").bounding_box()
+            practice_box = page.locator("#taskPanel").bounding_box()
+            assert practice_box["y"] >= lesson_box["y"] + lesson_box["height"]
+            page.screenshot(path=str(OUTPUT / "initial-reading-desktop.png"), full_page=True)
+            page.set_viewport_size({"width": 390, "height": 844})
+            assert page.evaluate("document.documentElement.scrollWidth <= innerWidth + 1")
+            page.screenshot(path=str(OUTPUT / "initial-reading-mobile.png"), full_page=True)
+            page.locator('[name=answerChoice][value="B"]').check()
+            page.locator("#answerConfidence").select_option("unsure")
+            page.locator("#answerForm button[type=submit]").click()
+            expect(page.locator("#responses")).to_contain_text("ls列出目录，cd切换目录")
+            response = store.load_learner(first_user["student_id"])["workspace"]["lessons"][-1]["responses"][-1]
+            assert response["context"]["choice_id"] == "B"
+            assert response["context"]["free_text"] == ""
+            assert response["context"]["selection"]["option_text"] == "ls列出目录，cd切换目录"
+            page.set_viewport_size({"width": 1440, "height": 1000})
             report["checks"].append("Begin route starts a lesson and prepares scoped personalized content automatically")
+            report["checks"].append("Onboarding, baseline and lesson practice complete with clicks only; pre-generation content and practice form one column on desktop/mobile")
             with patch.object(margin, "start_generation", side_effect=completed_handout):
                 page.reload()
                 expect(page.locator("#personalizedLessonFrame")).to_have_attribute("data-ready", "true", timeout=30000)
@@ -269,7 +306,8 @@ def main():
             page.locator(f'[data-course-id="{graph["id"]}"] .learning-course').click()
             expect_beginner_defaults(page, len(graph["nodes"]))
             expect(page.locator("#personalRoute")).to_be_hidden()
-            expect(page.locator("#goals")).to_have_value("")
+            expect(page.locator("#goals")).to_have_count(0)
+            expect(page.locator("#background")).to_have_value("")
             forbidden = page.request.get(base + "/api/learning/journey",
                                          params={"student_id": first_user["student_id"], "course_id": graph["id"]})
             assert forbidden.status == 403
@@ -277,7 +315,6 @@ def main():
             assert store.load_learner(first_user["student_id"])["workspace"]["journey"]["active"]["route"]
             report["checks"].append("Switching account isolates the profile, route, evidence and assistant owner")
             model_gate.clear()
-            page.locator("#goals").fill("从零开始学习 Linux 命令")
             page.locator("#onboardContinue").click()
             expect_planning_progress(page)
             expect(page.locator("#baselinePanel")).to_be_hidden()

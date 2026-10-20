@@ -114,6 +114,7 @@ def output_error_summary(error: ValueError | RecursionError, schema: type[BaseMo
         "value_error": "未满足字段约束或字段间条件",
         "question_answer_required": "需要作答的侧栏提示必须填写非空参考答案 answer",
         "action_answer_not_allowed": "流程指导 action 的 answer 必须为 null；新增知识问题使用 question 并提供答案",
+        "answer_options_invalid": "知识题须有3至4个不同的具体答案选项，唯一编号A至D，并用answer_key指定正确选项；流程指导不设选项",
         "guidance_placement_without_practice": "没有 practice 时，侧栏 placement 不能选 before_practice 或 after_practice",
     }
     summaries = []
