@@ -1,3 +1,3 @@
 """PLIAC platform workflows, built on the learning_agent knowledge module."""
 
-VERSION = "0.13.0"
+VERSION = "0.13.1"

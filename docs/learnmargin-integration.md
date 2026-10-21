@@ -28,7 +28,11 @@ PLIAC 复用 LearnMargin 的规划、章节生成、审校、负荷休息规划�
 
 `pip install -r requirements.txt` 后安装浏览器：`python -m playwright install chromium`。现有课程模型配置 `config/models.json` 优先；没有文件时沿用 `LEARNMARGIN_BASE_URL`、`LEARNMARGIN_MODEL`、`LEARNMARGIN_API_KEY` / `DEEPSEEK_API_KEY` 的上游规则。用户在课程内只选择已有章节、生成或取消，无需重新输入材料。
 
-模型项现在接收 `protocol`、`reasoning_effort`、`timeout_seconds`、`vision` 和 `json_mode`，示例见 `config/models.example.json`。不填写思考档位或设置为 JSON `null` 表示使用服务默认行为，不发送思考参数；这与旧代码隐式关闭 DeepSeek 思考不同，可能改变耗时和费用。DeepSeek 已登记的官方模型可用 `"none"` 明确关闭，或选择 `"low"`、`"high"`、`"max"`。其他模型可用选项来自 `src/learnmargin/reasoning.py`，按规范化服务地址、协议和完整模型 ID 匹配；未知网关或模型只能不指定，不猜测转发服务能力。不支持的显式设置会在发送请求前给出中文配置错误，不自动降级或更换模型。能力表来源与边界见[上游适配说明](https://github.com/Southwall-Tester/LearnMargin/blob/49f1f5e5f9cdad05d30982978f715f399416559f/docs/REASONING.md)。
+模型项接收 `protocol`、`reasoning_effort`、`timeout_seconds`、`vision` 和 `json_mode`，示例见 `config/models.example.json`。显式思考档位始终优先。通用 Provider 在未指定档位时沿用服务默认值；PLIAC 的交互式讲义会按阶段填入已适配的档位：规划与普通初稿使用 `none`（不支持关闭的已适配模型使用 `low`），审校及图谱使用 `low`，模型计划标出的复杂章节和完整修复使用 `high`。能力按规范化服务地址、协议和完整模型 ID 匹配；未知网关或模型仍不发送思考参数，不猜测转发能力。模型选择保持原配置。能力表来源与边界见[上游适配说明](https://github.com/Southwall-Tester/LearnMargin/blob/49f1f5e5f9cdad05d30982978f715f399416559f/docs/REASONING.md)。
+
+交互式任务最多并行准备三节。审校先输出检查结论及精确文字修订，通过时保留原稿，局部修订重新通过生成内容的完整 schema 校验；结构性问题或无效修订进入一次完整审校。原材料引用、实质前置缺口与练习编号检查继续执行，检查记录保存在 `section-N-audit.json`。这属于模型审校，不代表教师复核或学习者掌握。
+
+每节通过检查后保存独立检查点；从第一节开始连续完成的内容立即生成 `reading-N.html`，通过账号隔离的 `/api/handouts/{id}/reading?revision=N` 供两个阅读入口使用。图谱与 PDF 继续准备，最终产物接口仍要求任务完成；后续失败或取消保留已完成阅读片段。百分比按实际阶段推进，提前阅读数量单独展示。
 
 没有配置文件时，可设置 `LEARNMARGIN_REASONING_EFFORT`（省略或空值表示不指定）和 `LEARNMARGIN_TIMEOUT_SECONDS`。超时默认 180 秒，可设 10～600 秒，约束单次请求及其重试和响应读取，不是整份讲义总时限。有配置文件时，以文件选中的模型项为准。这些设置用于课程讲义及其概念图谱共用的 LearnMargin Provider，不改变旧资料候选提取模块的调用方式。
 

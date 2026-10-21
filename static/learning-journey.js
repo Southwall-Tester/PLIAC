@@ -248,6 +248,7 @@
       task.jobId=job.id;
       $('autoLessonLink').hidden=false;
       const busy=['queued','running'].includes(job.status);
+      task.readingStatus=job.status;
       this.handoutProgress.update(job);
       if(job.status==='completed'){
         $('autoLessonProgressDetail').hidden=true;
@@ -255,12 +256,17 @@
         $('autoLessonLink').textContent='完整阅读、图谱与重新生成';
         this.openLesson(job,task);
       }else if(busy){
-        $('autoLessonStatus').textContent='讲义正在准备，可以先读下面的课程讲解。';
+        $('autoLessonStatus').textContent=job.ready_sections>0
+          ? `前 ${job.ready_sections}/${job.reading_total} 节已可阅读，后续内容正在准备。`
+          : '讲义正在准备，可以先读下面的课程讲解。';
         $('autoLessonLink').textContent='打开本节讲义与进度';
+        if(job.ready_sections>0)this.openLesson(job,task);
         this.pollLesson(task);
       }else{
-        $('autoLessonStatus').textContent=(job.error||'本节讲义准备已暂停。')+' 课程讲解仍可阅读。';
+        $('autoLessonStatus').textContent=(job.error||'本节讲义准备已暂停。')+
+          (job.ready_sections>0?' 已完成的讲解仍可阅读。':' 课程讲解仍可阅读。');
         $('autoLessonLink').textContent='打开讲义并重新生成';
+        if(job.ready_sections>0)this.openLesson(job,task);
       }
     }
     pollLesson(task,delay=2000){
@@ -286,9 +292,13 @@
       if(task!==this.materialTask)return;
       const frame=$('personalizedLessonFrame'),container=$('personalizedLesson');
       const query=new URLSearchParams({course_id:task.courseId,student_id:task.studentId});
-      const url='/api/handouts/'+encodeURIComponent(job.id)+'/artifacts/lesson.html?'+query;
+      const partial=job.status!=='completed';
+      if(partial)query.set('revision',job.ready_sections);
+      const url='/api/handouts/'+encodeURIComponent(job.id)+(partial?'/reading?':'/artifacts/lesson.html?')+query;
       if(frame.getAttribute('src')===url){this.applyLessonView(this.actions.state());return;}
-      delete frame.dataset.ready;container.dataset.loading='true';container.hidden=false;
+      // Keep the reader's height and the outer page position while more sections arrive.
+      this.frameResize?.disconnect();clearInterval(this.frameTimer);
+      container.dataset.loading='true';container.hidden=false;
       const failed=message=>{
         if(task!==this.materialTask)return;
         clearInterval(this.frameTimer);container.hidden=true;task.jobId='';
@@ -328,7 +338,7 @@
             if(frame.style.height!==height+'px')frame.style.height=height+'px';
           };
           frame.dataset.ready='true';delete container.dataset.loading;
-          $('autoLessonStatus').textContent='本节讲义已准备好。';
+          if(!partial)$('autoLessonStatus').textContent='本节讲义已准备好。';
           this.applyLessonView(this.actions.state());
           this.frameResize?.disconnect();this.frameResize=new ResizeObserver(resize);this.frameResize.observe(doc.body);
           frame.contentWindow.requestAnimationFrame(resize);

@@ -122,6 +122,20 @@
   };
   async function loadLesson(id){const revision=++loadRevision;practice.reset();$('exerciseScreen').hidden=true;$('studyConcept').hidden=true;ready=false;delete $('lessonFrame').dataset.ready;selectedConcept=null;jobId=id;$('conceptTitle').textContent='内容总览';base='/api/handouts/'+encodeURIComponent(id);$('graphScreen').hidden=false;$('readingScreen').hidden=true;$('relationships').innerHTML='';$('conceptSources').innerHTML='';$('evidence').hidden=true;const [nextLesson,nextMap]=await Promise.all([get(base+'/artifacts/lesson.json'),get(base+'/artifacts/knowledge-map.json')]);if(revision!==loadRevision)return;lesson=nextLesson;map=nextMap;window.PLIACAssistant?.setContext({job_id:jobId,title:lesson.title});practice.sections=lesson.sections.map(s=>s.id);$('graphNotice').hidden=!map.notice;$('graphNotice').textContent=map.notice||'';$('title').textContent=lesson.title;$('definition').textContent=lesson.overview.summary;$('outline').innerHTML=lesson.sections.map((s,i)=>`<button data-section="section-${i+1}">${esc(s.title)}</button>`).join('');$('sectionLinks').innerHTML='<a href="#overview" data-section="overview">阅读内容总览</a>';$('conceptList').innerHTML=map.nodes.map(n=>`<button data-concept="${esc(n.id)}" aria-pressed="false">${esc(n.title)}</button>`).join('');$('search').value='';filterConcepts();$('pdfDownload').href=base+'/artifacts/lesson.pdf?'+query;$('pdfDownload').download='讲义.pdf';if(!network)network=new NetworkView($('graph'),select,id=>relation(Number(id.slice(1))));window.marginNetwork=network;await network.setData({nodes:map.nodes.map(n=>({id:n.id,data:{title:n.title},style:{size:24,fill:GraphEncoding.family(n.family_index??Math.max(0,lesson.sections.findIndex(s=>s.id===n.section_ids[0]))),labelFontSize:13}})),edges:map.edges.map((e,i)=>({id:'e'+i,source:e.source,target:e.target,data:{label:e.predicate},style:{endArrow:e.directed,opacity:.6}}))},true);if(revision!==loadRevision)return;$('graph').dataset.ready='true';pending='overview';try{pending=localStorage.getItem('pliac.margin.'+jobId)||'overview';}catch{}if(![...$('readingScreen').querySelectorAll('nav [data-section]')].some(button=>button.dataset.section===pending))pending='overview';markReading(pending);ready=false;$('lessonFrame').removeAttribute('src');$('lessonFrame').dataset.url=base+'/artifacts/lesson.html?'+query;}
   let polling,shown=null,activeJob=null,latestScopeData=null;
+  function loadPartial(job){
+    const key=job.id+':reading:'+job.ready_sections;
+    if(shown===key)return;
+    const sameJob=jobId===job.id;
+    loadRevision++;practice.reset();selectedConcept=null;lesson=null;map=null;
+    jobId=job.id;base='/api/handouts/'+encodeURIComponent(job.id);shown=key;
+    $('outline').innerHTML=(job.reading_sections||[]).map((title,i)=>
+      `<button data-section="section-${i+1}">${esc(title)}</button>`).join('');
+    $('title').textContent=job.title;
+    $('pdfDownload').hidden=true;
+    if(!sameJob)pending='overview';
+    $('lessonFrame').dataset.url=base+'/reading?revision='+job.ready_sections+'&'+query;
+    show('read');
+  }
   function pollRefresh(delay=2000){
     clearTimeout(polling);
     const scopeKey=new URLSearchParams(selection).toString();
@@ -164,7 +178,13 @@
     $('jobStatus').textContent=submitting?'正在提交生成任务':latest?.status==='failed'?latest.error:latest?.status==='cancelled'?'已取消':latest?.status==='completed'?(latest.page_count?'讲义 '+latest.page_count+' 页':'讲义已完成'):'使用本范围已有资料';
     $('generationNotice').hidden=!busy;
     $('generationNotice').textContent=authorMode?(submitting?'正在提交本范围的生成任务。':completed?'正在生成新版本，当前版本可继续阅读。生成完成后会自动打开新版本。':'正在生成本范围的图谱、讲义与习题，完成后会自动打开。可返回上一级继续学习，再次进入本范围可查看进度。'):(completed?'正在根据最新学习画像准备新版本，当前版本可继续学习。':'正在为你准备讲解、例题与练习。可以先阅读下面的课程讲解，完成后会自动打开。');
-    $('scopeEmpty').hidden=completed||busy;
+    const readable=jobs.find(j=>j.ready_sections>0);
+    if(readable&&!completed){
+      $('generationNotice').hidden=false;
+      $('generationNotice').textContent=`前 ${readable.ready_sections}/${readable.reading_total} 节已可阅读。`+
+        (busy?'后续讲解、图谱和 PDF 正在准备。':'已完成的讲解已保存，可以继续阅读。');
+    }
+    $('scopeEmpty').hidden=completed||busy||!!readable;
     $('scopeEmpty').textContent=authorMode?(latest?.status==='failed'?'点击“重新生成图谱、讲义与习题”重试；已有课程图谱可从上方打开。':latest?.status==='cancelled'?'生成已取消，可重新生成本范围的图谱、讲义与习题。':'本范围可生成 AI 讲义与习题。已有课程图谱可从上方打开。'):(data.scope.kind==='course'?'从个性化学习路线进入一个片段，系统会自动准备适合你的讲解与练习。':latest?.status==='failed'?'本次准备遇到问题，可以先读课程讲解，再点击“重新生成”继续准备。':latest?.status==='cancelled'?'准备已暂停，可以继续阅读课程讲解，或重新生成。':'正在读取学习画像并准备当前学习片段。');
   }
   function writeLocation(){
@@ -212,10 +232,13 @@
     const jobs=data.scope_jobs,active=activeJob;
     const completedJobs=jobs.filter(j=>j.status==='completed');
     const completed=completedJobs.find(j=>j.id===preferredJob)||completedJobs[0];
+    const partial=jobs.find(j=>j.ready_sections>0);
     $('versionChoice').hidden=completedJobs.length<2;
     $('unitVersion').innerHTML=completedJobs.map((j,i)=>`<option value="${j.id}">${esc(j.title)}${j.learning_mode?' · '+(j.learning_mode==='exam_review'?'期末复习':'初次学习'):''} · ${esc(j.created_at.slice(0,16))}${i===0?' · 最新':''}</option>`).join('');
     for(const id of ['mapMode','readMode','exerciseMode'])$(id).disabled=!completed;
-    if(completed){$('unitVersion').value=completed.id;if(shown!==completed.id){const viewAtLoad=viewRevision;await loadLesson(completed.id);if(revision!==refreshRevision)return;shown=completed.id;show(viewAtLoad===viewRevision?(initialView==='read'?'read':'graph'):selectedView);}writeLocation();$('sourceLesson').hidden=true;}
+    $('readMode').disabled=!completed&&!partial;
+    if(completed){$('pdfDownload').hidden=false;$('unitVersion').value=completed.id;if(shown!==completed.id){const viewAtLoad=viewRevision;await loadLesson(completed.id);if(revision!==refreshRevision)return;shown=completed.id;show(viewAtLoad===viewRevision?(initialView==='read'?'read':'graph'):selectedView);}writeLocation();$('sourceLesson').hidden=true;}
+    else if(partial){loadPartial(partial);writeLocation();$('sourceLesson').hidden=true;}
     else{$('graphScreen').hidden=true;$('readingScreen').hidden=true;$('exerciseScreen').hidden=true;}
     clearTimeout(polling);if(active)pollRefresh();
     if(!authorMode&&data.scope.kind!=='course'&&!preparedScopes.has(data.scope.key)){

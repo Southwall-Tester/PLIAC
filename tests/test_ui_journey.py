@@ -94,6 +94,20 @@ def completed_handout(course_store, body, personalization=None):
     return job
 
 
+def partial_handout(course_store, body, personalization=None):
+    job = completed_handout(course_store, body, personalization)
+    job.update(status="running", progress=50, stage="准备后续讲解")
+    lesson = demo_lesson()
+    lesson.title = job["title"]
+    total = len(lesson.sections)
+    lesson.sections = lesson.sections[:1]
+    margin.publish_reading(margin.storage(course_store), job, lesson, total)
+    task = asyncio.create_task(asyncio.sleep(600))
+    margin.TASKS[job["id"]] = task
+    task.add_done_callback(lambda _: margin.TASKS.pop(job["id"], None))
+    return job
+
+
 def expect_planning_progress(page):
     expect(page.locator("#journeyProgress")).to_be_visible()
     expect(page.locator("#journeyProgressBar")).to_have_attribute("role", "progressbar")
@@ -160,7 +174,8 @@ def main():
             store.seed_path = seed
             publish_synthetic(store)
             browser = p.chromium.launch()
-            page = browser.new_page(viewport={"width": 1440, "height": 1000})
+            context = browser.new_context(viewport={"width": 1440, "height": 1000})
+            page = context.new_page()
             page.on("pageerror", lambda error: report["page_errors"].append(str(error)))
             page.on("request", lambda request: prepares.append(request.post_data_json)
                     if request.method == "POST" and "/api/handouts/prepare" in request.url else None)
@@ -263,9 +278,38 @@ def main():
             page.set_viewport_size({"width": 1440, "height": 1000})
             report["checks"].append("Begin route starts a lesson and prepares scoped personalized content automatically")
             report["checks"].append("Onboarding, baseline and lesson practice complete with clicks only; pre-generation content and practice form one column on desktop/mobile")
-            with patch.object(margin, "start_generation", side_effect=completed_handout):
+            with patch.object(margin, "start_generation", side_effect=partial_handout):
                 page.reload()
                 expect(page.locator("#personalizedLessonFrame")).to_have_attribute("data-ready", "true", timeout=30000)
+            expect(page.locator("#autoLessonStatus")).to_contain_text("前 1/2 节已可阅读")
+            frame = page.frame_locator("#personalizedLessonFrame")
+            expect(frame.locator("#pages #section-1")).to_be_visible()
+            expect(frame.locator("#pages #section-2")).to_have_count(0)
+            handouts = margin.storage(store)
+            partial = next(job for job in handouts.jobs() if job.get("ready_sections"))
+            partial_id = partial["id"]
+            page.screenshot(path=str(OUTPUT / "partial-reading-desktop.png"), full_page=True)
+            other = page.context.new_page()
+            other.goto(base + "/course-reader?" + f"course_id={graph['id']}&job_id={partial_id}&node_id=a")
+            expect(other.locator("#lessonFrame")).to_have_attribute("data-ready", "true", timeout=30000)
+            expect(other.locator("#generationNotice")).to_contain_text("前 1/2 节已可阅读")
+            expect(other.locator("#pdfDownload")).to_be_hidden()
+            other.close()
+            full = demo_lesson()
+            full.title = partial["title"]
+            margin.publish_reading(handouts, partial, full, len(full.sections))
+            expect(frame.locator("#pages #section-2")).to_be_visible(timeout=15000)
+            partial.update(status="failed", stage="合成后续阶段失败", error="合成图谱阶段失败")
+            handouts.save_job(partial)
+            expect(page.locator("#autoLessonStatus")).to_contain_text("已完成的讲解仍可阅读", timeout=15000)
+            page.reload()
+            expect(page.locator("#personalizedLessonFrame")).to_have_attribute("data-ready", "true", timeout=30000)
+            expect(frame.locator("#pages #section-2")).to_be_visible()
+            report["checks"].append("Validated first section opens before completion in both readers; later sections append and survive downstream failure/refresh")
+            partial.update(status="completed", progress=100, error=None, stage="合成完成")
+            handouts.save_job(partial)
+            page.reload()
+            expect(page.locator("#personalizedLessonFrame")).to_have_attribute("data-ready", "true", timeout=30000)
             frame = page.frame_locator("#personalizedLessonFrame")
             expect(frame.locator("h1").first).to_have_text("合成个性化讲义 · 路径定位")
             expect(frame.locator(".sheet").first).to_be_visible()

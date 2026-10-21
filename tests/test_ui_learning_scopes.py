@@ -86,7 +86,8 @@ def main():
                 job = response.value.json()
                 assert response.value.status == 200, job
                 page.wait_for_function("id=>new URL(location.href).searchParams.get('job_id')===id", arg=job["id"], timeout=60000)
-                expect(page.locator("#graphScreen")).to_be_visible()
+                # A job URL is available as soon as its first readable prefix appears.
+                expect(page.locator("#graphScreen")).to_be_visible(timeout=60000)
                 return job
             release_stage = threading.Event()
             async def staged_lesson(*args):
@@ -151,7 +152,7 @@ def main():
                 finally:
                     release_stage.set()
                 page.wait_for_function("id=>new URL(location.href).searchParams.get('job_id')===id", arg=chapter_job["id"], timeout=60000)
-                expect(page.locator("#graphScreen")).to_be_visible()
+                expect(page.locator("#graphScreen")).to_be_visible(timeout=60000)
                 expect(page.locator("#generationNotice")).to_be_hidden()
                 expect(page.locator("#jobProgress")).to_be_hidden()
                 expect(page.locator("#cancelJob")).to_be_hidden()

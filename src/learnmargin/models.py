@@ -65,6 +65,7 @@ class GenerateRequest(Model):
     language: str = Field(default="简体中文", min_length=1, max_length=80)
     layout: Literal["a4", "wide"] = "a4"
     reading_mode: Literal["auto", "handwritten"] = "auto"
+    delivery_mode: Literal["complete", "interactive"] = "complete"
 
     @model_validator(mode="before")
     @classmethod
@@ -100,6 +101,8 @@ class PlannedSection(Model):
     title: str
     objective: str
     source_refs: list[str] = Field(min_length=1)
+    reasoning_depth: Literal["standard", "complex"] = Field(default="standard",
+        description="普通概念解释与操作示范选standard；需要多步证明、复杂计算或严格辨析条件时选complex。")
     guidance_focus: str = Field(default="", max_length=600,
         description="本节在哪个学习节点需要什么帮助、为什么适合；可选看示范、独立尝试、反馈纠错、"
         "提取、卡点处理、迁移或复习等，不是题目清单。结合前后节避免重复；无需指导可留空。")

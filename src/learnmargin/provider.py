@@ -161,6 +161,28 @@ class Provider:
         self._observation = ContextVar("provider_observation", default=None)
         self._task_id = ContextVar("provider_task_id", default=None)
         self._stream_unsupported = False
+        self.adaptive_reasoning = False
+        self._reasoning = ContextVar("provider_reasoning", default="low")
+
+    @contextmanager
+    def reasoning_scope(self, effort: str):
+        token = self._reasoning.set(effort)
+        try:
+            yield
+        finally:
+            self._reasoning.reset(token)
+
+    def effective_reasoning_config(self):
+        """Interactive policy only fills an unspecified, documented native control."""
+        config = self.config
+        profile = reasoning_profile(config)
+        effort = self._reasoning.get()
+        if profile and effort == "none" and not any(option["value"] == "none" for option in profile["options"]):
+            effort = "low"
+        if (self.adaptive_reasoning and config.reasoning_effort is None and profile
+                and effort in {option["value"] for option in profile["options"]}):
+            return config.model_copy(update={"reasoning_effort": effort})
+        return config
 
     @contextmanager
     def observe_task(self, task_id: str):
@@ -559,7 +581,7 @@ class Provider:
                       {"role": "user", "content": content if encoded else user}], "max_tokens": DEFAULT_OUTPUT_TOKENS}
             if self.config.json_mode:
                 result["response_format"] = {"type": "json_object"}
-        result.update(reasoning_parameters(self.config))
+        result.update(reasoning_parameters(self.effective_reasoning_config()))
         if (self.config.protocol == "chat_completions"
                 and self.config.base_url == "https://api.openai.com/v1"
                 and reasoning_profile(self.config) is not None):

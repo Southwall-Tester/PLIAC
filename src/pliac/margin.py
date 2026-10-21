@@ -15,7 +15,7 @@ from learnmargin.config import default_api, resolve_api
 from learnmargin.models import APIConfig, Document, SourceUnit, GenerateRequest, Scope, Lesson, LessonPlan, LessonSection
 from learnmargin.pipeline import generate_lesson, validate_material, make_units
 from learnmargin.provider import Provider
-from learnmargin.rendering import render_lesson
+from learnmargin.rendering import build_html, render_lesson
 from learnmargin.storage import Store, atomic_json, new_id, now
 from .margin_graph import generate_map
 from . import learning_scope, handout_practice
@@ -144,9 +144,29 @@ def readable_guidance(lesson):
     return lesson
 
 
+def publish_reading(store, job, lesson, total):
+    """Publish an immutable, validated prefix independently of graph/PDF completion."""
+    count = len(lesson.sections)
+    if count <= job.get("ready_sections", 0):
+        return
+    output = store.directory("jobs", job["id"])
+    html = build_html(readable_guidance(lesson.model_copy(deep=True)))
+    output.mkdir(parents=True, exist_ok=True)
+    target = output / f"reading-{count}.html"
+    temporary = target.with_suffix(".tmp")
+    temporary.write_text(html, encoding="utf-8")
+    temporary.replace(target)
+    # Advertise availability only after the complete HTML is installed.
+    job.update(ready_sections=count, reading_total=total, reading_ready_at=now(),
+               reading_sections=[section.title for section in lesson.sections])
+    store.save_job(job)
+
+
 async def run_job(store, job, request, docs, origins):
     output = store.directory("jobs", job["id"])
     progress = ProgressReporter(store, job)
+    if request.delivery_mode == "interactive":
+        progress.section_ready = lambda lesson, total: publish_reading(store, job, lesson, total)
     heartbeat = asyncio.create_task(progress.heartbeat())
     try:
         job["status"] = "running"
@@ -158,6 +178,7 @@ async def run_job(store, job, request, docs, origins):
         atomic_json(output / "materials.json", {"documents":[doc.model_dump() for doc in docs], "origins":origins})
         async with Provider(request.api) as provider:
             provider.observer = progress.model_event
+            provider.adaptive_reasoning = request.delivery_mode == "interactive"
             checkpoint = output / "lesson.json"
             lesson = None
             if checkpoint.is_file():
@@ -172,6 +193,8 @@ async def run_job(store, job, request, docs, origins):
             if job.get("scope") and not any(section.practice for section in lesson.sections):
                 raise ValueError("这次讲义没有生成范围内练习，请重新生成完整学习单元。")
             atomic_json(checkpoint, lesson.model_dump())
+            if request.delivery_mode == "interactive":
+                publish_reading(store, job, lesson, len(lesson.sections))
             progress.data["sections"] = {"completed": len(lesson.sections), "total": len(lesson.sections)}
             progress("生成知识概念及关系", 82)
             concept_map = await generate_map(lesson, provider, progress=progress)
@@ -316,7 +339,7 @@ def start_generation(course_store, body, personalization=None):
         notes += compact_profile_notes(personalization["profile_context"], max(2, 2000-len(notes)))
     request_data = GenerateRequest(document_ids=[d.id for d in docs], api=api,
         scope=Scope(mode="topics", topics=scope["title"]) if scope["kind"] in {"node", "concept"} else Scope(),
-        learner_notes=notes[:2000], language="简体中文")
+        learner_notes=notes[:2000], language="简体中文", delivery_mode="interactive")
     previous = next((j for j in store.jobs() if learning_scope.key(learning_scope.job_scope(j)) == scope["key"]
                      and j["course_version"] == graph["version"] and j["status"] == "failed"
                      and not j.get("student_id")), None) if not personalization else None
@@ -441,6 +464,18 @@ async def prepare(request: Request, course_store=Depends(resolve_course_store)):
     return start_generation(course_store, {"scope": scope}, {
         "student_id": student, "profile_fingerprint": signature, "profile_context": context,
         "learning_mode": mode, "feedback": feedback, "prepare_request_id": receipt})
+
+
+@router.get("/{job_id}/reading")
+def reading(job_id: str, revision: int = 0, course_store=Depends(resolve_course_store), student_id: str = ""):
+    store = storage(course_store)
+    job = student_job(store, job_id, student_id)
+    count = job.get("ready_sections", 0)
+    selected = revision or count
+    if not 1 <= selected <= count:
+        raise CourseGraphError("首节讲解正在准备。", 404)
+    return FileResponse(job_path(store, job_id, f"reading-{selected}.html"), media_type="text/html",
+        headers={"X-Content-Type-Options": "nosniff", "Cache-Control": "private, no-store"})
 
 
 @router.get("/{job_id}/artifacts/{name}")
