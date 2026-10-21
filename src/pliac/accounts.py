@@ -270,6 +270,9 @@ class AccountMiddleware:
             "/health", "/login", "/favicon.ico", "/api/account/me", "/api/account/login",
             "/api/account/register", "/api/account/logout",
         }
+        public = public or (scope["method"] in {"GET", "HEAD"} and path in {
+            "/", "/courses", "/preview", "/api/explore/courses", "/api/explore/preview",
+        })
         if public:
             return await self.app(scope, receive, send)
         request = StarletteRequest(scope, receive=receive)

@@ -39,7 +39,8 @@ class AccountTests(unittest.TestCase):
         self.assertEqual(self.client.get("/api/learning?student_id=anonymous").status_code, 401)
         self.assertEqual(self.client.get("/api/assistant/profile?owner=" + "a" * 32).status_code, 401)
         self.assertEqual(self.client.get("/api/account/me").status_code, 401)
-        response = self.client.get("/?course_id=linux", follow_redirects=False)
+        self.assertEqual(self.client.get("/?course_id=linux", follow_redirects=False).status_code, 200)
+        response = self.client.get("/learn?course_id=linux", follow_redirects=False)
         self.assertEqual(response.status_code, 303)
         self.assertTrue(response.headers["location"].startswith("/login?next="))
         for url in ("/login", "/static/login.js", "/static/login.css", "/health"):

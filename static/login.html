@@ -4,17 +4,19 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>登录 · PLIAC</title>
-  <link rel="stylesheet" href="/static/login.css">
-  <script src="/static/login.js" defer></script>
+  <script src="/static/theme.js?v=28"></script>
+  <link rel="stylesheet" href="/static/theme.css?v=1">
+  <link rel="stylesheet" href="/static/login.css?v=2">
+  <link rel="stylesheet" href="/static/login-theme.css?v=1">
+  <script src="/static/login.js?v=2" defer></script>
 </head>
 <body>
+  <header class="account-toolbar"><a href="/courses">← 返回课程书架</a><button id="themeButton" aria-label="切换到深色模式"></button></header>
   <main class="account-shell">
     <section class="account-intro">
-      <a class="brand" href="/login">PLIAC<span>个性化学习工作台</span></a>
-      <h1>课程 · 实训<br>学习助手</h1>
-      <p class="intro-copy">按课程组织图谱、讲义和练习，随时向助手提问。</p>
-      <div class="intro-items"><span>选课</span><span>自评与核验</span><span>个性化路线</span></div>
-      <p class="account-storage">账号与学习记录保存在当前平台。</p>
+      <a class="brand" href="/courses">PLIAC<span>个性化学习工作台</span></a>
+      <h1>接着上次的地方学</h1>
+      <p class="intro-copy">登录后，保存你的学习进度、专属路线和与助手的对话。</p>
     </section>
     <section class="account-card" aria-labelledby="formTitle">
       <h2 id="formTitle">登录学习空间</h2>

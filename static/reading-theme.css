@@ -1,0 +1,9 @@
+/* The reading palette is scoped to learning surfaces; graph editing keeps its controls. */
+:root.reading-theme{background:#f6f3ec;color:#383b32;--paper:#fffdf8;--ink:#383b32;--muted:#73766a;--line:#e2dfd4;--control-border:#d3d3c7;--hover:#eeece4;--field:#fffdf8}
+.reading-theme body{background:#f6f3ec;color:var(--ink)}
+.reading-theme.network-dark{background:#1c201a;--paper:#242821;--ink:#e4e4d7;--muted:#b2b5a5;--line:#40463a;--control-border:#535c4a;--hover:#353a30;--field:#242821}
+.reading-theme.network-dark body{background:#1c201a;color:var(--ink)}
+.reading-theme .student-home .primary{background:#46604c;border-color:#46604c;color:#fffdf8}
+.reading-theme.network-dark .student-home .primary{background:#9ab798;border-color:#9ab798;color:#1c281b}
+.reading-theme .student-home #lessonContent{line-height:1.95}
+.reading-theme .student-home #lessonContent>h3{font-family:"Noto Serif SC",SimSun,serif;font-weight:600}

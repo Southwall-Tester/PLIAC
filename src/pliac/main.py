@@ -2,7 +2,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
-from fastapi.responses import FileResponse, RedirectResponse
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from learning_agent.api import router, courses_router
@@ -15,6 +15,7 @@ from .margin import router as margin_router, close_jobs
 from .assistant import router as assistant_router, close_chats
 from .accounts import router as account_router, AccountMiddleware
 from .journey import close_journeys
+from .home import router as home_router
 from . import VERSION
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -31,6 +32,7 @@ app = FastAPI(title="PLIAC · 课程个性化学习智能体", version=VERSION, 
 app.add_middleware(AccountMiddleware)
 app.include_router(account_router)
 app.include_router(margin_router)
+app.mount("/static/math", StaticFiles(directory=ROOT / "src/learnmargin/assets/katex"), name="preview-math")
 app.mount("/static", StaticFiles(directory=ROOT / "static"), name="static")
 app.include_router(router)
 app.include_router(courses_router)
@@ -39,6 +41,7 @@ app.include_router(learning_router)
 app.include_router(ml_router)
 app.include_router(linux_router)
 app.include_router(assistant_router)
+app.include_router(home_router)
 
 
 @app.get("/login")
@@ -67,15 +70,16 @@ def documents():
     return FileResponse(ROOT / "static/documents.html")
 
 
-@app.get("/courses")
 @app.get("/manage/courses")
 def courses():
     return FileResponse(ROOT / "static/courses.html")
 
 
 @app.get("/")
+@app.get("/courses")
+@app.get("/preview")
 def home():
-    return RedirectResponse("/courses", status_code=307)
+    return FileResponse(ROOT / "static/home.html")
 
 
 @app.get("/knowledge")

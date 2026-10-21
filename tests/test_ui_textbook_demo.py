@@ -27,7 +27,7 @@ def main():
             errors=[]
             page.on("pageerror",lambda e:errors.append(str(e)))
             page.add_init_script(HOOK)
-            page.goto(base+"/courses")
+            page.goto(base+"/manage/courses")
             card=page.locator(f'[data-course-id="{DEMO_ID}"]')
             expect(card).to_be_visible()
             cards=page.locator('.course-card')

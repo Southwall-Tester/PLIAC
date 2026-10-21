@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>PLIAC · 学习工作台</title>
+  <script src="/static/theme.js?v=28"></script>
+  <link rel="stylesheet" href="/static/theme.css?v=1">
+  <link rel="stylesheet" href="/static/home.css?v=1">
+  <link rel="stylesheet" href="/static/math/katex.min.css">
+  <script defer src="/static/math/katex.min.js"></script>
+  <script defer src="/static/home.js?v=1"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">跳到内容</a>
+  <header class="toolbar">
+    <a class="brand" href="/courses"><span class="brand-mark" aria-hidden="true">P</span>PLIAC</a>
+    <nav aria-label="主导航"><a href="/courses" id="homeNav">学习工作台</a><a href="/courses#courseList">浏览课程</a></nav>
+    <a id="accountLink" href="/login">登录</a><span id="accountName" hidden></span>
+    <a id="manageLink" href="/manage/courses" hidden>课程管理</a><button id="accountLogout" hidden>退出登录</button>
+    <button id="themeButton" aria-label="切换到深色模式"></button>
+  </header>
+  <main id="main">
+    <div id="pageError" class="error" role="alert" hidden></div>
+    <button id="retryLoad" hidden>重新加载</button>
+    <section id="dashboard">
+      <div class="page-heading"><div><p class="eyebrow">我的学习</p><h1>学习工作台</h1></div><p id="welcomeNote">先读一节，再开始学习。</p></div>
+      <section id="resumePanel" class="resume-panel" aria-label="开始或继续学习" hidden></section>
+      <div class="section-heading"><h2>课程书架</h2><label class="search"><span>搜索课程</span><input id="courseSearch" type="search" placeholder="课程名称或主题" autocomplete="off"></label></div>
+      <p id="catalogStatus" role="status">正在打开课程书架…</p>
+      <div id="courseList" class="course-list"></div>
+    </section>
+    <section id="preview" hidden>
+      <a class="back-link" href="/courses">← 返回课程书架</a>
+      <div class="preview-heading"><div><p class="eyebrow">课程预览</p><h1 id="previewTitle"></h1><p id="previewDescription"></p></div><a id="previewStart" class="primary" href="/login">开始学习</a></div>
+      <div class="preview-layout"><aside class="preview-directory"><h2>课程目录</h2><div id="previewChapters"></div></aside>
+        <article class="reading-paper" aria-labelledby="lessonTitle"><p id="lessonChapter" class="eyebrow"></p><h2 id="lessonTitle" tabindex="-1"></h2><div id="previewContent"></div><footer><p>开始学习后，根据你的基础安排学习路线。</p><a id="readingStart" class="primary" href="/login">开始学习</a></footer></article>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

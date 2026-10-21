@@ -2,6 +2,7 @@
   'use strict';
   const $ = id => document.getElementById(id);
   let mode = 'login';
+  $('themeButton').onclick=()=>GraphTheme.toggle();
   const requested = new URL(location.href).searchParams.get('next') || '/courses';
   function safePath(value) {
     try {
