@@ -173,7 +173,10 @@ def main():
                 page.goto(base + '/courses')
                 expect(page.locator('#newCourseButton')).to_be_hidden()
                 expect(page.locator('.edit-course')).to_have_count(0)
-                page.locator('#manageLink').click()
+                # The public browse-first homepage hides management for guests.
+                expect(page.locator('#manageLink')).to_be_hidden()
+                # This fixture disables authentication to exercise the separate author UI.
+                page.goto(base + '/manage/courses')
                 expect(page.locator('#newCourseButton')).to_be_visible()
                 passed('Mobile light/dark layouts fit; course authoring has its own management entry')
                 page.set_viewport_size({'width':1440,'height':1000})
